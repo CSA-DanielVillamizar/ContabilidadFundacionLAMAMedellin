@@ -1,0 +1,280 @@
+@page "/gerencia-negocios/clientes/{id:guid}"
+@using Server.DTOs.Clientes
+@using Server.Services.Clientes
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ToastService Toast
+
+<PageTitle>Detalle Cliente - LAMA Medellín</PageTitle>
+
+<div class="container-fluid py-4">
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <p class="text-muted mt-3">Cargando detalle del cliente...</p>
+        </div>
+    }
+    else if (detalle == null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>Cliente no encontrado
+        </div>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/gerencia-negocios/clientes">Clientes</a></li>
+                        <li class="breadcrumb-item active">@detalle.Nombre</li>
+                    </ol>
+                </nav>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1"><i class="bi bi-person me-2"></i>@detalle.Nombre</h2>
+                        <p class="text-muted mb-0">@detalle.Tipo - @detalle.Identificacion</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-secondary me-2" @onclick="Volver">
+                            <i class="bi bi-arrow-left me-2"></i>Volver
+                        </button>
+                        <AuthorizeView Roles="Admin,Gerente">
+                            <Authorized>
+                                <button class="btn btn-primary" @onclick="EditarCliente">
+                                    <i class="bi bi-pencil me-2"></i>Editar
+                                </button>
+                            </Authorized>
+                        </AuthorizeView>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Información del Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <dt class="text-muted small">NOMBRE COMPLETO</dt>
+                                <dd class="mb-0">@detalle.Nombre</dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">IDENTIFICACIÓN</dt>
+                                <dd class="mb-0">@detalle.Identificacion</dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">TIPO</dt>
+                                <dd class="mb-0"><span class="badge bg-secondary">@detalle.Tipo</span></dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">TELÉFONO</dt>
+                                <dd class="mb-0"><i class="bi bi-telephone me-1"></i>@(detalle.Telefono ?? "No especificado")</dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">EMAIL</dt>
+                                <dd class="mb-0"><i class="bi bi-envelope me-1"></i>@(detalle.Email ?? "No especificado")</dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">PUNTOS FIDELIZACIÓN</dt>
+                                <dd class="mb-0"><span class="badge bg-warning text-dark fs-6">@detalle.PuntosFidelizacion pts</span></dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">LÍMITE DE CRÉDITO</dt>
+                              <dd class="mb-0">@((detalle.LimiteCredito ?? 0).ToString("C0", new System.Globalization.CultureInfo("es-CO")))</dd>
+                            </div>
+                            <div class="col-md-6">
+                                <dt class="text-muted small">ESTADO</dt>
+                                <dd class="mb-0">
+                                    @if (detalle.Activo)
+                                    {
+                                        <span class="badge bg-success">Activo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    }
+                                </dd>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(detalle.Direccion))
+                            {
+                                <div class="col-12">
+                                    <dt class="text-muted small">DIRECCIÓN</dt>
+                                    <dd class="mb-0"><i class="bi bi-geo-alt me-1"></i>@detalle.Direccion</dd>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0"><i class="bi bi-cart me-2"></i>Historial de Ventas</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!historial.Any())
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox display-4 text-muted"></i>
+                                <p class="text-muted mt-3">No hay ventas registradas</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Número</th>
+                                            <th>Fecha</th>
+                                            <th>Total COP</th>
+                                            <th>Total USD</th>
+                                            <th>Productos</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var venta in historial.OrderByDescending(v => v.FechaVenta))
+                                        {
+                                            <tr>
+                                                <td><strong>@venta.NumeroVenta</strong></td>
+                                                <td>@venta.FechaVenta.ToString("dd/MM/yyyy")</td>
+                                           <td>@venta.TotalCOP.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</td>
+                                                    <td>@((venta.TotalUSD ?? 0).ToString("C2", System.Globalization.CultureInfo.CreateSpecificCulture("en-US")))</td>
+                                                <td>@venta.TotalProductos items</td>
+                                                <td>
+                                                    <span class="badge bg-@(GetEstadoBadgeClass(venta.Estado))">@venta.Estado</span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Estadísticas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <dt class="text-muted small mb-2">TOTAL VENTAS</dt>
+                            <dd class="h3 text-primary mb-0">@detalle.TotalVentas</dd>
+                        </div>
+                        <hr />
+                        <div class="mb-4">
+                            <dt class="text-muted small mb-2">TOTAL COMPRADO COP</dt>
+                            <dd class="h4 text-success mb-0">@detalle.TotalCompradoCOP.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</dd>
+                        </div>
+                        <div class="mb-4">
+                            <dt class="text-muted small mb-2">TOTAL COMPRADO USD</dt>
+                            <dd class="h4 text-info mb-0">@detalle.TotalCompradoUSD.ToString("C2", System.Globalization.CultureInfo.CreateSpecificCulture("en-US"))</dd>
+                        </div>
+                        <hr />
+                        <div class="mb-4">
+                            <dt class="text-muted small mb-2">PROMEDIO DE COMPRA</dt>
+                            <dd class="h5 mb-0">@detalle.PromedioCompra.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</dd>
+                        </div>
+                        @if (detalle.UltimaVenta.HasValue)
+                        {
+                            <hr />
+                            <div class="mb-0">
+                                <dt class="text-muted small mb-2">ÚLTIMA VENTA</dt>
+                                <dd class="mb-0">
+                                    <i class="bi bi-calendar-check me-1"></i>
+                                    @detalle.UltimaVenta.Value.ToString("dd/MM/yyyy")
+                                </dd>
+                                <small class="text-muted">Hace @((DateTime.Now - detalle.UltimaVenta.Value).Days) días</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm bg-light">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-3 text-muted"><i class="bi bi-clock-history me-2"></i>Auditoría</h6>
+                        <dl class="row mb-0 small">
+                            <dt class="col-5">Creado:</dt>
+                                <dd class="col-7">@detalle.CreatedAt.ToString("dd/MM/yyyy HH:mm")</dd>
+                                @if (detalle.UpdatedAt.HasValue)
+                            {
+                                <dt class="col-5">Modificado:</dt>
+                                    <dd class="col-7">@detalle.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm")</dd>
+                            }
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ClienteDetalleDto? detalle;
+    private List<VentaClienteDto> historial = new();
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDetalle();
+        await CargarHistorial();
+        cargando = false;
+    }
+
+    private async Task CargarDetalle()
+    {
+        try
+        {
+            detalle = await Http.GetFromJsonAsync<ClienteDetalleDto>($"/api/clientes/{Id}/detalle");
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar detalle: {ex.Message}", "danger");
+        }
+    }
+
+    private async Task CargarHistorial()
+    {
+        try
+        {
+            historial = await Http.GetFromJsonAsync<List<VentaClienteDto>>($"/api/clientes/{Id}/historial") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar historial: {ex.Message}", "danger");
+        }
+    }
+
+    private string GetEstadoBadgeClass(string estado)
+    {
+        return estado.ToLower() switch
+        {
+            "completada" => "success",
+            "pendiente" => "warning",
+            "cancelada" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private void Volver()
+    {
+        Nav.NavigateTo("/gerencia-negocios/clientes");
+    }
+
+    private void EditarCliente()
+    {
+        Nav.NavigateTo($"/gerencia-negocios/clientes/editar/{Id}");
+    }
+}

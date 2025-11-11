@@ -1,0 +1,168 @@
+@page "/admin/correccion-fechas-ingreso-oct-2025"
+@attribute [Authorize(Roles = "Admin,Tesorero")]
+@using Microsoft.EntityFrameworkCore
+@using Server.Data
+@using Server.Models
+@inject AppDbContext Db
+
+<h2>Corrección de Fecha de Ingreso - Nuevos miembros (Octubre 2025)</h2>
+
+<p>Esta herramienta corrige las fechas de ingreso de los 4 nuevos miembros con las fechas exactas entregadas y permite verificar el estado actual en base de datos.</p>
+
+<div class="actions">
+    <button class="btn btn-primary" @onclick="VerificarAsync" disabled="@_busy">Verificar estado</button>
+    <button class="btn btn-success" @onclick="AplicarCorreccionAsync" disabled="@_busy">Aplicar corrección</button>
+    @if (!string.IsNullOrWhiteSpace(_msg))
+    {
+        <span class="ms-3">@_msg</span>
+    }
+    @if (_busy)
+    {
+        <span class="ms-3">Procesando…</span>
+    }
+}</div>
+
+<table class="table mt-3">
+    <thead>
+    <tr>
+        <th>Miembro</th>
+        <th>Fecha esperada</th>
+        <th>Fecha actual en BD</th>
+        <th>Estado</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach (var r in _rows)
+    {
+        <tr>
+            <td>@r.Nombre</td>
+            <td>@r.FechaEsperada.ToString("yyyy-MM-dd")</td>
+            <td>@(r.FechaIngreso.HasValue ? r.FechaIngreso.Value.ToString("yyyy-MM-dd") : "—")</td>
+            <td>
+                @if (r.Ok)
+                {
+                    <span class="text-success">✓ Correcto</span>
+                }
+                else
+                {
+                    <span class="text-warning">⚠️ Diferente</span>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="4">Recuerde: los recibos creados para la actualización de octubre 2025 son 7 en total (CreatedBy = <code>actualizacion_oct_2025</code>).</td>
+        </tr>
+    </tfoot>
+    
+</table>
+
+@code {
+    private bool _busy;
+    private string _msg = string.Empty;
+
+    private readonly (string Nombre, DateOnly Esperada)[] _objetivo = new[]
+    {
+        ("Laura Viviana Salazar Moreno", new DateOnly(2025, 6, 4)),
+        ("José Julián Villamizar Araque", new DateOnly(2025, 6, 4)),
+        ("Gustavo Adolfo Gómez Zuluaga", new DateOnly(2025, 10, 14)),
+        ("Nelson Augusto Montoya Mataute", new DateOnly(2025, 10, 20))
+    };
+
+    private List<Row> _rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await VerificarAsync();
+    }
+
+    private async Task VerificarAsync()
+    {
+        _busy = true; _msg = string.Empty;
+        try
+        {
+            var nombres = _objetivo.Select(x => x.Nombre).ToArray();
+            var miembros = await Db.Miembros
+                .Where(m => nombres.Contains(m.NombreCompleto))
+                .Select(m => new { m.NombreCompleto, m.FechaIngreso })
+                .ToListAsync();
+
+            _rows = _objetivo
+                .Select(o =>
+                {
+                    var m = miembros.FirstOrDefault(x => x.NombreCompleto == o.Nombre);
+                    return new Row
+                    {
+                        Nombre = o.Nombre,
+                        FechaEsperada = o.Esperada,
+                        FechaIngreso = m?.FechaIngreso,
+                    };
+                })
+                .ToList();
+
+            _msg = "Verificación completada";
+        }
+        catch (Exception ex)
+        {
+            _msg = $"Error al verificar: {ex.Message}";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task AplicarCorreccionAsync()
+    {
+        _busy = true; _msg = string.Empty;
+        try
+        {
+            var nombres = _objetivo.Select(x => x.Nombre).ToArray();
+            var miembros = await Db.Miembros
+                .Where(m => nombres.Contains(m.NombreCompleto))
+                .ToListAsync();
+
+            foreach (var (nombre, esperada) in _objetivo)
+            {
+                var m = miembros.FirstOrDefault(x => x.NombreCompleto == nombre);
+                if (m is null) continue;
+                if (m.FechaIngreso != esperada)
+                {
+                    m.FechaIngreso = esperada;
+                    m.UpdatedAt = DateTime.UtcNow;
+                    m.UpdatedBy = "correccion_fecha_ingreso_oct_2025";
+                }
+            }
+
+            await Db.SaveChangesAsync();
+            await VerificarAsync();
+            _msg = "Corrección aplicada";
+        }
+        catch (Exception ex)
+        {
+            _msg = $"Error al corregir: {ex.Message}";
+        }
+        finally { _busy = false; }
+    }
+
+    private sealed class Row
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public DateOnly FechaEsperada { get; set; }
+        public DateOnly? FechaIngreso { get; set; }
+        public bool Ok => FechaIngreso.HasValue && FechaIngreso.Value == FechaEsperada;
+    }
+}
+
+<style>
+    .actions { display:flex; align-items:center; gap:.5rem; }
+    .btn { padding:.4rem .75rem; border:1px solid #ccc; border-radius:.25rem; cursor:pointer; }
+    .btn-primary { background:#0d6efd; color:#fff; }
+    .btn-success { background:#198754; color:#fff; }
+    .ms-3 { margin-left:1rem; }
+    .mt-3 { margin-top:1rem; }
+    .text-success { color:#198754; }
+    .text-warning { color:#b58105; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom:1px solid #eee; padding:.5rem; text-align:left; }
+    tfoot td { font-size:.9rem; color:#666; }
+</style>

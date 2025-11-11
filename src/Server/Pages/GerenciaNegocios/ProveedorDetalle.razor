@@ -1,0 +1,219 @@
+@page "/gerencia-negocios/proveedores/{id:guid}"
+@using Server.DTOs.Proveedores
+@using Server.Services.Proveedores
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ToastService Toast
+
+<PageTitle>Detalle de Proveedor</PageTitle>
+
+@if (cargando)
+{
+    <div class="container py-5 text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="text-muted mt-3">Cargando detalle del proveedor...</p>
+    </div>
+}
+else if (detalle is null)
+{
+    <div class="container py-5">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>No se encontró el proveedor solicitado.
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="Volver">
+            <i class="bi bi-arrow-left"></i> Volver
+        </button>
+    </div>
+}
+else
+{
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-truck me-2"></i>@detalle!.Nombre</h2>
+                <div class="text-muted">NIT: @detalle!.Nit</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" @onclick="Volver">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </button>
+                <AuthorizeView Roles="Admin,Gerente">
+                    <Authorized>
+                        <button class="btn btn-primary" @onclick="@(() => Nav.NavigateTo($"/gerencia-negocios/proveedores/editar/{id}"))">
+                            <i class="bi bi-pencil"></i> Editar
+                        </button>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-lg-8">
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="text-muted">Contacto</div>
+                                <div>@(detalle!.Contacto ?? "-")</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted">Teléfono</div>
+                                <div>@(detalle!.Telefono ?? "-")</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted">Email</div>
+                                <div>@(detalle!.Email ?? "-")</div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="text-muted">Dirección</div>
+                                <div>@(detalle!.Direccion ?? "-")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong>Historial de compras</strong>
+                        <small class="text-muted">Total registros: @historial.Count</small>
+                    </div>
+                    <div class="card-body">
+                        @if (!historial.Any())
+                        {
+                            <div class="text-muted">Sin compras registradas para este proveedor.</div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Fecha</th>
+                                            <th>Estado</th>
+                                            <th>Total COP</th>
+                                            <th>USD</th>
+                                            <th>Items</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var c in historial)
+                                        {
+                                            <tr>
+                                                <td>@c.NumeroOrden</td>
+                                                <td>@c.FechaCompra.ToString("yyyy-MM-dd")</td>
+                                                <td>
+                                                    <span class="badge bg-@EstadoColor(c.Estado)">@c.Estado</span>
+                                                </td>
+                                                <td>$@c.TotalCOP.ToString("N0")</td>
+                                                <td>@(c.TotalUSD.HasValue ? ("$" + c.TotalUSD.Value.ToString("N2")) : "-")</td>
+                                                <td>@c.TotalProductos</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div class="text-muted">Estado</div>
+                                    <span class="badge @(detalle!.Activo ? "bg-success" : "bg-secondary")">@(detalle!.Activo ? "Activo" : "Inactivo")</span>
+                                </div>
+                                <hr />
+                                <div class="text-muted">Términos de Pago</div>
+                                <div>@(detalle!.TerminosPago ?? "-")</div>
+                                <div class="text-muted mt-2">Días Crédito</div>
+                                <div>@detalle!.DiasCredito</div>
+                                <div class="text-muted mt-2">Calificación</div>
+                                <div>
+                                    @for (decimal i = 1m; i <= 5m; i++)
+                                    {
+                                        var filled = detalle!.Calificacion.HasValue && detalle!.Calificacion.Value >= i - 0.5m;
+                                        <i class="bi @(filled ? "bi-star-fill text-warning" : "bi-star text-muted")"></i>
+                                    }
+                                </div>
+                                <hr />
+                                <div class="text-muted">Próximo Pago</div>
+                                <div>@(detalle!.ProximoPago?.ToString("yyyy-MM-dd") ?? "-")</div>
+                                <div class="text-muted mt-2">Última Compra</div>
+                                <div>@(detalle!.UltimaCompra?.ToString("yyyy-MM-dd") ?? "-")</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="text-muted">Total Comprado COP</div>
+                                <h4 class="mb-0">$@detalle!.TotalCompradoCOP.ToString("N0")</h4>
+                                <div class="text-muted mt-2">Total Comprado USD</div>
+                                <h6 class="mb-0">@detalle!.TotalCompradoUSD.ToString("N2")</h6>
+                                <div class="text-muted mt-2">Total Órdenes</div>
+                                <h6 class="mb-0">@detalle!.TotalCompras</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid id { get; set; }
+
+    private bool cargando = true;
+    private ProveedorDetalleDto? detalle;
+    private List<CompraProveedorDto> historial = new();
+
+    /// <summary>
+    /// Carga el detalle del proveedor y su historial de compras desde la API.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            detalle = await Http.GetFromJsonAsync<ProveedorDetalleDto>($"/api/proveedores/{id}/detalle");
+            var lista = await Http.GetFromJsonAsync<List<CompraProveedorDto>>($"/api/proveedores/{id}/historial");
+            historial = lista ?? new();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar detalle: {ex.Message}", "danger");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void Volver() => Nav.NavigateTo("/gerencia-negocios/proveedores");
+
+    private static string EstadoColor(string estado)
+    {
+        return estado switch
+        {
+            "Pendiente" => "warning",
+            "Pagada" => "info",
+            "Recibida" => "success",
+            "Cancelada" => "secondary",
+            _ => "secondary"
+        };
+    }
+}

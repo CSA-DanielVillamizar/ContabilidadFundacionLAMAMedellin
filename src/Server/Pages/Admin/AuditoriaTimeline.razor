@@ -1,0 +1,176 @@
+@using Server.Models
+
+<!-- Visualización Timeline para Auditoría -->
+<div class="space-y-6">
+    @if (logs == null || !logs.Any())
+    {
+        <div class="text-center py-12">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p class="mt-4 text-slate-500 dark:text-slate-400">No hay eventos para mostrar</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var group in logs.GroupBy(l => l.Timestamp.Date).OrderByDescending(g => g.Key))
+        {
+            <!-- Fecha del grupo -->
+            <div class="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg">
+                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    @group.Key.ToString("dddd, dd MMMM yyyy", new System.Globalization.CultureInfo("es-CO"))
+                </h3>
+            </div>
+
+            <!-- Timeline del día -->
+            <div class="relative pl-8 space-y-4">
+                <!-- Línea vertical -->
+                <div class="absolute left-3 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700"></div>
+
+                @foreach (var log in group.OrderByDescending(l => l.Timestamp))
+                {
+                    <!-- Evento en timeline -->
+                    <div class="relative">
+                        <!-- Punto en timeline -->
+                        <div class="absolute -left-5 w-3 h-3 rounded-full @GetTimelineDotColor(log.Action) border-4 border-white dark:border-slate-900"></div>
+
+                        <!-- Tarjeta de evento -->
+                        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1 min-w-0">
+                                    <!-- Header del evento -->
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <!-- Icono según EntityType -->
+                                        <div class="@GetEntityIconColor(log.EntityType)">
+                                            @GetEntityIcon(log.EntityType)
+                                        </div>
+                                        
+                                        <span class="text-sm font-medium text-slate-900 dark:text-slate-100">@log.EntityType</span>
+                                        <span class="text-xs text-slate-500 dark:text-slate-400">•</span>
+                                        <span class="text-sm text-slate-700 dark:text-slate-300 font-medium">@GetActionLabel(log.Action)</span>
+                                    </div>
+
+                                    <!-- Detalles del evento -->
+                                    <div class="space-y-1 text-sm">
+                                        <div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            <span>@log.UserName</span>
+                                        </div>
+
+                                        @if (!string.IsNullOrEmpty(log.EntityId))
+                                        {
+                                            <div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                </svg>
+                                                <span class="font-mono text-xs">ID: @log.EntityId</span>
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(log.IpAddress))
+                                        {
+                                            <div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                                </svg>
+                                                <span class="font-mono text-xs">@log.IpAddress</span>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <!-- Información adicional -->
+                                    @if (!string.IsNullOrEmpty(log.AdditionalInfo))
+                                    {
+                                        <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded px-2 py-1">
+                                            @log.AdditionalInfo
+                                        </div>
+                                    }
+                                </div>
+
+                                <!-- Timestamp -->
+                                <div class="text-right">
+                                    <time class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        @log.Timestamp.ToString("HH:mm:ss")
+                                    </time>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<AuditLog> Logs { get; set; } = new();
+
+    private List<AuditLog> logs => Logs ?? new();
+
+    private string GetTimelineDotColor(string action) => action switch
+    {
+        var a when a.Contains("CREADO") || a.Contains("CREATED") => "bg-green-500",
+        var a when a.Contains("ACTUALIZADO") || a.Contains("UPDATED") => "bg-blue-500",
+        var a when a.Contains("ELIMINADO") || a.Contains("DELETED") => "bg-red-500",
+        var a when a.Contains("2FA") => "bg-purple-500",
+        var a when a.Contains("CIERRE") => "bg-amber-500",
+        _ => "bg-slate-400"
+    };
+
+    private string GetEntityIconColor(string entityType) => entityType switch
+    {
+        "MIEMBRO" => "text-blue-600 dark:text-blue-400",
+        "RECIBO" => "text-green-600 dark:text-green-400",
+        "EGRESO" => "text-red-600 dark:text-red-400",
+        "CIERRE_CONTABLE" => "text-amber-600 dark:text-amber-400",
+        "2FA" => "text-purple-600 dark:text-purple-400",
+        _ => "text-slate-600 dark:text-slate-400"
+    };
+
+    private RenderFragment GetEntityIcon(string entityType) => entityType switch
+    {
+        "MIEMBRO" => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>,
+        
+        "RECIBO" => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>,
+        
+        "EGRESO" => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>,
+        
+        "CIERRE_CONTABLE" => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>,
+        
+        "2FA" => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>,
+        
+        _ => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+    };
+
+    private string GetActionLabel(string action) => action switch
+    {
+        "MIEMBRO_CREADO" => "Creado",
+        "MIEMBRO_ACTUALIZADO" => "Actualizado",
+        "MIEMBRO_CAMBIO_ESTADO" => "Cambio de Estado",
+        "MIEMBRO_ELIMINADO" => "Eliminado",
+        "EGRESO_CREADO" => "Creado",
+        "EGRESO_ACTUALIZADO" => "Actualizado",
+        "EGRESO_ELIMINADO" => "Eliminado",
+        "CIERRE_MENSUAL_EJECUTADO" => "Ejecutado",
+        "2FA_ENABLED" => "Habilitado",
+        "2FA_DISABLED" => "Deshabilitado",
+        "2FA_RECOVERY_CODES_GENERATED" => "Códigos Generados",
+        "2FA_AUTHENTICATOR_RESET" => "Reiniciado",
+        _ => action
+    };
+}

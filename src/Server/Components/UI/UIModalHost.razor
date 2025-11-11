@@ -1,0 +1,7 @@
+@inject ModalService ModalService
+@if (ModalService.IsOpen)
+{
+    <UIModal Header="@ModalService.Header" Footer="@ModalService.Footer" Class="@ModalService.Class">
+        @ModalService.Content
+    </UIModal>
+}

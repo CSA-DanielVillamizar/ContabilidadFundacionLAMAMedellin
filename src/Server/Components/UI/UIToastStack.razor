@@ -1,0 +1,6 @@
+@inject ToastService ToastService
+<UIToast Toasts="@Toasts" OnDismiss="OnDismiss" />
+@code {
+    private List<UIToast.ToastModel> Toasts => ToastService.Toasts;
+    private void OnDismiss(Guid id) => ToastService.Dismiss(id);
+}

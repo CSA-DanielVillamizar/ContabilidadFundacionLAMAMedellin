@@ -1,0 +1,467 @@
+@page "/tesoreria/presupuestos/{Id:guid}"
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@using Server.DTOs.Presupuestos
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+<PageTitle>Detalle de Presupuesto - LAMA Medellín</PageTitle>
+
+<!-- Breadcrumb -->
+<nav class="flex px-5 py-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" aria-label="Breadcrumb">
+    <ol class="inline-flex items-center space-x-1 md:space-x-3">
+        <li class="inline-flex items-center">
+            <a href="/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                Inicio
+            </a>
+        </li>
+        <li>
+            <div class="flex items-center">
+                <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                <a href="tesoreria/presupuestos" class="ml-1 text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">Presupuestos</a>
+            </div>
+        </li>
+        <li aria-current="page">
+            <div class="flex items-center">
+                <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                <span class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400">Detalle</span>
+            </div>
+        </li>
+    </ol>
+</nav>
+
+<!-- Contenido Principal -->
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+    @if (cargando)
+    {
+        <div class="flex items-center justify-center py-20">
+            <div class="text-center">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                <p class="mt-4 text-gray-600 dark:text-gray-400">Cargando detalle del presupuesto...</p>
+            </div>
+        </div>
+    }
+    else if (presupuesto == null)
+    {
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <div class="flex items-center">
+                <svg class="w-8 h-8 text-red-600 dark:text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <div>
+                    <h3 class="text-lg font-semibold text-red-900 dark:text-red-200">Presupuesto no encontrado</h3>
+                    <p class="text-sm text-red-700 dark:text-red-300 mt-1">El presupuesto solicitado no existe o fue eliminado.</p>
+                </div>
+            </div>
+            <div class="mt-4">
+                <button @onclick="Volver" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                    Volver al listado
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    Detalle del Presupuesto
+                </h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">
+                    @ObtenerNombreMes(presupuesto.Mes) @presupuesto.Ano - @presupuesto.ConceptoNombre
+                </p>
+            </div>
+            <div class="flex gap-2 mt-4 sm:mt-0">
+                <button @onclick="Volver" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    Volver
+                </button>
+                <AuthorizeView Roles="Admin,Gerente">
+                    <button @onclick="Editar" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition shadow-sm">
+                        <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Editar
+                    </button>
+                </AuthorizeView>
+            </div>
+        </div>
+
+        <!-- Grid de 2 columnas -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Columna Principal (2/3) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Información General -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Información General
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Período</label>
+                            <p class="text-base font-semibold text-gray-900 dark:text-white">
+                                @ObtenerNombreMes(presupuesto.Mes) @presupuesto.Ano
+                            </p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">@presupuesto.Ano-@presupuesto.Mes.ToString("00")</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Concepto</label>
+                            <p class="text-base font-semibold text-gray-900 dark:text-white">@presupuesto.ConceptoNombre</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Monto Presupuestado</label>
+                            <p class="text-xl font-bold text-blue-600 dark:text-blue-400">@presupuesto.MontoPresupuestado.ToString("C")</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Monto Ejecutado</label>
+                            <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">@presupuesto.MontoEjecutado.ToString("C")</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Diferencia</label>
+                            <p class="text-xl font-bold @(presupuesto.Diferencia >= 0 ? "text-orange-600 dark:text-orange-400" : "text-red-600 dark:text-red-400")">
+                                @presupuesto.Diferencia.ToString("C")
+                            </p>
+                            <p class="text-xs @(presupuesto.Diferencia >= 0 ? "text-orange-600 dark:text-orange-400" : "text-red-600 dark:text-red-400")">
+                                @(presupuesto.Diferencia >= 0 ? "Disponible" : "Sobreejecución")
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">% Ejecución</label>
+                            <p class="text-xl font-bold text-purple-600 dark:text-purple-400">@presupuesto.PorcentajeEjecucion.ToString("F2")%</p>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
+                                <div class="@ObtenerColorBarraEjecucion(presupuesto.PorcentajeEjecucion) h-2 rounded-full transition-all duration-300" 
+                                     style="width: @(Math.Min(presupuesto.PorcentajeEjecucion, 100))%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(presupuesto.Notas))
+                    {
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <label class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Notas</label>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">@presupuesto.Notas</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Desglose de Ejecución -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Desglose de Ejecución
+                    </h2>
+                    <div class="space-y-4">
+                        <!-- Barra de progreso detallada -->
+                        <div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-600 dark:text-gray-400">Progreso de Ejecución</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">@presupuesto.PorcentajeEjecucion.ToString("F2")%</span>
+                            </div>
+                            <div class="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6">
+                                <div class="@ObtenerColorBarraEjecucion(presupuesto.PorcentajeEjecucion) h-6 rounded-full transition-all duration-300 flex items-center justify-center text-xs font-semibold text-white" 
+                                     style="width: @(Math.Min(presupuesto.PorcentajeEjecucion, 100))%">
+                                    @if (presupuesto.PorcentajeEjecucion >= 10)
+                                    {
+                                        <span>@presupuesto.PorcentajeEjecucion.ToString("F1")%</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Métricas de ejecución -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                                <div class="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">Presupuestado</div>
+                                <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">@presupuesto.MontoPresupuestado.ToString("C0")</div>
+                            </div>
+                            <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
+                                <div class="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-1">Ejecutado</div>
+                                <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">@presupuesto.MontoEjecutado.ToString("C0")</div>
+                            </div>
+                            <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+                                <div class="text-sm text-orange-600 dark:text-orange-400 font-medium mb-1">@(presupuesto.Diferencia >= 0 ? "Disponible" : "Excedido")</div>
+                                <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">@Math.Abs(presupuesto.Diferencia).ToString("C0")</div>
+                            </div>
+                        </div>
+
+                        <!-- Interpretación -->
+                        <div class="mt-6 p-4 @ObtenerClaseAlertaEjecucion(presupuesto.PorcentajeEjecucion) rounded-lg">
+                            <div class="flex items-start">
+                                @if (presupuesto.PorcentajeEjecucion < 50)
+                                {
+                                    <svg class="w-6 h-6 text-red-600 dark:text-red-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                }
+                                else if (presupuesto.PorcentajeEjecucion >= 50 && presupuesto.PorcentajeEjecucion < 80)
+                                {
+                                    <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                }
+                                else if (presupuesto.PorcentajeEjecucion >= 80 && presupuesto.PorcentajeEjecucion <= 100)
+                                {
+                                    <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                }
+                                else
+                                {
+                                    <svg class="w-6 h-6 text-purple-600 dark:text-purple-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                }
+                                <div>
+                                    <h3 class="font-semibold text-gray-900 dark:text-white mb-1">@ObtenerTituloInterpretacion(presupuesto.PorcentajeEjecucion)</h3>
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">@ObtenerMensajeInterpretacion(presupuesto.PorcentajeEjecucion)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Lateral (1/3) -->
+            <div class="space-y-6">
+                <!-- Información de Auditoría -->
+                <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Auditoría
+                    </h3>
+                    <div class="space-y-4 text-sm">
+                        <div>
+                            <label class="block text-slate-500 dark:text-slate-400 mb-1">Creado</label>
+                            <p class="font-medium text-slate-900 dark:text-white">@presupuesto.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                            <p class="text-xs text-slate-600 dark:text-slate-400">Por: @presupuesto.CreatedBy</p>
+                        </div>
+                        @if (presupuesto.UpdatedAt.HasValue)
+                        {
+                            <div>
+                                <label class="block text-slate-500 dark:text-slate-400 mb-1">Última modificación</label>
+                                <p class="font-medium text-slate-900 dark:text-white">@presupuesto.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                                <p class="text-xs text-slate-600 dark:text-slate-400">Por: @presupuesto.UpdatedBy</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Resumen Rápido -->
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-lg shadow-sm border border-purple-200 dark:border-purple-700 p-6">
+                    <h3 class="text-lg font-semibold text-purple-900 dark:text-purple-200 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Resumen Rápido
+                    </h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-purple-700 dark:text-purple-300">Estado:</span>
+                            <span class="@ObtenerClaseBadgeEstado(presupuesto.PorcentajeEjecucion) px-3 py-1 rounded-full text-xs font-semibold">
+                                @ObtenerTextoEstado(presupuesto.PorcentajeEjecucion)
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-purple-700 dark:text-purple-300">Utilización:</span>
+                            <span class="font-semibold text-purple-900 dark:text-purple-100">@presupuesto.PorcentajeEjecucion.ToString("F2")%</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-purple-700 dark:text-purple-300">Saldo:</span>
+                            <span class="font-semibold text-purple-900 dark:text-purple-100">@Math.Abs(presupuesto.Diferencia).ToString("C0")</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información Adicional -->
+                <div class="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 rounded-lg shadow-sm border border-amber-200 dark:border-amber-700 p-6">
+                    <h3 class="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Información
+                    </h3>
+                    <ul class="space-y-2 text-sm text-amber-800 dark:text-amber-200">
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            La ejecución se calcula en tiempo real
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            Incluye ingresos (recibos emitidos) y egresos
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            Solo Admin/Gerente pueden editar montos
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            El período no se puede modificar
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private PresupuestoDetalleDto? presupuesto;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        try
+        {
+            cargando = true;
+            var response = await Http.GetAsync($"/api/presupuestos/{Id}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                presupuesto = JsonSerializer.Deserialize<PresupuestoDetalleDto>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                presupuesto = null;
+            }
+        }
+        catch (Exception)
+        {
+            presupuesto = null;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void Volver()
+    {
+        NavigationManager.NavigateTo("/tesoreria/presupuestos");
+    }
+
+    private void Editar()
+    {
+        NavigationManager.NavigateTo($"/tesoreria/presupuestos/form/{Id}");
+    }
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero",
+            2 => "Febrero",
+            3 => "Marzo",
+            4 => "Abril",
+            5 => "Mayo",
+            6 => "Junio",
+            7 => "Julio",
+            8 => "Agosto",
+            9 => "Septiembre",
+            10 => "Octubre",
+            11 => "Noviembre",
+            12 => "Diciembre",
+            _ => mes.ToString()
+        };
+    }
+
+    private string ObtenerColorBarraEjecucion(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "bg-red-500";
+        if (porcentaje < 80) return "bg-yellow-500";
+        if (porcentaje <= 100) return "bg-emerald-500";
+        return "bg-purple-500";
+    }
+
+    private string ObtenerClaseAlertaEjecucion(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800";
+        if (porcentaje < 80) return "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800";
+        if (porcentaje <= 100) return "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800";
+        return "bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800";
+    }
+
+    private string ObtenerTituloInterpretacion(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "⚠️ Ejecución Baja";
+        if (porcentaje < 80) return "ℹ️ Ejecución Normal";
+        if (porcentaje <= 100) return "✅ Ejecución Óptima";
+        return "⚡ Sobreejecución";
+    }
+
+    private string ObtenerMensajeInterpretacion(decimal porcentaje)
+    {
+        if (porcentaje < 50)
+            return "El presupuesto se ha ejecutado por debajo del 50%. Considere revisar las proyecciones o realizar ajustes para el próximo período.";
+        if (porcentaje < 80)
+            return "El presupuesto se encuentra en un rango de ejecución normal. Continúe monitoreando para evitar desviaciones significativas.";
+        if (porcentaje <= 100)
+            return "El presupuesto se ha ejecutado de manera óptima, cumpliendo con las proyecciones establecidas dentro del rango esperado.";
+        return "El presupuesto ha sido sobreejecutado. Se recomienda revisar las causas y ajustar las proyecciones futuras para evitar sobregiros.";
+    }
+
+    private string ObtenerClaseBadgeEstado(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+        if (porcentaje < 80) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+        if (porcentaje <= 100) return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+    }
+
+    private string ObtenerTextoEstado(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "Baja Ejecución";
+        if (porcentaje < 80) return "En Proceso";
+        if (porcentaje <= 100) return "Óptima";
+        return "Sobreejecución";
+    }
+
+    // DTO inline (debe coincidir con el backend)
+    private class PresupuestoDetalleDto
+    {
+        public Guid Id { get; set; }
+        public int Ano { get; set; }
+        public int Mes { get; set; }
+        public int ConceptoId { get; set; }
+        public string ConceptoNombre { get; set; } = string.Empty;
+        public decimal MontoPresupuestado { get; set; }
+        public decimal MontoEjecutado { get; set; }
+        public decimal Diferencia { get; set; }
+        public decimal PorcentajeEjecucion { get; set; }
+        public string? Notas { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public DateTime? UpdatedAt { get; set; }
+        public string? UpdatedBy { get; set; }
+    }
+}

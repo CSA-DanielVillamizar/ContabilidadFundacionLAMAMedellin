@@ -1,0 +1,432 @@
+@page "/gerencia-negocios/compras"
+@using Server.DTOs.Compras
+@using Server.DTOs.Productos
+@using Server.Services.Compras
+@using Server.Services.Productos
+@using Server.Services.Proveedores
+@using MudBlazor
+@attribute [Authorize(Policy = "TesoreroJunta")]
+@inject IComprasService ComprasService
+@inject IProductosService ProductosService
+@inject IProveedoresService ProveedoresService
+@inject ISnackbar Snackbar
+
+<PageTitle>Compras - Gerencia de Negocios</PageTitle>
+
+<!-- Encabezado -->
+<PageHeader Icon="@Icons.Material.Filled.ShoppingBag" Title="Órdenes de Compra" Subtitle="Gestión de compras y recepciones" />
+
+<!-- Filtros y acciones -->
+<MudCard Class="glass-card mb-4" Elevation="3">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int" @bind-Value="filtroEstado" Label="Estado" Variant="Variant.Outlined" Dense="true" AnchorOrigin="Origin.TopCenter" OnClose="@(async _ => await CargarCompras())">
+                    <MudSelectItem T="int" Value="0">Todos</MudSelectItem>
+                    <MudSelectItem T="int" Value="1">Pendiente</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">Pagada</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">Recibida</MudSelectItem>
+                    <MudSelectItem T="int" Value="4">Cancelada</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <ModernSearch Placeholder="🔍 Buscar por #, proveedor o estado" Value="@searchString" ValueChanged="@((value) => searchString = value)" />
+            </MudItem>
+            <MudItem xs="12" md="3" Class="d-flex justify-end align-center gap-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="CargarCompras" Disabled="@cargando" StartIcon="@Icons.Material.Filled.Search">Buscar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirModalNuevaCompra" StartIcon="@Icons.Material.Filled.Add">Nueva Compra</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<!-- Tabla -->
+<DataTableWrapper TItem="CompraProductoDto"
+                  Items="compras"
+                  Loading="@cargando"
+                  SearchFunction="SearchCompras"
+                  Dense="true"
+                  Hover="true">
+    <TableHeader>
+        <MudTh>#</MudTh>
+        <MudTh>Fecha</MudTh>
+        <MudTh>Proveedor</MudTh>
+        <MudTh class="text-end">Total COP</MudTh>
+        <MudTh>Estado</MudTh>
+        <MudTh class="text-center">Acciones</MudTh>
+    </TableHeader>
+    <TableRow Context="c">
+        <MudTd DataLabel="#"><MudText Typo="Typo.body2" Class="font-weight-medium">@c.NumeroCompra</MudText></MudTd>
+        <MudTd DataLabel="Fecha">@c.FechaCompra.ToString("yyyy-MM-dd")</MudTd>
+        <MudTd DataLabel="Proveedor">@c.Proveedor</MudTd>
+        <MudTd DataLabel="Total" Class="text-end">$@c.TotalCOP.ToString("N0")</MudTd>
+        <MudTd DataLabel="Estado">
+            <MudChip T="string" Color="@GetEstadoColor(c.Estado)" Variant="Variant.Filled" Size="Size.Small">@c.Estado</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Acciones" Class="text-center">
+            <MudTooltip Text="Detalle">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="@(() => VerDetalle(c))" />
+            </MudTooltip>
+            @if (c.Estado == "Pendiente")
+            {
+                <MudTooltip Text="Registrar Pago">
+                    <MudIconButton Icon="@Icons.Material.Filled.Payments" Color="Color.Warning" Size="Size.Small" OnClick="@(() => AbrirModalPago(c))" />
+                </MudTooltip>
+            }
+            @if (c.Estado == "Pagada")
+            {
+                <MudTooltip Text="Registrar Recepción">
+                    <MudIconButton Icon="@Icons.Material.Filled.Inventory" Color="Color.Success" Size="Size.Small" OnClick="@(() => AbrirModalRecepcion(c))" />
+                </MudTooltip>
+            }
+        </MudTd>
+    </TableRow>
+</DataTableWrapper>
+
+<!-- Dialog Nueva Compra -->
+<MudDialog @bind-Visible="mostrarModalNueva" Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, CloseOnEscapeKey = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Nueva Compra</MudText>
+    </TitleContent>
+    <DialogContent>
+        
+        <EditForm Model="formNueva" OnValidSubmit="GuardarCompra">
+            <DataAnnotationsValidator />
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" md="3">
+                    <MudDatePicker Date="formNueva.FechaCompra" DateChanged="@(d => formNueva.FechaCompra = d ?? DateTime.Now)" Label="Fecha" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" @bind-Value="proveedorSeleccionadoId" Label="Proveedor" AnchorOrigin="Origin.TopCenter">
+                        <MudSelectItem T="string" Value="@string.Empty">Seleccione...</MudSelectItem>
+                        @foreach (var prov in proveedoresActivos)
+                        {
+                            <MudSelectItem T="string" Value="@prov.Id.ToString()">@prov.Nombre (@prov.Nit)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="2">
+                    <MudNumericField T="decimal?" @bind-Value="formNueva.TotalUSD" Label="Total USD" Min="0" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="decimal?" @bind-Value="formNueva.TrmAplicada" Label="TRM" Min="0" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="formNueva.NumeroFacturaProveedor" Label="Factura Proveedor" />
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="formNueva.Observaciones" Label="Observaciones" Lines="2" />
+                </MudItem>
+            </MudGrid>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Detalles</MudText>
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" md="5">
+                    <MudSelect T="string" @bind-Value="productoSeleccionadoId" Label="Producto" Dense="true" AnchorOrigin="Origin.TopCenter">
+                        <MudSelectItem T="string" Value="@string.Empty">Seleccione...</MudSelectItem>
+                        @foreach (var p in productosActivos)
+                        {
+                            <MudSelectItem T="string" Value="@p.Id.ToString()">[@p.Codigo] @p.Nombre (@p.StockActual)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="2">
+                    <MudNumericField T="int" @bind-Value="cantidadAgregar" Label="Cantidad" Min="1" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="decimal" @bind-Value="precioUnitarioAgregar" Label="Precio Unitario COP" Min="0" />
+                </MudItem>
+                <MudItem xs="12" md="2" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AgregarDetalle" StartIcon="@Icons.Material.Filled.Add">Agregar</MudButton>
+                </MudItem>
+            </MudGrid>
+            <MudTable Items="formNueva.Detalles" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Producto</MudTh>
+                    <MudTh>Cantidad</MudTh>
+                    <MudTh>Precio Unitario</MudTh>
+                    <MudTh>Subtotal</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate Context="d">
+                    @{
+                        var prod = productosActivos.FirstOrDefault(x => x.Id == d.ProductoId);
+                    }
+                    <MudTd DataLabel="Producto">[@prod?.Codigo] @prod?.Nombre</MudTd>
+                    <MudTd DataLabel="Cantidad">@d.Cantidad</MudTd>
+                    <MudTd DataLabel="Precio">$@d.PrecioUnitarioCOP.ToString("N0")</MudTd>
+                    <MudTd DataLabel="Subtotal">$@( (d.Cantidad * d.PrecioUnitarioCOP).ToString("N0") )</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => QuitarDetalle(d))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudText Typo="Typo.subtitle2" Align="Align.Right" Class="mt-2">Total COP: $@formNueva.Detalles.Sum(x => x.Cantidad * x.PrecioUnitarioCOP).ToString("N0")</MudText>
+            
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CerrarModalNueva">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit" Disabled="@guardando">Guardar</MudButton>
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<!-- Dialog Registrar Pago -->
+<MudDialog @bind-Visible="mostrarModalPago" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Registrar Pago - @compraSeleccionada?.NumeroCompra</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="egresoIdTexto" Label="Egreso ID" Placeholder="GUID del egreso" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CerrarModalPago">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" Disabled="@guardando" OnClick="RegistrarPago">Registrar Pago</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Dialog Registrar Recepción -->
+<MudDialog @bind-Visible="mostrarModalRecepcion" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Registrar Recepción - @compraSeleccionada?.NumeroCompra</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>Confirmas que los productos fueron recibidos e inventariados?</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CerrarModalRecepcion">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@guardando" OnClick="RegistrarRecepcion">Confirmar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool cargando = true;
+    private bool guardando = false;
+    private int filtroEstado = 0;
+    private string searchString = string.Empty;
+
+    private List<CompraProductoDto> compras = new();
+
+    private bool mostrarModalNueva = false;
+    private CompraProductoCreateDto formNueva = new() { FechaCompra = DateTime.Now };
+    private List<ProductoDto> productosActivos = new();
+    private List<ProveedorSimpleDto> proveedoresActivos = new();
+    private string proveedorSeleccionadoId = string.Empty;
+    private string productoSeleccionadoId = string.Empty;
+    private int cantidadAgregar = 1;
+    private decimal precioUnitarioAgregar = 0;
+
+    private bool mostrarModalPago = false;
+    private CompraProductoDto? compraSeleccionada;
+    private string egresoIdTexto = string.Empty;
+
+    private bool mostrarModalRecepcion = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await CargarCompras();
+            productosActivos = await ProductosService.GetActivosAsync();
+            proveedoresActivos = await ProveedoresService.ObtenerProveedoresActivosAsync();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Contexto dispuesto durante navegación - ignorar silenciosamente
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al inicializar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CargarCompras()
+    {
+        cargando = true;
+        try
+        {
+            compras = filtroEstado == 0
+                ? await ComprasService.GetAllAsync()
+                : await ComprasService.GetByEstadoAsync(filtroEstado);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar compras: {ex.Message}", Severity.Error);
+        }
+        finally { cargando = false; }
+    }
+
+    private void AbrirModalNuevaCompra()
+    {
+        formNueva = new() { FechaCompra = DateTime.Now };
+        formNueva.Detalles.Clear();
+        proveedorSeleccionadoId = string.Empty;
+        productoSeleccionadoId = string.Empty;
+        cantidadAgregar = 1;
+        precioUnitarioAgregar = 0;
+        mostrarModalNueva = true;
+    }
+
+    private void CerrarModalNueva() => mostrarModalNueva = false;
+
+    private void AgregarDetalle()
+    {
+        if (string.IsNullOrWhiteSpace(productoSeleccionadoId) || !Guid.TryParse(productoSeleccionadoId, out var productoId))
+        {
+            Snackbar.Add("Seleccione un producto", Severity.Warning);
+            return;
+        }
+        if (cantidadAgregar <= 0)
+        {
+            Snackbar.Add("Cantidad inválida", Severity.Warning);
+            return;
+        }
+        if (precioUnitarioAgregar <= 0)
+        {
+            Snackbar.Add("Precio unitario inválido", Severity.Warning);
+            return;
+        }
+
+        formNueva.Detalles.Add(new DetalleCompraCreateDto
+        {
+            ProductoId = productoId,
+            Cantidad = cantidadAgregar,
+            PrecioUnitarioCOP = precioUnitarioAgregar
+        });
+        productoSeleccionadoId = string.Empty;
+        cantidadAgregar = 1;
+        precioUnitarioAgregar = 0;
+    }
+
+    private void QuitarDetalle(DetalleCompraCreateDto d) => formNueva.Detalles.Remove(d);
+
+    private async Task GuardarCompra()
+    {
+        if (!formNueva.Detalles.Any())
+        {
+            Snackbar.Add("Agregue al menos un producto", Severity.Warning);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(proveedorSeleccionadoId) && Guid.TryParse(proveedorSeleccionadoId, out var proveedorId))
+        {
+            formNueva.ProveedorId = proveedorId;
+            var prov = proveedoresActivos.FirstOrDefault(p => p.Id == proveedorId);
+            if (prov != null)
+                formNueva.Proveedor = prov.Nombre;
+        }
+        else
+        {
+            formNueva.ProveedorId = null;
+            formNueva.Proveedor = "Sin proveedor";
+        }
+
+        guardando = true;
+        try
+        {
+            await ComprasService.CreateAsync(formNueva);
+            Snackbar.Add("Compra registrada", Severity.Success);
+            mostrarModalNueva = false;
+            await CargarCompras();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al guardar: {ex.Message}", Severity.Error);
+        }
+        finally { guardando = false; }
+    }
+
+    private Color GetEstadoColor(string estado) => estado switch
+    {
+        "Pendiente" => Color.Secondary,
+        "Pagada" => Color.Warning,
+        "Recibida" => Color.Success,
+        "Cancelada" => Color.Error,
+        _ => Color.Info
+    };
+
+    private void VerDetalle(CompraProductoDto c)
+    {
+        var totalItems = c.Detalles.Sum(x => x.Cantidad);
+        Snackbar.Add($"Compra {c.NumeroCompra} - Items: {totalItems} - Total: ${c.TotalCOP:N0}", Severity.Info);
+    }
+
+    private void AbrirModalPago(CompraProductoDto c)
+    {
+        compraSeleccionada = c;
+        egresoIdTexto = string.Empty;
+        mostrarModalPago = true;
+    }
+    private void CerrarModalPago() => mostrarModalPago = false;
+
+    private async Task RegistrarPago()
+    {
+        if (compraSeleccionada is null) return;
+        if (!Guid.TryParse(egresoIdTexto, out var egresoId))
+        {
+            Snackbar.Add("EgresoId inválido", Severity.Warning);
+            return;
+        }
+        guardando = true;
+        try
+        {
+            var ok = await ComprasService.RegistrarPagoAsync(compraSeleccionada.Id, egresoId);
+            if (ok)
+            {
+                Snackbar.Add("Pago registrado", Severity.Success);
+                mostrarModalPago = false;
+                await CargarCompras();
+            }
+            else
+            {
+                Snackbar.Add("No se pudo registrar el pago", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally { guardando = false; }
+    }
+
+    private void AbrirModalRecepcion(CompraProductoDto c)
+    {
+        compraSeleccionada = c;
+        mostrarModalRecepcion = true;
+    }
+    private void CerrarModalRecepcion() => mostrarModalRecepcion = false;
+
+    private async Task RegistrarRecepcion()
+    {
+        if (compraSeleccionada is null) return;
+        guardando = true;
+        try
+        {
+            var ok = await ComprasService.RegistrarRecepcionAsync(compraSeleccionada.Id);
+            if (ok)
+            {
+                Snackbar.Add("Recepción registrada", Severity.Success);
+                mostrarModalRecepcion = false;
+                await CargarCompras();
+            }
+            else
+            {
+                Snackbar.Add("No se pudo registrar la recepción", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally { guardando = false; }
+    }
+
+    private bool SearchCompras(CompraProductoDto c, string term)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return true;
+        term = term.Trim().ToLowerInvariant();
+        return (c.NumeroCompra?.ToLowerInvariant().Contains(term) ?? false)
+            || (c.Proveedor?.ToLowerInvariant().Contains(term) ?? false)
+            || (c.Estado?.ToLowerInvariant().Contains(term) ?? false);
+    }
+}

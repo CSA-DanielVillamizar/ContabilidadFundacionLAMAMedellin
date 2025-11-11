@@ -1,0 +1,104 @@
+@*
+    Componente reutilizable para tarjetas estadísticas simples
+    Incluye icono, título, descripción y botón de acción
+*@
+
+<MudPaper Elevation="@Elevation" Class="@($"pa-4 {Class}")">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <MudIcon Icon="@Icon" Color="@IconColor" Size="Size.Medium" Class="mb-2" />
+    }
+    <MudText Typo="Typo.h6" Class="mb-2">@Title</MudText>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@Description</MudText>
+    }
+    @if (!string.IsNullOrEmpty(ButtonText))
+    {
+        <MudButton Variant="@ButtonVariant" 
+                   Color="@ButtonColor" 
+                   Href="@ButtonHref"
+                   OnClick="@ButtonOnClick"
+                   FullWidth="true">
+            @ButtonText
+        </MudButton>
+    }
+    @if (CustomContent != null)
+    {
+        @CustomContent
+    }
+</MudPaper>
+
+@code {
+    /// <summary>
+    /// Título de la tarjeta
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Descripción breve
+    /// </summary>
+    [Parameter]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Icono Material
+    /// </summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>
+    /// Color del icono
+    /// </summary>
+    [Parameter]
+    public Color IconColor { get; set; } = Color.Primary;
+
+    /// <summary>
+    /// Texto del botón de acción
+    /// </summary>
+    [Parameter]
+    public string? ButtonText { get; set; }
+
+    /// <summary>
+    /// Href del botón (para navegación)
+    /// </summary>
+    [Parameter]
+    public string? ButtonHref { get; set; }
+
+    /// <summary>
+    /// Evento onClick del botón
+    /// </summary>
+    [Parameter]
+    public EventCallback ButtonOnClick { get; set; }
+
+    /// <summary>
+    /// Variante del botón
+    /// </summary>
+    [Parameter]
+    public Variant ButtonVariant { get; set; } = Variant.Filled;
+
+    /// <summary>
+    /// Color del botón
+    /// </summary>
+    [Parameter]
+    public Color ButtonColor { get; set; } = Color.Primary;
+
+    /// <summary>
+    /// Contenido personalizado adicional
+    /// </summary>
+    [Parameter]
+    public RenderFragment? CustomContent { get; set; }
+
+    /// <summary>
+    /// Nivel de elevación del papel
+    /// </summary>
+    [Parameter]
+    public int Elevation { get; set; } = 2;
+
+    /// <summary>
+    /// Clases CSS adicionales
+    /// </summary>
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+}

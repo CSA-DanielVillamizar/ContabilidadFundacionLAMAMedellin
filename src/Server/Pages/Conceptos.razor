@@ -1,0 +1,134 @@
+@page "/config/conceptos"
+@attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
+
+<PageTitle>Conceptos - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center justify-between w-full">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span class="text-2xl font-semibold">Gestión de Conceptos</span>
+            </div>
+            <UIButton Variant="primary" Size="sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Nuevo Concepto
+            </UIButton>
+        </div>
+    </Header>
+    <ChildContent>
+        <!-- Filtros -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Tipo</label>
+                <select class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-2 focus:ring-primary/20 transition">
+                    <option value="">Todos</option>
+                    <option value="true">Ingresos</option>
+                    <option value="false">Egresos</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Recurrencia</label>
+                <select class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-2 focus:ring-primary/20 transition">
+                    <option value="">Todos</option>
+                    <option value="true">Recurrentes</option>
+                    <option value="false">No recurrentes</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Moneda</label>
+                <select class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-2 focus:ring-primary/20 transition">
+                    <option value="">Todas</option>
+                    <option value="0">COP</option>
+                    <option value="1">USD</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <UITable TItem="object" Items="@conceptos" Loading="@isLoading" Columns="@ConceptosColumns" />
+
+        <!-- Info Card -->
+        <UICard Class="mt-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <Header>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="font-semibold text-blue-900 dark:text-blue-100">Tipos de Conceptos</span>
+                </div>
+            </Header>
+            <ChildContent>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h6 class="font-semibold mb-2 text-slate-900 dark:text-slate-100">Conceptos de Ingreso</h6>
+                        <ul class="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                            <li>• Mensualidades (Aprendiz, Compañero, Maestro)</li>
+                            <li>• Cuotas de afiliación e iniciación</li>
+                            <li>• Eventos y tenidas especiales</li>
+                            <li>• Donaciones y aportes</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h6 class="font-semibold mb-2 text-slate-900 dark:text-slate-100">Conceptos Recurrentes</h6>
+                        <ul class="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                            <li><strong>Mensual:</strong> Se cobra cada mes automáticamente</li>
+                            <li><strong>Trimestral:</strong> Se cobra cada 3 meses</li>
+                            <li><strong>Anual:</strong> Se cobra una vez al año</li>
+                            <li><strong>Única:</strong> Cargo por única vez</li>
+                        </ul>
+                    </div>
+                </div>
+            </ChildContent>
+        </UICard>
+    </ChildContent>
+</UICard>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<object>? conceptos = null;
+    private bool isLoading = false;
+
+    private List<TableColumn<object>> ConceptosColumns => new()
+    {
+        new() { Header = "Código", Cell = c => "-" },
+        new() { Header = "Nombre", Cell = c => "-" },
+        new() { Header = "Tipo", Cell = c => "-" },
+        new() { Header = "Moneda", Cell = c => "-" },
+        new() { Header = "Precio Base", Cell = c => "-" },
+        new() { Header = "Recurrente", Cell = c => "-" },
+        new() { Header = "Periodicidad", Cell = c => "-" },
+        new() { 
+            Header = "Acciones", 
+            Cell = c => (RenderFragment)(builder => {
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "class", "flex gap-2");
+                builder.AddMarkupContent(2, @"
+                    <button class='p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition' title='Editar'>
+                        <svg class='w-4 h-4 text-slate-600 dark:text-slate-400' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'>
+                            <path stroke-linecap='round' stroke-linejoin='round' d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'/>
+                        </svg>
+                    </button>
+                    <button class='p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition' title='Eliminar'>
+                        <svg class='w-4 h-4 text-red-600 dark:text-red-400' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'>
+                            <path stroke-linecap='round' stroke-linejoin='round' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'/>
+                        </svg>
+                    </button>
+                ");
+                builder.CloseElement();
+            })
+        }
+    };
+
+    // TODO: Integración con ConceptosController
+}

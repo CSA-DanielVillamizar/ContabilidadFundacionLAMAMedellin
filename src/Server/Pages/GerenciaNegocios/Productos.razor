@@ -1,0 +1,368 @@
+@page "/gerencia-negocios/productos"
+@using Server.DTOs.Productos
+@using Server.Services.Productos
+@attribute [Authorize(Policy = "TesoreroJunta")]
+@inject IProductosService ProductosService
+@inject NavigationManager Navigation
+@inject ToastService Toast
+
+<PageTitle>Productos - Gerencia de Negocios</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
+    <!-- Header con título y botón -->
+    <PageHeader Icon="@Icons.Material.Filled.Inventory" 
+                Title="Catálogo de Productos" 
+                Subtitle="Gestión de inventario y productos">
+        <Actions>
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.Add" 
+                       OnClick="AbrirModalNuevo">
+                Nuevo Producto
+            </MudButton>
+        </Actions>
+    </PageHeader>
+
+    <!-- Alerta de stock bajo -->
+    @if (mostrarAlertaBajoStock && productosBajoStock.Any())
+    {
+        <MudAlert Severity="Severity.Warning" 
+                  Class="mb-4" 
+                  ShowCloseIcon="true" 
+                  CloseIconClicked="@(() => mostrarAlertaBajoStock = false)">
+            <strong>⚠️ Alerta de Stock Bajo:</strong> 
+            @productosBajoStock.Count producto(s) con stock por debajo del mínimo.
+            <MudLink OnClick="@(() => filtroActual = 2)" Class="ms-2">Ver productos</MudLink>
+        </MudAlert>
+    }
+
+    <!-- Card de filtros y estadísticas -->
+    <MudCard Class="glass-card mb-4" Elevation="3">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" sm="4">
+                    <ModernSearch Placeholder="🔍 Buscar por código o nombre" Value="@busqueda" ValueChanged="@((value) => busqueda = value)" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudSelect @bind-Value="filtroActual" Label="Filtro">
+                        <MudSelectItem Value="0">Todos los productos</MudSelectItem>
+                        <MudSelectItem Value="1">Solo activos</MudSelectItem>
+                        <MudSelectItem Value="2">Stock bajo</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="5" Class="d-flex align-center justify-end gap-2">
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">Total: @productosFiltrados.Count</MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Activos: @productos.Count(p => p.Activo)</MudChip>
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">Bajo Stock: @productosBajoStock.Count</MudChip>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+
+    <!-- DataTable usando DataTableWrapper -->
+    <DataTableWrapper TItem="ProductoDto"
+                      Items="@productosFiltrados"
+                      SearchFunction="@SearchProductos"
+                      Loading="@cargando"
+                      ShowHeader="false"
+                      Dense="true"
+                      Hover="true">
+        <TableHeader>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Precio COP</MudTh>
+            <MudTh>Stock</MudTh>
+            <MudTh Style="text-align: center;">Estado</MudTh>
+            <MudTh Style="text-align: center;">Acciones</MudTh>
+        </TableHeader>
+        <TableRow Context="producto">
+            <MudTd DataLabel="Código" Class="@(producto.BajoStock ? "mud-warning-text" : "")">
+                <strong>@producto.Codigo</strong>
+            </MudTd>
+            <MudTd DataLabel="Nombre">
+                @producto.Nombre
+                @if (!string.IsNullOrEmpty(producto.Talla))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="ms-1">@producto.Talla</MudChip>
+                }
+                @if (producto.EsParcheOficial)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ms-1">Oficial LAMA</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Tipo">@producto.Tipo</MudTd>
+            <MudTd DataLabel="Precio COP">$@producto.PrecioVentaCOP.ToString("N0")</MudTd>
+            <MudTd DataLabel="Stock">
+                <MudChip T="string" Size="Size.Small" Color="@(producto.BajoStock ? Color.Error : Color.Success)">
+                    @producto.StockActual / @producto.StockMinimo
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Estado" Style="text-align: center;">
+                <MudChip T="string" Size="Size.Small" Color="@(producto.Activo ? Color.Success : Color.Default)">
+                    @(producto.Activo ? "Activo" : "Inactivo")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones" Style="text-align: center;">
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Small" 
+                                   OnClick="@(() => AbrirModalEditar(producto))" />
+                </MudTooltip>
+                <MudTooltip Text="Ver movimientos">
+                    <MudIconButton Icon="@Icons.Material.Filled.History" 
+                                   Color="Color.Info" 
+                                   Size="Size.Small" 
+                                   OnClick="@(() => VerMovimientos(producto.Id))" />
+                </MudTooltip>
+                @if (producto.Activo)
+                {
+                    <MudTooltip Text="Desactivar">
+                        <MudIconButton Icon="@Icons.Material.Filled.ToggleOff" 
+                                       Color="Color.Warning" 
+                                       Size="Size.Small" 
+                                       OnClick="@(() => CambiarEstado(producto, false))" />
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Activar">
+                        <MudIconButton Icon="@Icons.Material.Filled.ToggleOn" 
+                                       Color="Color.Success" 
+                                       Size="Size.Small" 
+                                       OnClick="@(() => CambiarEstado(producto, true))" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </TableRow>
+    </DataTableWrapper>
+</MudContainer>
+
+@* Modal Formulario con MudDialog *@
+<MudDialog @bind-Visible="mostrarModal" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="me-2" />
+            @(productoEditando == null ? "Nuevo Producto" : "Editar Producto")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="formulario" OnValidSubmit="GuardarProducto">
+            <DataAnnotationsValidator />
+            
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Código" @bind-Value="formulario.Codigo" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect Label="Tipo" @bind-Value="formulario.Tipo" Required="true">
+                        <MudSelectItem Value="1">Parche</MudSelectItem>
+                        <MudSelectItem Value="2">Souvenir</MudSelectItem>
+                        <MudSelectItem Value="3">Camiseta</MudSelectItem>
+                        <MudSelectItem Value="4">Jersey</MudSelectItem>
+                        <MudSelectItem Value="5">Gorra</MudSelectItem>
+                        <MudSelectItem Value="6">Sticker</MudSelectItem>
+                        <MudSelectItem Value="7">Llavero</MudSelectItem>
+                        <MudSelectItem Value="99">Otros</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Nombre" @bind-Value="formulario.Nombre" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField Label="Precio Venta COP" @bind-Value="formulario.PrecioVentaCOP" Required="true" Format="N0" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField Label="Precio Venta USD" @bind-Value="formulario.PrecioVentaUSD" Format="N2" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField Label="Talla" @bind-Value="formulario.Talla" Placeholder="XS, S, M, L, XL..." />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Label="Stock Actual" @bind-Value="formulario.StockActual" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Label="Stock Mínimo" @bind-Value="formulario.StockMinimo" Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Descripción" @bind-Value="formulario.Descripcion" Lines="3" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="URL Imagen" @bind-Value="formulario.ImagenUrl" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudCheckBox T="bool" @bind-Value="formulario.EsParcheOficial" Label="Es parche oficial (LAMA International)" Color="Color.Primary" />
+                    <MudCheckBox T="bool" @bind-Value="formulario.Activo" Label="Producto activo" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CerrarModal" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="GuardarProducto" Variant="Variant.Filled" Color="Color.Primary" Disabled="@guardando">
+            @if (guardando)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+            }
+            Guardar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<ProductoDto> productos = new();
+    private List<ProductoDto> productosBajoStock = new();
+    private bool cargando = true;
+    private bool mostrarModal = false;
+    private bool guardando = false;
+    private bool mostrarAlertaBajoStock = true;
+    private string busqueda = "";
+    private int filtroActual = 0; // 0=Todos, 1=Activos, 2=Bajo stock
+    private ProductoDto? productoEditando = null;
+    private ProductoCreateUpdateDto formulario = new();
+
+    private List<ProductoDto> productosFiltrados
+    {
+        get
+        {
+            var filtered = filtroActual switch
+            {
+                1 => productos.Where(p => p.Activo).ToList(),
+                2 => productosBajoStock,
+                _ => productos
+            };
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+            {
+                filtered = filtered.Where(p =>
+                    p.Codigo.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ||
+                    p.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
+
+            return filtered;
+        }
+    }
+
+    // Función de búsqueda para DataTableWrapper
+    private bool SearchProductos(ProductoDto producto, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        return producto.Codigo.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+               producto.Nombre.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+               producto.Tipo.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductos();
+    }
+
+    private async Task CargarProductos()
+    {
+        cargando = true;
+        try
+        {
+            productos = await ProductosService.GetAllAsync();
+            productosBajoStock = await ProductosService.GetBajoStockAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar productos: {ex.Message}", "error");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModalNuevo()
+    {
+        productoEditando = null;
+        formulario = new ProductoCreateUpdateDto
+        {
+            Tipo = 1,
+            StockMinimo = 5,
+            Activo = true
+        };
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEditar(ProductoDto producto)
+    {
+        productoEditando = producto;
+        formulario = new ProductoCreateUpdateDto
+        {
+            Codigo = producto.Codigo,
+            Nombre = producto.Nombre,
+            Tipo = int.Parse(producto.Tipo),
+            PrecioVentaCOP = producto.PrecioVentaCOP,
+            PrecioVentaUSD = producto.PrecioVentaUSD,
+            StockActual = producto.StockActual,
+            StockMinimo = producto.StockMinimo,
+            Talla = producto.Talla,
+            Descripcion = producto.Descripcion,
+            EsParcheOficial = producto.EsParcheOficial,
+            ImagenUrl = producto.ImagenUrl,
+            Activo = producto.Activo
+        };
+        mostrarModal = true;
+    }
+
+    private async Task GuardarProducto()
+    {
+        guardando = true;
+        try
+        {
+            if (productoEditando == null)
+            {
+                await ProductosService.CreateAsync(formulario);
+                Toast.Show("Producto creado exitosamente", "success");
+            }
+            else
+            {
+                await ProductosService.UpdateAsync(productoEditando.Id, formulario);
+                Toast.Show("Producto actualizado exitosamente", "success");
+            }
+
+            await CargarProductos();
+            CerrarModal();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al guardar: {ex.Message}", "error");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CambiarEstado(ProductoDto producto, bool activo)
+    {
+        try
+        {
+            await ProductosService.ActivarDesactivarAsync(producto.Id, activo);
+            Toast.Show($"Producto {(activo ? "activado" : "desactivado")} exitosamente", "success");
+            await CargarProductos();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error: {ex.Message}", "error");
+        }
+    }
+
+    private void VerMovimientos(Guid productoId)
+    {
+        Navigation.NavigateTo($"/gerencia-negocios/inventario?producto={productoId}");
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        productoEditando = null;
+    }
+}

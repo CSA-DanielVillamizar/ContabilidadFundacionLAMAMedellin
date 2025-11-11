@@ -1,0 +1,12 @@
+{
+  "name": "lama-blazor-modern-ui",
+  "version": "1.0.0",
+  "scripts": {
+    "build:css": "npx tailwindcss -c ./tailwind.config.js -i ./src/Server/wwwroot/css/tailwind.input.css -o ./src/Server/wwwroot/css/tailwind.css --minify",
+    "watch:css": "npx tailwindcss -c ./tailwind.config.js -i ./src/Server/wwwroot/css/tailwind.input.css -o ./src/Server/wwwroot/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.0",
+    "autoprefixer": "^10.4.0"
+  }
+}

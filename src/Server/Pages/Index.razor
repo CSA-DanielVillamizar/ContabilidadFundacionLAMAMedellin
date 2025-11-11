@@ -1,0 +1,455 @@
+@page "/"
+@inject Server.Services.DashboardService DashboardService
+@using Server.Services
+@using Microsoft.JSInterop
+
+<PageTitle>Dashboard - L.A.M.A. Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<MudPaper Elevation="3" Class="glass-card pa-6 mb-6">
+    <PageHeader Title="Dashboard" 
+                Icon="@Icons.Material.Filled.Dashboard">
+        <Actions>
+            <MudSelect T="string" Value="rangoSeleccionado" ValueChanged="@(async (string value) => { rangoSeleccionado = value; await OnRangoChanged(); })" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem T="string" Value="@("6")">Últimos 6 meses</MudSelectItem>
+                <MudSelectItem T="string" Value="@("12")">Últimos 12 meses</MudSelectItem>
+                <MudSelectItem T="string" Value="@("ytd")">Año actual (YTD)</MudSelectItem>
+                <MudSelectItem T="string" Value="@("todo")">Todo el histórico</MudSelectItem>
+            </MudSelect>
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Primary" OnClick="@ReloadStats" />
+        </Actions>
+    </PageHeader>
+    
+    <div class="mb-6">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <ModernStatCard Title="Total Miembros"
+                                Value="@(stats?.TotalMiembros.ToString() ?? "0")"
+                                Icon="@Icons.Material.Filled.People"
+                                IconColor="primary"
+                                Trend="@stats?.MiembrosCambio"
+                                TrendDirection="@GetTrendDirection(stats?.MiembrosCambio)"
+                                Subtitle="Miembros activos" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <ModernStatCard Title="Ingresos del Mes"
+                                Value="@FormatCurrency(stats?.RecibosDelMes ?? 0)"
+                                Icon="@Icons.Material.Filled.TrendingUp"
+                                IconColor="success"
+                                Trend="@stats?.RecibosCambio"
+                                TrendDirection="@GetTrendDirection(stats?.RecibosCambio)"
+                                Subtitle="Recibos emitidos" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <ModernStatCard Title="Egresos del Mes"
+                                Value="@FormatCurrency(stats?.EgresosDelMes ?? 0)"
+                                Icon="@Icons.Material.Filled.TrendingDown"
+                                IconColor="warning"
+                                Trend="@stats?.EgresosCambio"
+                                TrendDirection="@GetTrendDirection(stats?.EgresosCambio)"
+                                Subtitle="Gastos registrados" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <ModernStatCard Title="Balance"
+                                Value="@FormatCurrency(stats?.Balance ?? 0)"
+                                Icon="@Icons.Material.Filled.AccountBalance"
+                                IconColor="@(stats?.Balance >= 0 ? "success" : "warning")"
+                                Trend="@stats?.BalanceCambio"
+                                TrendDirection="@GetTrendDirection(stats?.BalanceCambio)"
+                                Subtitle="Neto del mes" />
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="3" Class="glass-card pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4" Style="font-weight: 600;">Ingresos vs Egresos</MudText>
+                <canvas id="chartIngresosEgresos" height="120"></canvas>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="3" Class="glass-card pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4" Style="font-weight: 600;">Balance Mensual</MudText>
+                <canvas id="chartBalance" height="120"></canvas>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="3" Class="glass-card pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4" Style="font-weight: 600;">Top 5 Conceptos (Ingresos)</MudText>
+                <canvas id="chartTopConceptos" height="120"></canvas>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="3" Class="glass-card pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4" Style="font-weight: 600;">Resumen del Período</MudText>
+                <div class="d-flex flex-column gap-3">
+                    <div class="d-flex justify-space-between align-center" style="border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">
+                        <MudText Typo="Typo.body1">Total Ingresos</MudText>
+                        <MudText Typo="Typo.h6" Color="Color.Success">@FormatCurrency(series?.Ingresos.Sum() ?? 0)</MudText>
+                    </div>
+                    <div class="d-flex justify-space-between align-center" style="border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">
+                        <MudText Typo="Typo.body1">Total Egresos</MudText>
+                        <MudText Typo="Typo.h6" Color="Color.Error">@FormatCurrency(series?.Egresos.Sum() ?? 0)</MudText>
+                    </div>
+                    <div class="d-flex justify-space-between align-center" style="border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">
+                        <MudText Typo="Typo.body1">Balance Neto</MudText>
+                        <MudText Typo="Typo.h6" Color="@((series?.Ingresos.Sum() ?? 0) - (series?.Egresos.Sum() ?? 0) >= 0 ? Color.Success : Color.Error)">
+                            @FormatCurrency((series?.Ingresos.Sum() ?? 0) - (series?.Egresos.Sum() ?? 0))
+                        </MudText>
+                    </div>
+                    <div class="d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.body1">Período</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@ObtenerEtiquetaRango()</MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" lg="8">
+            <MudPaper Elevation="3" Class="glass-card pa-4">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Typo="Typo.h6" Style="font-weight: 600;">Últimos Recibos</MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="tesoreria/recibos" Size="Size.Small">Ver todos</MudButton>
+                </div>
+                <MudTable T="ReciboResumen" Items="@ultimosRecibos" Hover="true" Dense="true" Loading="@isLoading" Elevation="0" Class="modern-table">
+                    <HeaderContent>
+                        <MudTh>Número</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Miembro</MudTh>
+                        <MudTh>Valor</MudTh>
+                        <MudTh>Estado</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="recibo">
+                        <MudTd DataLabel="Número">@recibo.Numero</MudTd>
+                        <MudTd DataLabel="Fecha">@recibo.Fecha.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Miembro">@recibo.MiembroNombre</MudTd>
+                        <MudTd DataLabel="Valor">@FormatCurrency(recibo.TotalCop)</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <span class="badge-modern @GetEstadoBadgeClass(recibo.Estado)">@recibo.Estado</span>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" lg="4">
+            <MudPaper Elevation="3" Class="glass-card pa-4">
+                <MudText Typo="Typo.h6" Class="mb-4" Style="font-weight: 600;">Top Deudores</MudText>
+                @if (topDeudores?.Any() == true)
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var deudor in topDeudores)
+                        {
+                            <div class="d-flex justify-space-between align-center">
+                                <div>
+                                    <MudText Typo="Typo.body1"><strong>@deudor.NombreCompleto</strong></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Miembro #@deudor.NumeroSocio</MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error">@FormatCurrency(deudor.DeudaTotal)</MudChip>
+                            </div>
+                        }
+                    </div>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="tesoreria/deudores" Size="Size.Small" Class="mt-3" FullWidth="true">
+                        Ver todos los deudores
+                    </MudButton>
+                }
+                else
+                {
+                    <div class="d-flex flex-column align-center justify-center pa-4">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">¡No hay deudores!</MudText>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="6" md="4">
+            <StatCard Title="Miembros"
+                      Icon="@Icons.Material.Filled.People"
+                      Description="Gestión de miembros de la logia, importación desde CSV/Excel, estados y datos de contacto."
+                      ButtonText="Ver Miembros"
+                      ButtonHref="miembros" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <StatCard Title="Recibos de Caja"
+                      Icon="@Icons.Material.Filled.Receipt"
+                      Description="Generación de recibos con PDF, QR y numeración consecutiva automática."
+                      ButtonText="Ver Recibos"
+                      ButtonHref="tesoreria/recibos" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <StatCard Title="Egresos"
+                      Icon="@Icons.Material.Filled.TrendingDown"
+                      Description="Control de egresos con archivos adjuntos, filtros y control de acceso por roles."
+                      ButtonText="Ver Egresos"
+                      ButtonHref="tesoreria/egresos" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <StatCard Title="Deudores"
+                      Icon="@Icons.Material.Filled.AccountBalance"
+                      Description="Seguimiento de deudas de mensualidad con filtros, TRM histórica y exportaciones."
+                      ButtonText="Ver Deudores"
+                      ButtonHref="tesoreria/deudores" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <StatCard Title="Reportes"
+                      Icon="@Icons.Material.Filled.Assessment"
+                      Description="Consolidado mensual de tesorería con exportación a Excel y PDF."
+                      ButtonText="Ver Reportes"
+                      ButtonHref="tesoreria/reportes" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <StatCard Title="Tasas de Cambio"
+                      Icon="@Icons.Material.Filled.CurrencyExchange"
+                      Description="Consulta y gestión de tasas de cambio USD-COP sincronizadas automáticamente."
+                      ButtonText="Ver Tasas"
+                      ButtonHref="tasas-cambio" />
+        </MudItem>
+    </MudGrid>
+    
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">Información del Sistema</MudText>
+        <ul style="list-style: none; padding-left: 0;">
+            <li><MudText Typo="Typo.body2"><strong>Arquitectura:</strong> Clean Architecture con separación de capas</MudText></li>
+            <li><MudText Typo="Typo.body2"><strong>Tests:</strong> 29 tests unitarios y E2E (100% pasando)</MudText></li>
+            <li><MudText Typo="Typo.body2"><strong>Roles:</strong> Tesorero, Junta, Consulta</MudText></li>
+            <li><MudText Typo="Typo.body2"><strong>Tecnologías:</strong> .NET 8, Blazor Server, Entity Framework Core, QuestPDF, ClosedXML</MudText></li>
+        </ul>
+    </MudPaper>
+</MudPaper>
+    </Authorized>
+</AuthorizeView>
+
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    private DashboardStats? stats;
+    private List<ReciboResumen>? ultimosRecibos;
+    private List<DeudorResumen>? topDeudores;
+    private DashboardSeries? series;
+    private List<ConceptoTop>? topConceptos;
+    private bool isLoading = true;
+    private bool chartsRendered = false;
+    private string rangoSeleccionado = "12";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadStats();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (series is not null && !chartsRendered)
+        {
+            await RenderChartsAsync();
+            chartsRendered = true;
+        }
+    }
+
+    private async Task OnRangoChanged()
+    {
+        await ReloadStats();
+    }
+
+    private async Task ReloadStats()
+    {
+        isLoading = true;
+        chartsRendered = false;
+        try
+        {
+            stats = await DashboardService.GetDashboardStatsAsync();
+
+            (int meses, DateTime? desde, DateTime? hasta) = CalcularRango();
+            series = await DashboardService.GetSeriesMensualesAsync(meses);
+            topConceptos = await DashboardService.GetTopConceptosAsync(5, desde, hasta);
+
+            ultimosRecibos = await DashboardService.GetUltimosRecibosAsync(5);
+            topDeudores = await DashboardService.GetTopDeudoresAsync(5);
+        }
+        catch (Exception)
+        {
+            // Silenciar error al cargar dashboard
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private (int meses, DateTime? desde, DateTime? hasta) CalcularRango()
+    {
+        var now = DateTime.UtcNow;
+        return rangoSeleccionado switch
+        {
+            "6" => (6, null, null),
+            "12" => (12, null, null),
+            "ytd" => (now.Month, null, null),
+            "todo" => (999, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), null),
+            _ => (12, null, null)
+        };
+    }
+
+    private string ObtenerEtiquetaRango()
+    {
+        return rangoSeleccionado switch
+        {
+            "6" => "Últimos 6 meses",
+            "12" => "Últimos 12 meses",
+            "ytd" => $"Año {DateTime.UtcNow.Year} (YTD)",
+            "todo" => "Todo el histórico",
+            _ => "Últimos 12 meses"
+        };
+    }
+
+    private async Task RenderChartsAsync()
+    {
+        try
+        {
+            if (series is null) return;
+            
+            // Verificar que LamaCharts esté disponible en el navegador
+            var hasLamaCharts = await JS.InvokeAsync<bool>("eval", "typeof window.LamaCharts !== 'undefined' && typeof window.LamaCharts.renderOrUpdate === 'function'");
+            if (!hasLamaCharts)
+            {
+                // LamaCharts no disponible - silenciar
+                return;
+            }
+            
+            var labels = series.Labels;
+            var ingresos = series.Ingresos;
+            var egresos = series.Egresos;
+            var balance = series.Balance;
+
+            await JS.InvokeVoidAsync("LamaCharts.renderOrUpdate", "chartIngresosEgresos", new
+        {
+            type = "bar",
+            data = new
+            {
+                labels,
+                datasets = new object[]
+                {
+                    new { label = "Ingresos", data = ingresos, backgroundColor = "#10b981" },
+                    new { label = "Egresos", data = egresos, backgroundColor = "#ef4444" }
+                }
+            },
+            options = new
+            {
+                responsive = true,
+                plugins = new { legend = new { position = "top" } },
+                scales = new { y = new { beginAtZero = true } }
+            }
+        });
+
+        await JS.InvokeVoidAsync("LamaCharts.renderOrUpdate", "chartBalance", new
+        {
+            type = "line",
+            data = new
+            {
+                labels,
+                datasets = new object[]
+                {
+                    new { label = "Balance", data = balance, borderColor = "#3b82f6", backgroundColor = "#93c5fd", fill = true, tension = 0.3 }
+                }
+            },
+            options = new
+            {
+                responsive = true,
+                plugins = new { legend = new { position = "top" } },
+                scales = new { y = new { beginAtZero = true } }
+            }
+        });
+
+        if (topConceptos is not null && topConceptos.Any())
+        {
+            var conceptoLabels = topConceptos.Select(c => c.Nombre).ToArray();
+            var conceptoData = topConceptos.Select(c => c.Total).ToArray();
+
+            await JS.InvokeVoidAsync("LamaCharts.renderOrUpdate", "chartTopConceptos", new
+            {
+                type = "bar",
+                data = new
+                {
+                    labels = conceptoLabels,
+                    datasets = new object[]
+                    {
+                        new { label = "Total COP", data = conceptoData, backgroundColor = "#3b82f6" }
+                    }
+                },
+                options = new
+                {
+                    indexAxis = "y",
+                    responsive = true,
+                    plugins = new { legend = new { display = false } },
+                    scales = new { x = new { beginAtZero = true } }
+                }
+            });
+        }
+        }
+        catch (TaskCanceledException)
+        {
+            // Silenciar cancelaciones de tareas (circuito desconectado, navegación, etc.)
+        }
+        catch (JSException jsEx) when (jsEx.Message.Contains("disposed") || jsEx.Message.Contains("circuit"))
+        {
+            // Silenciar errores de JSInterop por circuito cerrado
+        }
+        catch (Exception)
+        {
+            // Silenciar errores de rendering de gráficos para evitar spam en consola
+        }
+    }
+
+    private string FormatCurrency(decimal amount)
+    {
+        return amount.ToString("C0", new System.Globalization.CultureInfo("es-CO"));
+    }
+    
+    private Color GetEstadoColor(string estado)
+    {
+        return estado switch
+        {
+            "Emitido" => Color.Success,
+            "Borrador" => Color.Warning,
+            "Anulado" => Color.Error,
+            _ => Color.Primary
+        };
+    }
+
+    /// <summary>
+    /// Obtiene la clase CSS del badge moderno según el estado
+    /// </summary>
+    private string GetEstadoBadgeClass(string estado)
+    {
+        return estado switch
+        {
+            "Emitido" => "badge-success",
+            "Borrador" => "badge-warning",
+            "Anulado" => "badge-danger",
+            _ => "badge-primary"
+        };
+    }
+
+    /// <summary>
+    /// Determina la dirección de la tendencia basándose en el texto del cambio
+    /// </summary>
+    private string GetTrendDirection(string? cambio)
+    {
+        if (string.IsNullOrEmpty(cambio)) return "neutral";
+        
+        if (cambio.Contains("+") || cambio.Contains("↑")) return "up";
+        if (cambio.Contains("-") || cambio.Contains("↓")) return "down";
+        
+        return "neutral";
+    }
+}

@@ -1,0 +1,119 @@
+@page "/ejecutar-actualizacion-deudores-ahora"
+@using Microsoft.EntityFrameworkCore
+@using Server.Data
+@using Server.Models
+@inject AppDbContext Db
+
+<h3>Ejecutando Actualización...</h3>
+<pre>@log</pre>
+
+@code {
+    private string log = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EjecutarActualizacion();
+    }
+
+    private async Task EjecutarActualizacion()
+    {
+        try
+        {
+            log += "=== Iniciando actualización ===\n\n";
+            
+            var mensualidad = await Db.Conceptos.FirstOrDefaultAsync(c => c.Codigo == "MENSUALIDAD");
+            if (mensualidad == null)
+            {
+                log += "❌ Error: MENSUALIDAD no encontrado\n";
+                return;
+            }
+
+            log += $"✓ Concepto MENSUALIDAD: ${mensualidad.PrecioBase}\n\n";
+
+            // 1. NUEVOS MIEMBROS
+            log += "1. Nuevos miembros (octubre 2025):\n";
+            await ActualizarFechaIngreso("Laura Viviana Salazar Moreno");
+            await ActualizarFechaIngreso("José Julián Villamizar Araque");
+            await ActualizarFechaIngreso("Gustavo Adolfo Gómez Zuluaga");
+            await ActualizarFechaIngreso("Nelson Augusto Montoya Mataute");
+
+            // 2. RECIBOS
+            log += "\n2. Creando recibos:\n";
+            await CrearRecibo(mensualidad, "Ramón Antonio  González  Castaño", 2025, 10, 10);
+            await CrearRecibo(mensualidad, "Carlos Alberto Araque Betancur", 2025, 12, 12);
+            await CrearRecibo(mensualidad, "Milton Darío Gómez Rivera", 2025, 6, 6);
+            await CrearRecibo(mensualidad, "Daniel Andrey Villamizar Araque", 2025, 6, 6);
+            await CrearRecibo(mensualidad, "Ángela Maria Rodríguez Ochoa", 2025, 9, 9);
+            await CrearRecibo(mensualidad, "César Leonel RodrÍguez Galán", 2025, 9, 9);
+            await CrearRecibo(mensualidad, "Girlesa María Buitrago", 2025, 1, 1);
+
+            await Db.SaveChangesAsync();
+            log += "\n✅ Actualización completada!\n";
+            log += "\nRecarga /tesoreria/deudores para ver cambios";
+        }
+        catch (Exception ex)
+        {
+            log += $"\n❌ Error: {ex.Message}\n{ex.StackTrace}";
+        }
+    }
+
+    private async Task ActualizarFechaIngreso(string nombre)
+    {
+        var miembro = await Db.Miembros.FirstOrDefaultAsync(m => m.NombreCompleto.Contains(nombre) || nombre.Contains(m.NombreCompleto));
+        if (miembro != null)
+        {
+            miembro.FechaIngreso = new DateOnly(2025, 10, 1);
+            miembro.UpdatedAt = DateTime.UtcNow;
+            miembro.UpdatedBy = "actualizacion_oct_2025";
+            log += $"  ✓ {miembro.NombreCompleto}\n";
+        }
+        else
+        {
+            log += $"  ⚠️ {nombre}: NO ENCONTRADO\n";
+        }
+    }
+
+    private async Task CrearRecibo(Concepto mensualidad, string nombre, int ano, int mes, int cantidad)
+    {
+        var miembro = await Db.Miembros.FirstOrDefaultAsync(m => m.NombreCompleto.Contains(nombre) || nombre.Contains(m.NombreCompleto));
+        if (miembro == null)
+        {
+            log += $"  ⚠️ {nombre}: NO ENCONTRADO\n";
+            return;
+        }
+
+        var existe = await Db.Recibos.AnyAsync(r => r.MiembroId == miembro.Id && r.FechaEmision.Year == ano && r.FechaEmision.Month == mes);
+        if (existe)
+        {
+            log += $"  ℹ️ {miembro.NombreCompleto}: Ya tiene recibo\n";
+            return;
+        }
+
+        var recibo = new Recibo
+        {
+            Id = Guid.NewGuid(),
+            MiembroId = miembro.Id,
+            FechaEmision = new DateTime(ano, mes, 1),
+            Ano = ano,
+            Estado = EstadoRecibo.Emitido,
+            TotalCop = mensualidad.PrecioBase * cantidad,
+            Observaciones = $"Actualización oct 2025 - {cantidad} meses",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "actualizacion_oct_2025",
+            Items = new List<ReciboItem>
+            {
+                new ReciboItem
+                {
+                    ConceptoId = mensualidad.Id,
+                    Cantidad = cantidad,
+                    PrecioUnitarioMonedaOrigen = mensualidad.PrecioBase,
+                    MonedaOrigen = mensualidad.Moneda,
+                    SubtotalCop = mensualidad.PrecioBase * cantidad
+                }
+            }
+        };
+
+        Db.Recibos.Add(recibo);
+        log += $"  ✓ {miembro.NombreCompleto}: {cantidad} meses\n";
+    }
+}

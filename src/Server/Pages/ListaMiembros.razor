@@ -1,0 +1,364 @@
+@page "/miembros"
+@inject Server.Services.Miembros.IMiembrosService MiembrosService
+@inject Server.Services.Auth.ICurrentUserService CurrentUserService
+@inject ISnackbar Snackbar
+@using Server.DTOs
+@using Server.DTOs.Miembros
+@using Server.Models
+
+<PageTitle>Miembros - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+        <PageHeader Icon="@Icons.Material.Filled.People" Title="Gestión de Miembros">
+            <Actions>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" Href="@ObtenerUrlExportExcel()" Target="_blank">Exportar Excel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirModalCrear">Nuevo Miembro</MudButton>
+            </Actions>
+        </PageHeader>
+
+        <MudCard Class="mb-4" Elevation="3">
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="search" Label="Buscar" Placeholder="Nombre o documento..." Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="int" @bind-Value="filtroEstado" Label="Estado" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem T="int" Value="0">Todos</MudSelectItem>
+                            <MudSelectItem T="int" Value="1">Activo</MudSelectItem>
+                            <MudSelectItem T="int" Value="2">Inactivo</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+
+        <DataTableWrapper TItem="MiembroListItem" Items="@miembrosFiltrados" Dense="true" Hover="true" Loading="@isLoading" SearchFunction="SearchMiembros">
+            <TableHeader>
+                <MudTh>Nº Socio</MudTh>
+                <MudTh>Nombre Completo</MudTh>
+                <MudTh>Documento</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh>Cargo</MudTh>
+                <MudTh>Estado</MudTh>
+                <MudTh Style="text-align: right;">Acciones</MudTh>
+            </TableHeader>
+            <TableRow Context="m">
+                <MudTd DataLabel="Nº Socio">@m.NumeroSocio</MudTd>
+                <MudTd DataLabel="Nombre">@m.NombreCompleto</MudTd>
+                <MudTd DataLabel="Documento">@m.Documento</MudTd>
+                <MudTd DataLabel="Email">@m.Email</MudTd>
+                <MudTd DataLabel="Cargo">@m.Cargo</MudTd>
+                <MudTd DataLabel="Estado">
+                    <MudChip T="string" Color="@GetEstadoColor(m.Estado)" Size="Size.Small" Variant="Variant.Filled">@m.Estado</MudChip>
+                </MudTd>
+                <MudTd Style="text-align: right;">
+                    <MudTooltip Text="Editar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => AbrirModalEditar(m.Id))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Eliminar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => ConfirmarEliminar(m.Id, m.NombreCompleto))" />
+                    </MudTooltip>
+                </MudTd>
+            </TableRow>
+        </DataTableWrapper>
+    </Authorized>
+</AuthorizeView>
+
+<!-- Dialog Crear/Editar Miembro -->
+<MudDialog @bind-Visible="mostrarModalForm" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = false })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(esEdicion ? "Editar Miembro" : "Nuevo Miembro")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="formData" OnValidSubmit="GuardarMiembroAsync">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="formData.NombreCompleto" Label="Nombre Completo" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="formData.Nombres" Label="Nombres" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="formData.Apellidos" Label="Apellidos" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="formData.Cedula" Label="Cédula" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="formData.Email" Label="Email" InputType="InputType.Email" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="formData.Celular" Label="Celular" />
+                </MudItem>
+                <MudItem xs="12" md="12">
+                    <MudTextField @bind-Value="formData.Direccion" Label="Dirección" Lines="2" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudNumericField T="int?" @bind-Value="formData.NumeroSocio" Label="Nº Socio" Min="0" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="formData.Cargo" Label="Cargo" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="formData.Rango" Label="Rango" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="EstadoMiembro" @bind-Value="formData.Estado" Label="Estado" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem T="EstadoMiembro" Value="EstadoMiembro.Activo">Activo</MudSelectItem>
+                        <MudSelectItem T="EstadoMiembro" Value="EstadoMiembro.Inactivo">Inactivo</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker Date="fechaIngresoDateTime" DateChanged="@(d => fechaIngresoDateTime = d)" Label="Fecha Ingreso" />
+                </MudItem>
+            </MudGrid>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Text" OnClick="CerrarModalForm">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit" Disabled="@guardando">Guardar</MudButton>
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<!-- Dialog Confirmar Eliminar -->
+<MudDialog @bind-Visible="mostrarModalEliminar" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Confirmar Eliminación</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>¿Está seguro de eliminar al miembro <strong>@miembroAEliminarNombre</strong>?</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CerrarModalEliminar">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" Disabled="@eliminando" OnClick="EliminarMiembroAsync">Eliminar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<MiembroListItem> miembros = new();
+    private bool isLoading = true;
+    private string search = string.Empty;
+    private int filtroEstado = 0;
+
+    // Modal Form
+    private bool mostrarModalForm = false;
+    private bool esEdicion = false;
+    private CreateMiembroDto formData = new();
+    private Guid? miembroEditandoId;
+    private bool guardando = false;
+    private DateTime? fechaIngresoDateTime;
+
+    // Modal Eliminar
+    private bool mostrarModalEliminar = false;
+    private Guid? miembroAEliminarId;
+    private string miembroAEliminarNombre = string.Empty;
+    private bool eliminando = false;
+
+    private List<MiembroListItem> miembrosFiltrados
+    {
+        get
+        {
+            var query = miembros.AsEnumerable();
+
+            if (filtroEstado == 1) query = query.Where(m => m.Estado == EstadoMiembro.Activo);
+            else if (filtroEstado == 2) query = query.Where(m => m.Estado == EstadoMiembro.Inactivo);
+
+            return query.ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+        var data = await MiembrosService.GetPagedAsync(null, null, 1, 1000); // Get all for client-side filtering
+        miembros = data?.Items?.ToList() ?? new();
+        isLoading = false;
+    }
+
+    private bool SearchMiembros(MiembroListItem miembro, string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm)) return true;
+        searchTerm = searchTerm.ToLower();
+        return miembro.NombreCompleto?.ToLower().Contains(searchTerm) == true ||
+               miembro.Documento?.ToLower().Contains(searchTerm) == true ||
+               miembro.Email?.ToLower().Contains(searchTerm) == true ||
+               miembro.Cargo?.ToLower().Contains(searchTerm) == true;
+    }
+
+    private Color GetEstadoColor(EstadoMiembro estado)
+    {
+        return estado == EstadoMiembro.Activo ? Color.Success : Color.Warning;
+    }
+
+    // Crear
+    private void AbrirModalCrear()
+    {
+        esEdicion = false;
+        formData = new CreateMiembroDto { Estado = EstadoMiembro.Activo, FechaIngreso = DateOnly.FromDateTime(DateTime.Now) };
+        fechaIngresoDateTime = DateTime.Now;
+        miembroEditandoId = null;
+        mostrarModalForm = true;
+    }
+
+    // Editar
+    private async Task AbrirModalEditar(Guid id)
+    {
+        var miembro = await MiembrosService.GetByIdAsync(id);
+        if (miembro == null) return;
+
+        esEdicion = true;
+        miembroEditandoId = id;
+        formData = new CreateMiembroDto
+        {
+            NombreCompleto = miembro.NombreCompleto,
+            Nombres = miembro.Nombres,
+            Apellidos = miembro.Apellidos,
+            Cedula = miembro.Cedula,
+            Email = miembro.Email,
+            Celular = miembro.Celular,
+            Direccion = miembro.Direccion,
+            NumeroSocio = miembro.NumeroSocio,
+            Cargo = miembro.Cargo,
+            Rango = miembro.Rango,
+            Estado = miembro.Estado,
+            FechaIngreso = miembro.FechaIngreso
+        };
+        fechaIngresoDateTime = miembro.FechaIngreso.HasValue ? miembro.FechaIngreso.Value.ToDateTime(TimeOnly.MinValue) : null;
+        mostrarModalForm = true;
+    }
+
+    private async Task GuardarMiembroAsync()
+    {
+        // Sync DateOnly from DateTime picker
+        if (fechaIngresoDateTime.HasValue)
+        {
+            formData.FechaIngreso = DateOnly.FromDateTime(fechaIngresoDateTime.Value);
+        }
+        else
+        {
+            formData.FechaIngreso = null;
+        }
+
+        guardando = true;
+        try
+        {
+            if (esEdicion && miembroEditandoId.HasValue)
+            {
+                var updateDto = new UpdateMiembroDto
+                {
+                    Id = miembroEditandoId.Value,
+                    NombreCompleto = formData.NombreCompleto,
+                    Nombres = formData.Nombres,
+                    Apellidos = formData.Apellidos,
+                    Cedula = formData.Cedula,
+                    Email = formData.Email,
+                    Celular = formData.Celular,
+                    Direccion = formData.Direccion,
+                    NumeroSocio = formData.NumeroSocio,
+                    Cargo = formData.Cargo,
+                    Rango = formData.Rango,
+                    Estado = formData.Estado,
+                    FechaIngreso = formData.FechaIngreso
+                };
+                await MiembrosService.UpdateAsync(updateDto, CurrentUserService.GetUserName());
+                Snackbar.Add("Miembro actualizado correctamente.", Severity.Success);
+            }
+            else
+            {
+                await MiembrosService.CreateAsync(formData, CurrentUserService.GetUserName());
+                Snackbar.Add("Miembro creado correctamente.", Severity.Success);
+            }
+
+            CerrarModalForm();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al guardar miembro: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void CerrarModalForm()
+    {
+        mostrarModalForm = false;
+        formData = new();
+        miembroEditandoId = null;
+    }
+
+    // Eliminar
+    private void ConfirmarEliminar(Guid id, string nombre)
+    {
+        miembroAEliminarId = id;
+        miembroAEliminarNombre = nombre;
+        mostrarModalEliminar = true;
+    }
+
+    private async Task EliminarMiembroAsync()
+    {
+        if (!miembroAEliminarId.HasValue) return;
+
+        eliminando = true;
+        try
+        {
+            await MiembrosService.DeleteAsync(miembroAEliminarId.Value);
+            Snackbar.Add("Miembro eliminado correctamente.", Severity.Success);
+            CerrarModalEliminar();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al eliminar miembro: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            eliminando = false;
+        }
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        miembroAEliminarId = null;
+        miembroAEliminarNombre = string.Empty;
+    }
+
+    // Exportar
+    private string ObtenerUrlExportExcel()
+    {
+        var queryParams = new List<string>();
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            queryParams.Add($"query={Uri.EscapeDataString(search)}");
+        }
+        
+        if (filtroEstado == 1)
+        {
+            queryParams.Add($"estado={EstadoMiembro.Activo}");
+        }
+        else if (filtroEstado == 2)
+        {
+            queryParams.Add($"estado={EstadoMiembro.Inactivo}");
+        }
+        
+        var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+        return $"/api/miembros/export-excel{queryString}";
+    }
+}

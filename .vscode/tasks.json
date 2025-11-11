@@ -1,0 +1,113 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-and-test",
+			"type": "shell",
+			"command": "dotnet test --nologo -v minimal",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-test-2",
+			"type": "shell",
+			"command": "dotnet test --nologo -v minimal",
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-server",
+			"type": "shell",
+			"command": "dotnet build",
+			"args": [],
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run-server",
+			"type": "shell",
+			"command": "dotnet run",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Rebuild and Run Server",
+			"type": "shell",
+			"command": "taskkill /F /IM Server.exe 2>$null; dotnet build src/Server/Server.csproj; dotnet run --project src/Server/Server.csproj",
+			"isBackground": true,
+			"problemMatcher": [
+				"$msCompile"
+			]
+		},
+		{
+			"label": "Fix Collation and Update Database",
+			"type": "shell",
+			"command": "sqlcmd -S localhost -d LamaMedellin -E -i 'src\\Server\\Scripts\\FixCollation.sql'; cd src\\Server; dotnet ef migrations add UpdateMiembroModelWithUTF8Support; dotnet ef database update; cd ..\\..;  dotnet build src\\Server\\Server.csproj",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Application",
+			"type": "shell",
+			"command": "dotnet run --project src\\Server\\Server.csproj",
+			"isBackground": true,
+			"problemMatcher": [
+				"$msCompile"
+			]
+		},
+		{
+			"label": "Verify Members Data",
+			"type": "shell",
+			"command": "sqlcmd -S localhost -d LamaMedellin -E -Q \"SELECT COUNT(*) AS TotalMiembros FROM Miembros; SELECT TOP 5 NumeroSocio, NombreCompleto, Apellidos FROM Miembros ORDER BY NumeroSocio\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build and Run Modern UI",
+			"type": "shell",
+			"command": "dotnet build src\\Server\\Server.csproj; if ($LASTEXITCODE -eq 0) { dotnet run --project src\\Server\\Server.csproj }",
+			"isBackground": true,
+			"problemMatcher": [
+				"$msCompile"
+			]
+		},
+		{
+			"label": "Build Server (Debug)",
+			"type": "shell",
+			"command": "dotnet build .\\src\\Server\\Server.csproj -c Debug -nologo",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run Blazor Server (5179)",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"run",
+				"--project",
+				"src\\Server\\Server.csproj",
+				"--urls",
+				"http://localhost:5179"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

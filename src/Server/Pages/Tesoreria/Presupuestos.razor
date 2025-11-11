@@ -1,0 +1,843 @@
+@page "/tesoreria/presupuestos"
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@using Server.DTOs
+@using Server.Services
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ToastService Toast
+
+<PageTitle>Presupuestos - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+        <!-- Header con breadcrumb -->
+        <div class="mb-6">
+            <nav class="flex mb-4" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                    <li class="inline-flex items-center">
+                        <a href="/" class="text-slate-700 dark:text-slate-300 hover:text-emerald-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="w-6 h-6 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                            <span class="ml-1 font-semibold text-slate-900 dark:text-white">Presupuestos</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Presupuestos</h1>
+                        <p class="text-slate-600 dark:text-slate-400">Gestión de presupuestos y ejecución</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button @onclick="MostrarModalCopiar" class="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        Copiar Presupuestos
+                    </button>
+                    <button @onclick="NuevoPresupuesto" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition flex items-center gap-2 shadow-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Nuevo Presupuesto
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs de Ejecución -->
+        @if (estadisticas != null)
+        {
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <!-- Total Presupuestado -->
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-blue-100 text-sm font-medium">Total Presupuestado</span>
+                        <svg class="w-8 h-8 text-blue-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="text-3xl font-bold">@estadisticas.TotalPresupuestado.ToString("C0")</div>
+                    <div class="text-blue-100 text-sm mt-1">@estadisticas.CantidadPresupuestos presupuestos activos</div>
+                </div>
+
+                <!-- Total Ejecutado -->
+                <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-emerald-100 text-sm font-medium">Total Ejecutado</span>
+                        <svg class="w-8 h-8 text-emerald-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="text-3xl font-bold">@estadisticas.TotalEjecutado.ToString("C0")</div>
+                    <div class="text-emerald-100 text-sm mt-1">
+                        @if (estadisticas.TotalPresupuestado > 0)
+                        {
+                            var porcentaje = (estadisticas.TotalEjecutado / estadisticas.TotalPresupuestado) * 100;
+                            <span>@porcentaje.ToString("F1")% del presupuesto</span>
+                        }
+                    </div>
+                </div>
+
+                <!-- Diferencia -->
+                <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-orange-100 text-sm font-medium">Diferencia</span>
+                        <svg class="w-8 h-8 text-orange-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                        </svg>
+                    </div>
+                    <div class="text-3xl font-bold">@estadisticas.Diferencia.ToString("C0")</div>
+                    <div class="text-orange-100 text-sm mt-1">
+                        @if (estadisticas.Diferencia >= 0)
+                        {
+                            <span>Disponible</span>
+                        }
+                        else
+                        {
+                            <span>Sobreejecución</span>
+                        }
+                    </div>
+                </div>
+
+                <!-- % Ejecución Promedio -->
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-purple-100 text-sm font-medium">% Ejecución Promedio</span>
+                        <svg class="w-8 h-8 text-purple-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <div class="text-3xl font-bold">@estadisticas.PorcentajeEjecucionPromedio.ToString("F1")%</div>
+                    <div class="text-purple-100 text-sm mt-1">
+                        @if (estadisticas.PorcentajeEjecucionPromedio < 50)
+                        {
+                            <span>Ejecución baja</span>
+                        }
+                        else if (estadisticas.PorcentajeEjecucionPromedio < 80)
+                        {
+                            <span>Ejecución normal</span>
+                        }
+                        else if (estadisticas.PorcentajeEjecucionPromedio <= 100)
+                        {
+                            <span>Ejecución alta</span>
+                        }
+                        else
+                        {
+                            <span>Sobreejecución</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Filtros -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Año</label>
+                    <select @bind="filtroAno" @bind:after="Buscar" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
+                        <option value="">Todos los años</option>
+                        @for (int i = DateTime.Now.Year + 1; i >= DateTime.Now.Year - 5; i--)
+                        {
+                            <option value="@i">@i</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Mes</label>
+                    <select @bind="filtroMes" @bind:after="Buscar" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
+                        <option value="">Todos los meses</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Concepto</label>
+                    <select @bind="filtroConceptoId" @bind:after="Buscar" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
+                        <option value="">Todos los conceptos</option>
+                        @if (conceptos != null)
+                        {
+                            @foreach (var concepto in conceptos)
+                            {
+                                <option value="@concepto.Id">@concepto.Nombre</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="flex items-end">
+                    <button @onclick="LimpiarFiltros" class="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+                        Limpiar Filtros
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Presupuestos -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+            @if (cargando)
+            {
+                <div class="p-12 text-center">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-700 border-t-emerald-500 mb-4"></div>
+                    <p class="text-slate-600 dark:text-slate-400">Cargando presupuestos...</p>
+                </div>
+            }
+            else if (presupuestos == null || !presupuestos.Any())
+            {
+                <div class="p-12 text-center">
+                    <svg class="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p class="text-slate-600 dark:text-slate-400 text-lg mb-2">No se encontraron presupuestos</p>
+                    <p class="text-slate-500 dark:text-slate-500 text-sm">Crea tu primer presupuesto haciendo clic en "Nuevo Presupuesto"</p>
+                </div>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Período</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Concepto</th>
+                                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Presupuestado</th>
+                                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Ejecutado</th>
+                                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Diferencia</th>
+                                <th class="px-6 py-4 text-center text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">% Ejecución</th>
+                                <th class="px-6 py-4 text-center text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                            @foreach (var presupuesto in presupuestos)
+                            {
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-slate-900 dark:text-white">@ObtenerNombreMes(presupuesto.Mes) @presupuesto.Ano</div>
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">@presupuesto.Ano-@presupuesto.Mes.ToString("00")</div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-medium text-slate-900 dark:text-white">@presupuesto.ConceptoNombre</div>
+                                        @if (!string.IsNullOrEmpty(presupuesto.Notas))
+                                        {
+                                            <div class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs" title="@presupuesto.Notas">@presupuesto.Notas</div>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 text-right whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">@presupuesto.MontoPresupuestado.ToString("C0")</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400">@presupuesto.MontoEjecutado.ToString("C0")</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right whitespace-nowrap">
+                                        <span class="text-sm font-semibold @(presupuesto.Diferencia >= 0 ? "text-orange-600 dark:text-orange-400" : "text-red-600 dark:text-red-400")">
+                                            @presupuesto.Diferencia.ToString("C0")
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 max-w-[100px]">
+                                                <div class="@ObtenerColorBarraEjecucion(presupuesto.PorcentajeEjecucion) h-2 rounded-full transition-all" style="width: @Math.Min(presupuesto.PorcentajeEjecucion, 100)%"></div>
+                                            </div>
+                                            <span class="text-sm font-semibold @ObtenerColorTextoEjecucion(presupuesto.PorcentajeEjecucion)">
+                                                @presupuesto.PorcentajeEjecucion.ToString("F1")%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button @onclick="() => VerDetalle(presupuesto.Id)" class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition" title="Ver detalle">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                            </button>
+                                            <AuthorizeView Roles="Admin,Gerente" Context="adminContext">
+                                                <Authorized>
+                                                    <button @onclick="() => EditarPresupuesto(presupuesto.Id)" class="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition" title="Editar">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button @onclick="() => ConfirmarEliminar(presupuesto)" class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition" title="Eliminar">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
+                                                    </button>
+                                                </Authorized>
+                                            </AuthorizeView>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                @if (totalCount > porPagina)
+                {
+                    <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div class="text-sm text-slate-600 dark:text-slate-400">
+                            Mostrando @((paginaActual - 1) * porPagina + 1) a @Math.Min(paginaActual * porPagina, totalCount) de @totalCount presupuestos
+                        </div>
+                        <div class="flex gap-2">
+                            <button @onclick="PaginaAnterior" disabled="@(paginaActual <= 1)" class="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                                Anterior
+                            </button>
+                            <button @onclick="PaginaSiguiente" disabled="@(paginaActual >= Math.Ceiling((decimal)totalCount / porPagina))" class="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                                Siguiente
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Modal Eliminar -->
+        @if (mostrarModalEliminar && presupuestoEliminar != null)
+        {
+            <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                            <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white">Confirmar Eliminación</h3>
+                    </div>
+
+                    <p class="text-slate-600 dark:text-slate-400 mb-6">
+                        ¿Estás seguro de eliminar el presupuesto de <strong>@presupuestoEliminar.ConceptoNombre</strong> para <strong>@ObtenerNombreMes(presupuestoEliminar.Mes) @presupuestoEliminar.Ano</strong>?
+                        <br/><br/>
+                        Esta acción no se puede deshacer.
+                    </p>
+
+                    <div class="flex gap-3 justify-end">
+                        <button @onclick="CerrarModalEliminar" class="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                            Cancelar
+                        </button>
+                        <button @onclick="EliminarPresupuesto" disabled="@eliminando" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50 flex items-center gap-2">
+                            @if (eliminando)
+                            {
+                                <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                <span>Eliminando...</span>
+                            }
+                            else
+                            {
+                                <span>Eliminar</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Modal Copiar Presupuestos -->
+        @if (mostrarModalCopiar)
+        {
+            <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white">Copiar Presupuestos</h3>
+                        <button @onclick="CerrarModalCopiar" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-4 mb-6">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                            <p class="text-sm text-blue-900 dark:text-blue-100">
+                                Esta función copia todos los presupuestos de un período a otro. Solo se copiarán los presupuestos que no existan en el período destino.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Año Origen</label>
+                                <select @bind="copiarAnoOrigen" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                                    @for (int i = DateTime.Now.Year; i >= DateTime.Now.Year - 5; i--)
+                                    {
+                                        <option value="@i">@i</option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Mes Origen</label>
+                                <select @bind="copiarMesOrigen" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                                    @for (int i = 1; i <= 12; i++)
+                                    {
+                                        <option value="@i">@ObtenerNombreMes(i)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Año Destino</label>
+                                <select @bind="copiarAnoDestino" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                                    @for (int i = DateTime.Now.Year + 1; i >= DateTime.Now.Year - 5; i--)
+                                    {
+                                        <option value="@i">@i</option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Mes Destino</label>
+                                <select @bind="copiarMesDestino" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                                    @for (int i = 1; i <= 12; i++)
+                                    {
+                                        <option value="@i">@ObtenerNombreMes(i)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 justify-end">
+                        <button @onclick="CerrarModalCopiar" class="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                            Cancelar
+                        </button>
+                        <button @onclick="CopiarPresupuestos" disabled="@copiando" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 flex items-center gap-2">
+                            @if (copiando)
+                            {
+                                <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                <span>Copiando...</span>
+                            }
+                            else
+                            {
+                                <span>Copiar Presupuestos</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<PresupuestoDto>? presupuestos;
+    private List<ConceptoSimpleDto>? conceptos;
+    private bool cargando = false;
+    private int paginaActual = 1;
+    private int porPagina = 20;
+    private int totalCount = 0;
+
+    // Filtros
+    private string? filtroAno;
+    private string? filtroMes;
+    private string? filtroConceptoId;
+
+    // Estadísticas
+    private EstadisticasPresupuestoDto? estadisticas;
+
+    // Modal eliminar
+    private bool mostrarModalEliminar = false;
+    private PresupuestoDto? presupuestoEliminar;
+    private bool eliminando = false;
+
+    // Modal copiar
+    private bool mostrarModalCopiar = false;
+    private int copiarAnoOrigen = DateTime.Now.Year;
+    private int copiarMesOrigen = DateTime.Now.Month;
+    private int copiarAnoDestino = DateTime.Now.Year;
+    private int copiarMesDestino = DateTime.Now.Month == 12 ? 1 : DateTime.Now.Month + 1;
+    private bool copiando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        await Task.WhenAll(
+            CargarPresupuestos(),
+            CargarConceptos(),
+            CargarEstadisticas()
+        );
+    }
+
+    private async Task CargarPresupuestos()
+    {
+        try
+        {
+            cargando = true;
+            var query = $"api/presupuestos?pagina={paginaActual}&porPagina={porPagina}";
+
+            if (!string.IsNullOrEmpty(filtroAno))
+                query += $"&ano={filtroAno}";
+
+            if (!string.IsNullOrEmpty(filtroMes))
+                query += $"&mes={filtroMes}";
+
+            if (!string.IsNullOrEmpty(filtroConceptoId))
+                query += $"&conceptoId={filtroConceptoId}";
+
+            var response = await Http.GetFromJsonAsync<PresupuestosResponse>(query);
+            if (response != null)
+            {
+                presupuestos = response.Presupuestos;
+                totalCount = response.TotalCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al cargar presupuestos: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarConceptos()
+    {
+        try
+        {
+            var httpResponse = await Http.GetAsync("api/conceptos/simples");
+            var contentType = httpResponse.Content.Headers.ContentType?.MediaType;
+            
+            // Si la respuesta es HTML (probablemente un redirect de autenticación), inicializar lista vacía
+            if (contentType?.Contains("text/html") == true)
+            {
+                conceptos = new List<ConceptoSimpleDto>();
+                return;
+            }
+
+            conceptos = await httpResponse.Content.ReadFromJsonAsync<List<ConceptoSimpleDto>>() 
+                        ?? new List<ConceptoSimpleDto>();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // JSON inválido (probablemente HTML de login), inicializar vacío
+            conceptos = new List<ConceptoSimpleDto>();
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al cargar conceptos: {ex.Message}");
+            conceptos = new List<ConceptoSimpleDto>();
+        }
+    }
+
+    private async Task CargarEstadisticas()
+    {
+        try
+        {
+            var query = "api/presupuestos?pagina=1&porPagina=1000"; // Cargar todos para estadísticas
+
+            if (!string.IsNullOrEmpty(filtroAno))
+                query += $"&ano={filtroAno}";
+
+            if (!string.IsNullOrEmpty(filtroMes))
+                query += $"&mes={filtroMes}";
+
+            if (!string.IsNullOrEmpty(filtroConceptoId))
+                query += $"&conceptoId={filtroConceptoId}";
+
+            var httpResponse = await Http.GetAsync(query);
+            
+            // Verificar si la respuesta es HTML (redirect a login)
+            var contentType = httpResponse.Content.Headers.ContentType?.MediaType;
+            if (contentType?.Contains("text/html") == true)
+            {
+                // Usuario no autenticado - inicializar vacío
+                estadisticas = new EstadisticasPresupuestoDto();
+                return;
+            }
+
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                estadisticas = new EstadisticasPresupuestoDto();
+                return;
+            }
+
+            var response = await httpResponse.Content.ReadFromJsonAsync<PresupuestosResponse>();
+            if (response != null && response.Presupuestos.Any())
+            {
+                estadisticas = new EstadisticasPresupuestoDto
+                {
+                    TotalPresupuestado = response.Presupuestos.Sum(p => p.MontoPresupuestado),
+                    TotalEjecutado = response.Presupuestos.Sum(p => p.MontoEjecutado),
+                    Diferencia = response.Presupuestos.Sum(p => p.Diferencia),
+                    PorcentajeEjecucionPromedio = response.Presupuestos.Average(p => p.PorcentajeEjecucion),
+                    CantidadPresupuestos = response.TotalCount
+                };
+            }
+            else
+            {
+                estadisticas = new EstadisticasPresupuestoDto();
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Error de parseo JSON - probablemente HTML redirect
+            estadisticas = new EstadisticasPresupuestoDto();
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al cargar estadísticas: {ex.Message}");
+            estadisticas = new EstadisticasPresupuestoDto();
+        }
+    }
+
+    private async Task Buscar()
+    {
+        paginaActual = 1;
+        await CargarDatos();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtroAno = null;
+        filtroMes = null;
+        filtroConceptoId = null;
+        await Buscar();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (paginaActual > 1)
+        {
+            paginaActual--;
+            await CargarPresupuestos();
+        }
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (paginaActual < Math.Ceiling((decimal)totalCount / porPagina))
+        {
+            paginaActual++;
+            await CargarPresupuestos();
+        }
+    }
+
+    private void NuevoPresupuesto()
+    {
+        Navigation.NavigateTo("/tesoreria/presupuestos/form");
+    }
+
+    private void EditarPresupuesto(Guid id)
+    {
+        Navigation.NavigateTo($"/tesoreria/presupuestos/form/{id}");
+    }
+
+    private void VerDetalle(Guid id)
+    {
+        Navigation.NavigateTo($"/tesoreria/presupuestos/{id}");
+    }
+
+    private void ConfirmarEliminar(PresupuestoDto presupuesto)
+    {
+        presupuestoEliminar = presupuesto;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        presupuestoEliminar = null;
+    }
+
+    private async Task EliminarPresupuesto()
+    {
+        if (presupuestoEliminar == null) return;
+
+        try
+        {
+            eliminando = true;
+            var response = await Http.DeleteAsync($"api/presupuestos/{presupuestoEliminar.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Toast.ShowSuccess("Presupuesto eliminado exitosamente");
+                CerrarModalEliminar();
+                await CargarDatos();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Toast.ShowError($"Error al eliminar presupuesto: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al eliminar presupuesto: {ex.Message}");
+        }
+        finally
+        {
+            eliminando = false;
+        }
+    }
+
+    private void MostrarModalCopiar()
+    {
+        copiarAnoOrigen = DateTime.Now.Year;
+        copiarMesOrigen = DateTime.Now.Month;
+        copiarAnoDestino = DateTime.Now.Year;
+        copiarMesDestino = DateTime.Now.Month == 12 ? 1 : DateTime.Now.Month + 1;
+        mostrarModalCopiar = true;
+    }
+
+    private void CerrarModalCopiar()
+    {
+        mostrarModalCopiar = false;
+    }
+
+    private async Task CopiarPresupuestos()
+    {
+        if (copiarAnoOrigen == copiarAnoDestino && copiarMesOrigen == copiarMesDestino)
+        {
+            Toast.ShowWarning("El período origen y destino no pueden ser iguales");
+            return;
+        }
+
+        try
+        {
+            copiando = true;
+            var dto = new CopiarPresupuestosDto
+            {
+                AnoOrigen = copiarAnoOrigen,
+                MesOrigen = copiarMesOrigen,
+                AnoDestino = copiarAnoDestino,
+                MesDestino = copiarMesDestino
+            };
+
+            var response = await Http.PostAsJsonAsync("api/presupuestos/copiar", dto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<CopiarPresupuestosResultDto>();
+                if (result != null && result.CantidadCopiada > 0)
+                {
+                    Toast.ShowSuccess($"Se copiaron {result.CantidadCopiada} presupuestos exitosamente");
+                    CerrarModalCopiar();
+                    await CargarDatos();
+                }
+                else
+                {
+                    Toast.ShowInfo("No se encontraron presupuestos para copiar o ya existen en el período destino");
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Toast.ShowError($"Error al copiar presupuestos: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al copiar presupuestos: {ex.Message}");
+        }
+        finally
+        {
+            copiando = false;
+        }
+    }
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero",
+            2 => "Febrero",
+            3 => "Marzo",
+            4 => "Abril",
+            5 => "Mayo",
+            6 => "Junio",
+            7 => "Julio",
+            8 => "Agosto",
+            9 => "Septiembre",
+            10 => "Octubre",
+            11 => "Noviembre",
+            12 => "Diciembre",
+            _ => mes.ToString()
+        };
+    }
+
+    private string ObtenerColorBarraEjecucion(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "bg-red-500 dark:bg-red-600";
+        if (porcentaje < 80) return "bg-yellow-500 dark:bg-yellow-600";
+        if (porcentaje <= 100) return "bg-emerald-500 dark:bg-emerald-600";
+        return "bg-purple-500 dark:bg-purple-600";
+    }
+
+    private string ObtenerColorTextoEjecucion(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "text-red-600 dark:text-red-400";
+        if (porcentaje < 80) return "text-yellow-600 dark:text-yellow-400";
+        if (porcentaje <= 100) return "text-emerald-600 dark:text-emerald-400";
+        return "text-purple-600 dark:text-purple-400";
+    }
+
+    // Clases helper para respuestas
+    private class PresupuestosResponse
+    {
+        public List<PresupuestoDto> Presupuestos { get; set; } = new();
+        public int TotalCount { get; set; }
+    }
+
+    private class ConceptoSimpleDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+
+    private class EstadisticasPresupuestoDto
+    {
+        public decimal TotalPresupuestado { get; set; }
+        public decimal TotalEjecutado { get; set; }
+        public decimal Diferencia { get; set; }
+        public decimal PorcentajeEjecucionPromedio { get; set; }
+        public int CantidadPresupuestos { get; set; }
+    }
+
+    private class CopiarPresupuestosDto
+    {
+        public int AnoOrigen { get; set; }
+        public int MesOrigen { get; set; }
+        public int AnoDestino { get; set; }
+        public int MesDestino { get; set; }
+    }
+
+    private class CopiarPresupuestosResultDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public int CantidadCopiada { get; set; }
+    }
+}

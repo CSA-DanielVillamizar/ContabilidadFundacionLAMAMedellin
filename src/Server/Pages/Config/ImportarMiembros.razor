@@ -1,0 +1,175 @@
+@page "/config/importar-miembros"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
+@inject Server.Services.Import.IImportService ImportService
+@inject Server.Services.Email.IEmailService Email
+@inject Server.Services.Email.IEmailDiagnosticsService EmailDiag
+@inject Server.Services.Auth.ICurrentUserService CurrentUser
+@inject Server.Services.Audit.IAuditService Audit
+
+<h2 class="text-xl font-semibold mb-4">Importación de Miembros (Admin)</h2>
+
+<div class="space-y-8">
+    <section class="p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+        <h3 class="font-semibold mb-2">Reimportar desde CSV raíz</h3>
+        <p class="text-sm text-slate-500 mb-3">Lee el archivo <code>miembros_lama_medellin.csv</code> en la raíz del repositorio y realiza <strong>upsert</strong> por Documento/Email. No elimina registros.</p>
+        <button class="btn btn-primary" @onclick="ReimportarDesdeCsvRaizAsync">Reimportar ahora</button>
+        @if (!string.IsNullOrEmpty(_importStatus))
+        {
+            <p class="mt-3 text-sm">@_importStatus</p>
+            @if (!string.IsNullOrEmpty(_importLogHref))
+            {
+                <p class="mt-1"><a class="text-blue-600 underline" href="@_importLogHref" target="_blank">Ver log</a></p>
+            }
+        }
+        <p class="mt-3 text-sm">¿Necesitas subir otro archivo o previsualizar? Ve a <a class="text-blue-600 underline" href="/miembros/importar">Importación avanzada</a>.</p>
+    </section>
+
+    <section class="p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+        <h3 class="font-semibold mb-2">Correo de prueba SMTP</h3>
+        <div class="flex items-center gap-2 mb-2">
+            <input class="input input-bordered w-80" placeholder="destinatario@dominio" @bind="_testEmailTo" />
+            <button class="btn" @onclick="EnviarCorreoPruebaAsync">Enviar prueba</button>
+        </div>
+        @if (!string.IsNullOrEmpty(_emailStatus))
+        {
+            <p class="text-sm">@_emailStatus</p>
+        }
+        <p class="text-xs text-slate-500">Usa la configuración actual (Host/Port/From). Si recibes 5.7.60 en Exchange, alinea From con User o configura "Enviar como".</p>
+    </section>
+
+    <section class="p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+        <h3 class="font-semibold mb-2">Estado SMTP (sin envío)</h3>
+        <div class="flex items-center gap-2 mb-3">
+            <button class="btn" @onclick="ProbeSmtpAsync">Probar conexión</button>
+        </div>
+        @if (_probe is not null)
+        {
+            <ul class="text-sm space-y-1">
+                <li><strong>Host:</strong> @_probe.Host:@_probe.Port (SSL: @_probe.EnableSsl)</li>
+                <li><strong>From:</strong> @_probe.From</li>
+                <li><strong>User:</strong> @_probe.User</li>
+                <li><strong>DNS:</strong> @(_probe.DnsResolved ? "OK" : "Falla")</li>
+                <li><strong>TCP:</strong> @(_probe.TcpConnected ? "OK" : "Falla")</li>
+                <li><strong>TLS/STARTTLS:</strong> @(_probe.StartTlsOk ? $"OK ({_probe.TlsProtocol})" : "No aplicado/Falla")</li>
+                @if (!string.IsNullOrWhiteSpace(_probe.Greeting))
+                {
+                    <li><strong>Greeting:</strong> @_probe.Greeting</li>
+                }
+                @if (!string.IsNullOrWhiteSpace(_probe.CertificateSubject))
+                {
+                    <li><strong>Certificado:</strong> @_probe.CertificateSubject</li>
+                }
+                @if (_probe.Errors.Any())
+                {
+                    <li class="text-red-600"><strong>Errores:</strong> @string.Join(" | ", _probe.Errors)</li>
+                }
+            </ul>
+        }
+        <p class="text-xs text-slate-500 mt-2">Esta prueba no realiza autenticación ni envía correo. Solo verifica DNS, conexión TCP y TLS (según configuración).</p>
+    </section>
+</div>
+
+@code {
+    private string? _importStatus;
+    private string? _importLogHref;
+    private string _testEmailTo = "gerencia@fundacionlamamedellin.org";
+    private string? _emailStatus;
+    private Server.DTOs.Email.EmailProbeResult? _probe;
+
+    private async Task ReimportarDesdeCsvRaizAsync()
+    {
+        try
+        {
+            var rootCsv = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "miembros_lama_medellin.csv");
+            if (!File.Exists(rootCsv))
+            {
+                _importStatus = $"CSV no encontrado en: {rootCsv}";
+                return;
+            }
+
+            var lines = await File.ReadAllLinesAsync(rootCsv, System.Text.Encoding.UTF8);
+            var rows = new List<Server.DTOs.Import.ImportRowDto>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var parts = ParseCsvLine(line);
+                if (parts.Length < 8) continue; // mínimos: nombre, nombres, apellidos, cedula, email, celular, direccion, member
+                var dto = new Server.DTOs.Import.ImportRowDto
+                {
+                    FullName = parts.ElementAtOrDefault(0) ?? string.Empty,
+                    Nombres = parts.ElementAtOrDefault(1) ?? string.Empty,
+                    Apellidos = parts.ElementAtOrDefault(2) ?? string.Empty,
+                    Cedula = parts.ElementAtOrDefault(3) ?? string.Empty,
+                    Email = parts.ElementAtOrDefault(4) ?? string.Empty,
+                    Celular = parts.ElementAtOrDefault(5) ?? string.Empty,
+                    Direccion = parts.ElementAtOrDefault(6) ?? string.Empty,
+                    MemberNumber = parts.ElementAtOrDefault(7) ?? string.Empty,
+                    Cargo = parts.ElementAtOrDefault(8) ?? string.Empty,
+                    Rango = parts.ElementAtOrDefault(9) ?? string.Empty,
+                    Estatus = parts.ElementAtOrDefault(10) ?? "Activo",
+                    FechaIngresoISO = parts.ElementAtOrDefault(11) ?? string.Empty,
+                };
+                rows.Add(dto);
+            }
+
+            var currentUser = CurrentUser.GetUserName();
+            var res = await ImportService.ImportAsync(rows, currentUser);
+            _importStatus = $"Reimportación completa. Total: {res.Total}, Creados: {res.Creados}, Actualizados: {res.Actualizados}, Errores: {res.Errores}.";
+            _importLogHref = res.LogFilePath;
+            await Audit.LogAsync("Miembros", "BulkImport", "Reimport", currentUser, newValues: new { res.Total, res.Creados, res.Actualizados, res.Errores });
+        }
+        catch (Exception ex)
+        {
+            _importStatus = $"Error en reimportación: {ex.Message}";
+        }
+    }
+
+    private async Task EnviarCorreoPruebaAsync()
+    {
+        try
+        {
+            var to = string.IsNullOrWhiteSpace(_testEmailTo) ? "gerencia@fundacionlamamedellin.org" : _testEmailTo.Trim();
+            var html = $"<p>Prueba SMTP L.A.M.A. Medellín</p><p>Fecha (UTC): {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}</p>";
+            await Email.SendAsync(to, "Prueba SMTP - LAMA Medellín", html);
+            _emailStatus = $"Correo de prueba enviado a {to}.";
+            await Audit.LogAsync("SMTP", to, "EmailTest", CurrentUser.GetUserName());
+        }
+        catch (Exception ex)
+        {
+            _emailStatus = $"Error enviando correo: {ex.Message}";
+        }
+    }
+
+    private async Task ProbeSmtpAsync()
+    {
+        _probe = await EmailDiag.ProbeAsync();
+    }
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var fields = new List<string>();
+        var current = new System.Text.StringBuilder();
+        bool inQuotes = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                fields.Add(current.ToString().Trim());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+        fields.Add(current.ToString().Trim());
+        return fields.ToArray();
+    }
+}

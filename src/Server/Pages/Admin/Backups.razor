@@ -1,0 +1,311 @@
+@page "/admin/backups"
+@attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
+@using Server.Services.Backup
+@using Server.Configuration
+@using Microsoft.Extensions.Options
+@inject IBackupService BackupService
+@inject IOptions<BackupOptions> BackupOptions
+@inject ToastService Toast
+@inject NavigationManager Nav
+
+<PageTitle>Gestión de Backups - LAMA Medellín</PageTitle>
+
+<UICard>
+    <Header>
+        <div class="flex items-center justify-between w-full">
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900">Gestión de Backups</h3>
+                <p class="text-sm text-gray-500 mt-1">Respaldos automáticos y manuales de la base de datos</p>
+            </div>
+            <button @onclick="CrearBackupManual" 
+                    disabled="@_creandoBackup"
+                    class="@GetBotonClass()">
+                @if (_creandoBackup)
+                {
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Creando backup...</span>
+                }
+                else
+                {
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    <span>Crear Backup Manual</span>
+                }
+            </button>
+        </div>
+    </Header>
+    <ChildContent>
+        <!-- Configuración actual -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h4 class="font-medium text-blue-900 mb-3 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Configuración de Backups Automáticos
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                    <span class="text-blue-700 font-medium">Estado:</span>
+                    @if (BackupOptions.Value.Enabled)
+                    {
+                        <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                            ✓ Habilitado
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="ml-2 px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">
+                            ✗ Deshabilitado
+                        </span>
+                    }
+                </div>
+                <div>
+                    <span class="text-blue-700 font-medium">Frecuencia:</span>
+                    <span class="ml-2 text-blue-900">@BackupOptions.Value.CronSchedule</span>
+                </div>
+                <div>
+                    <span class="text-blue-700 font-medium">Retención:</span>
+                    <span class="ml-2 text-blue-900">@BackupOptions.Value.RetentionDays días</span>
+                </div>
+            </div>
+            <div class="mt-3 text-xs text-blue-700">
+                <strong>Directorio:</strong> @BackupOptions.Value.BackupPath
+            </div>
+        </div>
+
+        <!-- Lista de backups -->
+        @if (_cargando)
+        {
+            <div class="flex justify-center items-center py-12">
+                <svg class="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="ml-3 text-gray-600">Cargando backups...</span>
+            </div>
+        }
+        else if (!_backups.Any())
+        {
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No hay backups disponibles</h3>
+                <p class="mt-1 text-sm text-gray-500">Crea tu primer backup usando el botón de arriba</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-3">
+                @foreach (var backup in _backups)
+                {
+                    <div class="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">@backup.NombreArchivo</p>
+                                    <div class="flex items-center space-x-4 mt-1">
+                                        <p class="text-xs text-gray-500">
+                                            <svg class="inline w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                            @backup.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                        </p>
+                                        <p class="text-xs text-gray-500">
+                                            <svg class="inline w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            @FormatBytes(backup.TamanoBytes)
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button @onclick="() => DescargarBackup(backup.NombreArchivo)"
+                                        class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium transition">
+                                    Descargar
+                                </button>
+                                <button @onclick="() => MostrarConfirmacionEliminar(backup.NombreArchivo)"
+                                        class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium transition">
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </ChildContent>
+</UICard>
+
+<!-- Modal de confirmación de eliminación -->
+@if (_mostrarModalEliminar)
+{
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50" @onclick="CerrarModalEliminar">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @onclick:stopPropagation="true">
+            <div class="flex items-center mb-4">
+                <svg class="h-6 w-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900">Confirmar eliminación</h3>
+            </div>
+            <p class="text-sm text-gray-500 mb-6">
+                ¿Estás seguro de que deseas eliminar el backup <strong>@_backupAEliminar</strong>? Esta acción no se puede deshacer.
+            </p>
+            <div class="flex justify-end space-x-3">
+                <button @onclick="CerrarModalEliminar"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                    Cancelar
+                </button>
+                <button @onclick="EliminarBackupConfirmado"
+                        disabled="@_eliminando"
+                        class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition disabled:opacity-50">
+                    @(_eliminando ? "Eliminando..." : "Eliminar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<BackupInfo> _backups = new();
+    private bool _cargando = true;
+    private bool _creandoBackup = false;
+    private bool _mostrarModalEliminar = false;
+    private bool _eliminando = false;
+    private string _backupAEliminar = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarBackups();
+    }
+
+    private async Task CargarBackups()
+    {
+        _cargando = true;
+        try
+        {
+            var archivos = await BackupService.GetAvailableBackupsAsync();
+            var backupPath = BackupOptions.Value.BackupPath;
+
+            _backups = archivos.Select(archivo =>
+            {
+                var rutaCompleta = Path.Combine(backupPath, archivo);
+                var fileInfo = new FileInfo(rutaCompleta);
+
+                return new BackupInfo
+                {
+                    NombreArchivo = archivo,
+                    FechaCreacion = fileInfo.CreationTime,
+                    TamanoBytes = fileInfo.Length
+                };
+            }).OrderByDescending(b => b.FechaCreacion).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar backups: {ex.Message}", "error");
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task CrearBackupManual()
+    {
+        _creandoBackup = true;
+        try
+        {
+            var nombreArchivo = await BackupService.CreateBackupAsync();
+            Toast.Show($"Backup creado exitosamente: {nombreArchivo}", "success");
+            await CargarBackups();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al crear backup: {ex.Message}", "error");
+        }
+        finally
+        {
+            _creandoBackup = false;
+        }
+    }
+
+    private void DescargarBackup(string nombreArchivo)
+    {
+        // En producción, implementar endpoint de descarga
+        Toast.Show($"Descarga de {nombreArchivo} (funcionalidad pendiente)", "info");
+        // TODO: Implementar /api/backups/download/{nombreArchivo}
+    }
+
+    private void MostrarConfirmacionEliminar(string nombreArchivo)
+    {
+        _backupAEliminar = nombreArchivo;
+        _mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        _mostrarModalEliminar = false;
+        _backupAEliminar = string.Empty;
+    }
+
+    private async Task EliminarBackupConfirmado()
+    {
+        _eliminando = true;
+        try
+        {
+            var rutaCompleta = Path.Combine(BackupOptions.Value.BackupPath, _backupAEliminar);
+            File.Delete(rutaCompleta);
+            Toast.Show($"Backup {_backupAEliminar} eliminado", "success");
+            await CargarBackups();
+            CerrarModalEliminar();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al eliminar backup: {ex.Message}", "error");
+        }
+        finally
+        {
+            _eliminando = false;
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        int suffixIndex = 0;
+        double size = bytes;
+
+        while (size >= 1024 && suffixIndex < suffixes.Length - 1)
+        {
+            size /= 1024;
+            suffixIndex++;
+        }
+
+        return $"{size:N2} {suffixes[suffixIndex]}";
+    }
+
+    private string GetBotonClass()
+    {
+        var baseClass = "flex items-center px-4 py-2 rounded-lg font-medium transition";
+        return _creandoBackup
+            ? $"{baseClass} bg-blue-400 text-white cursor-not-allowed"
+            : $"{baseClass} bg-blue-600 text-white hover:bg-blue-700";
+    }
+
+    private class BackupInfo
+    {
+        public string NombreArchivo { get; set; } = string.Empty;
+        public DateTime FechaCreacion { get; set; }
+        public long TamanoBytes { get; set; }
+    }
+}

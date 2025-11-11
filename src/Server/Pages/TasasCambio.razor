@@ -1,0 +1,111 @@
+@page "/tasas-cambio"
+
+<PageTitle>Tasas de Cambio - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h1 class="h3">
+                <span class="oi oi-graph me-2" aria-hidden="true"></span>
+                Tasas de Cambio USD-COP
+            </h1>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary">
+                <span class="oi oi-plus me-1"></span>
+                Nueva Tasa
+            </button>
+            <button class="btn btn-success ms-2">
+                <span class="oi oi-reload me-1"></span>
+                Sincronizar Hoy
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">TRM Actual</h5>
+                    <h2 class="text-primary mb-0">$0.00 COP</h2>
+                    <small class="text-muted">Por 1 USD</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Última Actualización</h5>
+                    <h2 class="text-secondary mb-0">N/A</h2>
+                    <small class="text-muted">Fecha de sincronización</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control">
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button class="btn btn-secondary">
+                        <span class="oi oi-magnifying-glass me-1"></span>
+                        Filtrar
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th class="text-end">TRM (USD → COP)</th>
+                            <th>Fuente</th>
+                            <th>Tipo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No hay tasas de cambio registradas. Haga clic en "Nueva Tasa" o "Sincronizar Hoy".
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-3">
+        <h5 class="alert-heading">
+            <span class="oi oi-info me-2"></span>
+            Información
+        </h5>
+        <ul class="mb-0">
+            <li><strong>Sincronización automática:</strong> Se obtiene la TRM oficial del Banco de la República de Colombia</li>
+            <li><strong>Registro manual:</strong> Permite ingresar tasas personalizadas para fechas específicas</li>
+            <li><strong>Uso en recibos:</strong> Al crear un recibo en USD, se usa la TRM de la fecha de emisión</li>
+            <li><strong>Histórico:</strong> Permite consultar tasas anteriores para reportes y auditorías</li>
+        </ul>
+    </div>
+</div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    // Funcionalidad pendiente: integración con TasasCambioController
+}

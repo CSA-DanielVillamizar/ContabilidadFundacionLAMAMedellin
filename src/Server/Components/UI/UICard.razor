@@ -1,0 +1,27 @@
+<div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition duration-150 ease-out @Class" @attributes="AdditionalAttributes">
+    @if (Header != null)
+    {
+        <div class="flex items-center justify-between px-6 pt-6 pb-2">
+            <div class="font-semibold text-lg">@Header</div>
+            @if (HeaderAction != null)
+            {
+                <div>@HeaderAction</div>
+            }
+        </div>
+    }
+    <div class="p-6">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment Header { get; set; }
+    [Parameter] public RenderFragment HeaderAction { get; set; }
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string Class { get; set; }
+    /// <summary>
+    /// Atributos adicionales no tipados que se aplicarán al elemento raíz del componente.
+    /// Permite pasar atributos de accesibilidad como aria-* o role para cumplimiento AAA.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

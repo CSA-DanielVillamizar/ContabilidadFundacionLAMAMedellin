@@ -1,0 +1,408 @@
+@page "/gerencia-negocios/cotizaciones"
+@using Server.DTOs.Cotizaciones
+@using Server.Services.Cotizaciones
+@using MudBlazor
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject ICotizacionesService CotizacionesService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Cotizaciones - LAMA Medellín</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>Cotizaciones</h2>
+                    <p class="text-muted mb-0">Gestión de cotizaciones y propuestas</p>
+                </div>
+                <AuthorizeView Roles="Admin,Gerente">
+                    <Authorized>
+                        <button class="btn btn-primary" @onclick="@(() => Nav.NavigateTo("/gerencia-negocios/cotizaciones/nueva"))">
+                            <i class="bi bi-plus-circle me-2"></i>Nueva Cotización
+                        </button>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+
+    @if (estadisticasCargadas)
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="3">
+                <ModernStatCard Title="Total"
+                                Value="@totalCotizaciones.ToString()"
+                                Icon="@Icons.Material.Filled.Description"
+                                IconColor="primary"
+                                Subtitle="Cotizaciones" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <ModernStatCard Title="Pendientes"
+                                Value="@pendientes.ToString()"
+                                Icon="@Icons.Material.Filled.AccessTime"
+                                IconColor="warning"
+                                Subtitle="Por aprobar" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <ModernStatCard Title="Aprobadas"
+                                Value="@aprobadas.ToString()"
+                                Icon="@Icons.Material.Filled.CheckCircle"
+                                IconColor="success"
+                                Subtitle="Este mes" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <ModernStatCard Title="Por Vencer"
+                                Value="@porVencer.ToString()"
+                                Icon="@Icons.Material.Filled.Warning"
+                                IconColor="warning"
+                                Subtitle="Próximos 7 días" />
+            </MudItem>
+        </MudGrid>
+    }
+
+    <MudPaper Class="mb-4 p-3" Elevation="3">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="3">
+                <MudTextField T="string" Value="@busqueda" ValueChanged="@((string v) => { busqueda = v; BuscarConDelay(); })" Placeholder="Buscar por número..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="400" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect T="string" Value="@filtroEstado" ValueChanged="@((string? v)=> { filtroEstado = v ?? string.Empty; paginaActual=1; _ = Buscar(); })" Placeholder="Estado" Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@(string.Empty)">Todos</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Pendiente")">Pendiente</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Aprobada")">Aprobada</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Rechazada")">Rechazada</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Convertida")">Convertida</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Vencida")">Vencida</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudDatePicker Date="@filtroDesde" DateChanged="@((DateTime? d)=> { filtroDesde = d; paginaActual=1; _ = Buscar(); })" Label="Desde" Variant="Variant.Outlined" />            
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudDatePicker Date="@filtroHasta" DateChanged="@((DateTime? d)=> { filtroHasta = d; paginaActual=1; _ = Buscar(); })" Label="Hasta" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true" OnClick="LimpiarFiltros" StartIcon="@Icons.Material.Filled.Clear">Limpiar filtros</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="glass-card">
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="skeleton skeleton-card" style="height: 300px;"></div>
+            </div>
+        }
+        else if (!cotizaciones.Any())
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <p class="text-muted mt-3">No se encontraron cotizaciones</p>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="cotizaciones" Dense="true" Hover="true" Bordered="false" Striped="true">
+                <HeaderContent>
+                    <MudTh>Número</MudTh>
+                    <MudTh>Cliente/Miembro</MudTh>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>Validez</MudTh>
+                    <MudTh align="right">Total COP</MudTh>
+                    <MudTh>Items</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh align="right">Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.NumeroCotizacion</b></MudTd>
+                    <MudTd>
+                        @if (!string.IsNullOrEmpty(context.ClienteNombre))
+                        {
+                            <div><i class="bi bi-person text-muted me-1"></i>@context.ClienteNombre <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Text="Externo" Class="ms-1" /></div>
+                        }
+                        else if (!string.IsNullOrEmpty(context.MiembroNombre))
+                        {
+                            <div><i class="bi bi-person-badge text-muted me-1"></i>@context.MiembroNombre <MudChip T="string" Color="Color.Primary" Size="Size.Small" Text="Miembro" Class="ms-1" /></div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Sin asignar</span>
+                        }
+                    </MudTd>
+                    <MudTd>@context.FechaCotizacion.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>
+                        @context.FechaValidez.ToString("dd/MM/yyyy")
+                        @if (context.FechaValidez < DateTime.Now && context.Estado == "Pendiente")
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small" Text="Vencida" Class="ms-1" />
+                        }
+                    </MudTd>
+                    <MudTd align="right"><b>@context.TotalCOP.ToString("C0")</b></MudTd>
+                    <MudTd><MudChip T="string" Color="Color.Info" Size="Size.Small" Text="@($"{context.TotalItems} items")" /></MudTd>
+                    <MudTd>
+                        @switch (context.Estado)
+                        {
+                            case "Pendiente": <MudChip T="string" Color="Color.Warning" Size="Size.Small" Text="@context.Estado" />; break;
+                            case "Aprobada": <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="@context.Estado" />; break;
+                            case "Rechazada": <MudChip T="string" Color="Color.Error" Size="Size.Small" Text="@context.Estado" />; break;
+                            case "Convertida": <MudChip T="string" Color="Color.Primary" Size="Size.Small" Text="@context.Estado" />; break;
+                            case "Vencida": <MudChip T="string" Color="Color.Dark" Size="Size.Small" Text="@context.Estado" />; break;
+                            default: <MudChip T="string" Size="Size.Small" Text="@context.Estado" />; break;
+                        }
+                    </MudTd>
+                    <MudTd align="right">
+                        <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" OnClick="@(()=> Nav.NavigateTo($"/gerencia-negocios/cotizaciones/{context.Id}"))" />
+                            <AuthorizeView Roles="Admin,Gerente" Context="authContext">
+                                <Authorized>
+                                    @if (context.Estado != "Convertida" && context.Estado != "Rechazada")
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Secondary" OnClick="@(()=> Nav.NavigateTo($"/gerencia-negocios/cotizaciones/{context.Id}/editar"))" />
+                                    }
+                                    @if (context.Estado == "Pendiente")
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" OnClick="@(()=> CambiarEstado(context.Id, "Aprobada"))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" OnClick="@(()=> CambiarEstado(context.Id, "Rechazada"))" />
+                                    }
+                                    @if (context.Estado != "Convertida" && context.Estado != "Aprobada")
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(()=> MostrarConfirmacionEliminar(context))" />
+                                    }
+                                </Authorized>
+                            </AuthorizeView>
+                        </MudButtonGroup>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            @if (totalPaginas > 1)
+            {
+                <div class="d-flex justify-content-center my-3">
+                    <MudPagination Count="@totalPaginas" Selected="@paginaActual" SelectedChanged="@((int p)=> CambiarPaginaWrapper(p))" />
+                </div>
+            }
+        }
+    </MudPaper>
+</div>
+
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalEliminar"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de eliminar la cotización <strong>@cotizacionAEliminar?.NumeroCotizacion</strong>?</p>
+                    <p class="text-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarEliminar" disabled="@eliminando">
+                        @if (eliminando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CotizacionDto> cotizaciones = new();
+    private bool cargando = true;
+    private bool estadisticasCargadas = false;
+    private string busqueda = "";
+    private string filtroEstado = "";
+    private DateTime? filtroDesde = null;
+    private DateTime? filtroHasta = null;
+    private int paginaActual = 1;
+    private int registrosPorPagina = 20;
+    private int totalRegistros = 0;
+    private int totalPaginas => (int)Math.Ceiling((double)totalRegistros / registrosPorPagina);
+    private System.Threading.Timer? debounceTimer;
+
+    // KPIs
+    private int totalCotizaciones = 0;
+    private int pendientes = 0;
+    private int aprobadas = 0;
+    private int porVencer = 0;
+
+    // Modal eliminar
+    private bool mostrarModalEliminar = false;
+    private CotizacionDto? cotizacionAEliminar = null;
+    private bool eliminando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarEstadisticas();
+        await Buscar();
+    }
+
+    private async Task CargarEstadisticas()
+    {
+        try
+        {
+            var (todasCotizaciones, totalCount) = await CotizacionesService.ObtenerCotizacionesAsync(
+                busqueda: null, estado: null, clienteId: null, miembroId: null, 
+                desde: null, hasta: null, pagina: 1, registrosPorPagina: 1000);
+            
+            totalCotizaciones = todasCotizaciones.Count;
+            pendientes = todasCotizaciones.Count(c => c.Estado == "Pendiente");
+            aprobadas = todasCotizaciones.Count(c => c.Estado == "Aprobada");
+            
+            var proximosDias = DateTime.Now.AddDays(7);
+            porVencer = todasCotizaciones.Count(c => c.Estado == "Pendiente" && c.FechaValidez <= proximosDias && c.FechaValidez >= DateTime.Now);
+            
+            estadisticasCargadas = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar estadísticas: {ex.Message}");
+            Snackbar.Add($"Error al cargar estadísticas: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+        StateHasChanged();
+
+        try
+        {
+            var (resultados, totalCount) = await CotizacionesService.ObtenerCotizacionesAsync(
+                busqueda: string.IsNullOrWhiteSpace(busqueda) ? null : busqueda,
+                estado: string.IsNullOrWhiteSpace(filtroEstado) ? null : filtroEstado,
+                clienteId: null,
+                miembroId: null,
+                desde: filtroDesde,
+                hasta: filtroHasta,
+                pagina: paginaActual,
+                registrosPorPagina: registrosPorPagina);
+            
+            cotizaciones = resultados;
+            totalRegistros = totalCount;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al buscar cotizaciones: {ex.Message}");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BuscarConDelay()
+    {
+        debounceTimer?.Dispose();
+        debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            paginaActual = 1;
+            await InvokeAsync(async () => await Buscar());
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+        paginaActual = nuevaPagina;
+        await Buscar();
+    }
+
+    private void CambiarPaginaWrapper(int nuevaPagina)
+    {
+        _ = CambiarPagina(nuevaPagina);
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        busqueda = "";
+        filtroEstado = "";
+        filtroDesde = null;
+        filtroHasta = null;
+        paginaActual = 1;
+        await Buscar();
+    }
+
+    private async Task CambiarEstado(Guid id, string nuevoEstado)
+    {
+        try
+        {
+            var (success, message) = await CotizacionesService.CambiarEstadoAsync(id, nuevoEstado, "system");
+            if (success)
+            {
+                Snackbar.Add($"Estado cambiado a {nuevoEstado}", Severity.Success);
+                await CargarEstadisticas();
+                await Buscar();
+            }
+            else
+            {
+                Snackbar.Add($"Error: {message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cambiar estado: {ex.Message}");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void MostrarConfirmacionEliminar(CotizacionDto cotizacion)
+    {
+        cotizacionAEliminar = cotizacion;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        cotizacionAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        if (cotizacionAEliminar == null) return;
+
+        eliminando = true;
+        try
+        {
+            var (success, message) = await CotizacionesService.EliminarCotizacionAsync(cotizacionAEliminar.Id, "system");
+            if (success)
+            {
+                Snackbar.Add("Cotización eliminada correctamente", Severity.Success);
+                await CargarEstadisticas();
+                await Buscar();
+                CerrarModalEliminar();
+            }
+            else
+            {
+                Snackbar.Add($"Error: {message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar cotización: {ex.Message}");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            eliminando = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        debounceTimer?.Dispose();
+    }
+}

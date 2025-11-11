@@ -1,0 +1,68 @@
+@page "/tesoreria/verificacion"
+@using Server.Services.Reportes
+@using Microsoft.AspNetCore.Components.Forms
+@inject IVerificacionTesoreriaService VerifService
+
+<h3>Verificación de Tesorería</h3>
+
+<EditForm Model="this">
+    <div class="row g-2 mb-3">
+        <div class="col-auto">
+            <label class="form-label">Año</label>
+            <InputNumber @bind-Value="anio" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Mes</label>
+            <InputNumber @bind-Value="mes" class="form-control" />
+        </div>
+        <div class="col-auto align-self-end">
+            <button type="button" class="btn btn-primary" @onclick="Verificar">Verificar</button>
+            <button type="button" class="btn btn-outline-secondary ms-2" @onclick="RepararSaldoInicial">Reparar saldo inicial</button>
+        </div>
+    </div>
+</EditForm>
+
+@if (resultado is not null)
+{
+    <div class="card">
+        <div class="card-header">Resultado</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <tbody>
+                        <tr><th>Año/Mes</th><td>@resultado.Anio / @resultado.Mes</td></tr>
+                        <tr><th>Saldo inicial</th><td>@resultado.SaldoInicial.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</td></tr>
+                        <tr><th>Ingresos</th><td>@resultado.Ingresos.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</td></tr>
+                        <tr><th>Egresos</th><td>@resultado.Egresos.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</td></tr>
+                        <tr class="table-primary"><th>Saldo final</th><td><strong>@resultado.SaldoFinal.ToString("C0", new System.Globalization.CultureInfo("es-CO"))</strong></td></tr>
+                        <tr><th>Item Saldo Inicial (AJUSTE-2025-0001)</th><td>@(resultado.SaldoInicialItemExiste ? "✔️ OK" : "⚠️ Faltante")</td></tr>
+                        <tr><th>Moneda de ítems (COP)</th><td>@(resultado.MonedaOrigenConsistente ? "✔️ OK" : "⚠️ Inconsistente")</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private int anio = 2025;
+    private int mes = 10;
+    private VerificacionResultado? resultado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Verificar();
+    }
+
+    private async Task Verificar()
+    {
+        resultado = await VerifService.VerificarAsync(anio, mes);
+        StateHasChanged();
+    }
+
+    private async Task RepararSaldoInicial()
+    {
+        var reparo = await VerifService.RepararSaldoInicialAsync();
+        await Verificar();
+    }
+}

@@ -1,0 +1,204 @@
+@page "/tesoreria/deudores/{id:guid}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Server.Components.UI
+@using Server.Components.Auth
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Tesorero,Junta,Consulta")]
+@inject NavigationManager Nav
+@inject Server.Services.Deudores.IDeudoresService DeudoresService
+@inject Server.Data.AppDbContext Db
+@inject Server.Services.Exchange.IExchangeRateService Exchange
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span class="text-2xl font-semibold">Detalle de Deudor</span>
+        </div>
+        @if (_detalle is not null)
+        {
+            <div class="text-slate-500 dark:text-slate-400">@_detalle.Nombre (@_detalle.Ingreso?.ToString() ?? "sin ingreso registrado")</div>
+        }
+    </Header>
+    <ChildContent>
+        @if (cargando)
+        {
+            <UISkeleton Class="h-6 w-full" />
+        }
+        else if (_detalle is null)
+        {
+            <div class="p-4 text-center text-slate-400">No se encontró el miembro.</div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <UICard>
+                    <Header><span class="font-semibold">Resumen</span></Header>
+                    <ChildContent>
+                        <div class="space-y-2">
+                            <div><span class="text-slate-500">Meses pagados: </span><strong>@_detalle.MesesPagados.Count</strong></div>
+                            <div><span class="text-slate-500">Meses pendientes: </span><strong>@_detalle.MesesPendientes.Count</strong></div>
+                            <div><span class="text-slate-500">Total adeudado (estimado): </span><strong>@totalAdeudadoCop.ToString("N0") COP</strong></div>
+                        </div>
+                        <div class="mt-4">
+                            <UIButton Variant="primary" Size="md" OnClick="@GenerarReciboPendientes" Disabled="@(_detalle.MesesPendientes.Count == 0)">Generar recibo por pendientes</UIButton>
+                        </div>
+                    </ChildContent>
+                </UICard>
+                <UICard>
+                    <Header><span class="font-semibold">Pagados</span></Header>
+                    <ChildContent>
+                        @if (_detalle.MesesPagados.Count == 0)
+                        {
+                            <div class="p-3 text-slate-400">Sin pagos en el periodo.</div>
+                        }
+                        else
+                        {
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var m in _detalle.MesesPagados)
+                                {
+                                    <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm">@m.ToString("yyyy-MM")</span>
+                                }
+                            </div>
+                        }
+                    </ChildContent>
+                </UICard>
+                <UICard>
+                    <Header><span class="font-semibold">Pendientes</span></Header>
+                    <ChildContent>
+                        @if (_detalle.MesesPendientes.Count == 0)
+                        {
+                            <div class="p-3 text-slate-400">Al día.</div>
+                        }
+                        else
+                        {
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var m in _detalle.MesesPendientes)
+                                {
+                                    <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-sm">@m.ToString("yyyy-MM")</span>
+                                }
+                            </div>
+                        }
+                    </ChildContent>
+                </UICard>
+            </div>
+
+            <UICard>
+                <Header><span class="font-semibold">Detalle mensual</span></Header>
+                <ChildContent>
+                    <UITable TItem="FilaMes" Items="filas" Loading="false" Columns="@MesesColumns" />
+                </ChildContent>
+            </UICard>
+        }
+    </ChildContent>
+</UICard>
+
+@code {
+    [Parameter] public Guid id { get; set; }
+    [SupplyParameterFromQuery] public string? desde { get; set; }
+    [SupplyParameterFromQuery] public string? hasta { get; set; }
+
+    private Server.Services.Deudores.DeudorDetalle? _detalle;
+    private bool cargando = true;
+    private decimal totalAdeudadoCop;
+    private List<FilaMes> filas = new();
+
+    private List<TableColumn<FilaMes>> MesesColumns => new()
+    {
+        new() { Header = "Mes", Cell = f => f.Mes.ToString("yyyy-MM") },
+        new() { Header = "Estado", Cell = f => f.Pagado ? "Pagado" : "Pendiente" },
+        new() { Header = "Valor Estimado", Cell = f => f.ValorCop.HasValue ? $"${f.ValorCop.Value:N0}" : "-" }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        try
+        {
+            DateOnly? d = null, h = null;
+            if (!string.IsNullOrWhiteSpace(desde) && DateOnly.TryParse(desde + "-01", out var d1)) d = d1;
+            if (!string.IsNullOrWhiteSpace(hasta) && DateOnly.TryParse(hasta + "-01", out var h1)) h = h1;
+
+            _detalle = await DeudoresService.ObtenerDetalleAsync(id, d, h);
+            if (_detalle is null)
+            {
+                cargando = false;
+                return;
+            }
+
+            // Cargar concepto mensualidad
+            var mensualidad = await Db.Conceptos.FirstOrDefaultAsync(c => c.Codigo == "MENSUALIDAD");
+            var esUsd = mensualidad?.Moneda == Server.Models.Moneda.USD;
+
+            // Construir grilla de meses en el rango: combinar pagados y pendientes
+            var meses = _detalle.MesesPagados.Concat(_detalle.MesesPendientes).Distinct().OrderBy(m => m).ToList();
+            filas.Clear();
+
+            // Pre-cargar TRM por mes si es USD
+            var trmPorMes = new Dictionary<DateOnly, decimal>();
+            if (esUsd == true && mensualidad is not null)
+            {
+                foreach (var m in meses)
+                {
+                    trmPorMes[m] = await Exchange.GetUsdCopAsync(m);
+                }
+            }
+
+            totalAdeudadoCop = 0;
+            foreach (var m in meses)
+            {
+                var pagado = _detalle.MesesPagados.Contains(m);
+                decimal? valorMes = null;
+                if (!pagado && mensualidad is not null)
+                {
+                    valorMes = mensualidad.Moneda == Server.Models.Moneda.USD
+                        ? decimal.Round(mensualidad.PrecioBase * trmPorMes[m], 2)
+                        : mensualidad.PrecioBase;
+                    totalAdeudadoCop += valorMes ?? 0;
+                }
+                filas.Add(new FilaMes { Mes = m, Pagado = pagado, ValorCop = valorMes });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando detalle de deudor: {ex.Message}");
+            _detalle = null;
+            totalAdeudadoCop = 0;
+            filas = new();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void GenerarReciboPendientes()
+    {
+        if (_detalle is null) return;
+        var cantidad = _detalle.MesesPendientes.Count;
+        if (cantidad <= 0) return;
+        Nav.NavigateTo($"/api/deudores/generar-recibo?MiembroId={_detalle.MiembroId}&CantidadMeses={cantidad}", true);
+    }
+
+    private class FilaMes
+    {
+        public DateOnly Mes { get; set; }
+        public bool Pagado { get; set; }
+        public decimal? ValorCop { get; set; }
+    }
+}
+    </Authorized>
+</AuthorizeView>

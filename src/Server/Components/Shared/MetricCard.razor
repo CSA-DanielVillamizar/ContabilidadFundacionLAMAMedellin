@@ -1,0 +1,102 @@
+@* 
+    MetricCard.razor
+    Componente de tarjeta métrica compacta para dashboard
+    Más ligera que StatCard, ideal para grillas de KPIs
+*@
+
+<div class="metric-card">
+    <div class="metric-card-header">
+        <div class="metric-card-icon @GetIconColorClass()">
+            <MudIcon Icon="@Icon" />
+        </div>
+        <h4 class="metric-card-title">@Title</h4>
+    </div>
+    <div class="metric-card-value">@Value</div>
+    @if (!string.IsNullOrEmpty(Change))
+    {
+        <div class="metric-card-change @GetChangeClass()">
+            <MudIcon Icon="@GetChangeIcon()" Size="Size.Small" />
+            <span>@Change</span>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Título de la métrica
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Valor de la métrica
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = "0";
+
+    /// <summary>
+    /// Icono de Material Icons
+    /// </summary>
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Filled.ShowChart;
+
+    /// <summary>
+    /// Color del icono: primary, success, warning, danger, info
+    /// </summary>
+    [Parameter]
+    public string IconColor { get; set; } = "primary";
+
+    /// <summary>
+    /// Cambio/variación (e.g., "+10%", "-5%")
+    /// </summary>
+    [Parameter]
+    public string? Change { get; set; }
+
+    /// <summary>
+    /// Tipo de cambio: positive, negative, neutral
+    /// </summary>
+    [Parameter]
+    public string ChangeType { get; set; } = "neutral";
+
+    /// <summary>
+    /// Determina la clase del icono según el color
+    /// </summary>
+    private string GetIconColorClass()
+    {
+        return IconColor.ToLower() switch
+        {
+            "primary" => "icon-primary",
+            "success" => "icon-success",
+            "warning" => "icon-warning",
+            "danger" => "icon-danger",
+            "info" => "icon-info",
+            _ => "icon-primary"
+        };
+    }
+
+    /// <summary>
+    /// Determina la clase del cambio
+    /// </summary>
+    private string GetChangeClass()
+    {
+        return ChangeType.ToLower() switch
+        {
+            "positive" => "change-positive",
+            "negative" => "change-negative",
+            _ => "change-neutral"
+        };
+    }
+
+    /// <summary>
+    /// Obtiene el icono del cambio
+    /// </summary>
+    private string GetChangeIcon()
+    {
+        return ChangeType.ToLower() switch
+        {
+            "positive" => Icons.Material.Filled.TrendingUp,
+            "negative" => Icons.Material.Filled.TrendingDown,
+            _ => Icons.Material.Filled.TrendingFlat
+        };
+    }
+}

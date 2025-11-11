@@ -1,0 +1,304 @@
+@using System.Text.Json
+@using Server.DTOs.ConciliacionBancaria
+@inject HttpClient Http
+@inject ToastService Toast
+
+@if (Mostrar)
+{
+  <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl border border-gray-200 dark:border-gray-700">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+          <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Importar Extracto Bancario</h3>
+        </div>
+        <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" @onclick="Cerrar" disabled="@procesando">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="px-6 py-4 space-y-4">
+        @if (!procesando && !completado)
+        {
+          <!-- Selector de formato -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Formato del Archivo</label>
+            <div class="grid grid-cols-3 gap-3">
+                <button type="button" class="@(formato == "CSV" ? "bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-600" : "bg-white border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300") border-2 rounded-lg px-4 py-3 flex flex-col items-center gap-2 hover:border-blue-400 transition" @onclick='() => formato = "CSV"'>
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-sm font-medium">CSV</span>
+              </button>
+                <button type="button" class="@(formato == "Excel" ? "bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-600" : "bg-white border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300") border-2 rounded-lg px-4 py-3 flex flex-col items-center gap-2 hover:border-blue-400 transition" @onclick='() => formato = "Excel"'>
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span class="text-sm font-medium">Excel</span>
+              </button>
+                <button type="button" class="@(formato == "PDF" ? "bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-600" : "bg-white border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300") border-2 rounded-lg px-4 py-3 flex flex-col items-center gap-2 hover:border-blue-400 transition" @onclick='() => formato = "PDF"'>
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                <span class="text-sm font-medium">PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Upload área -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Archivo</label>
+            <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 dark:hover:border-blue-500 transition @(archivoCargado ? "bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600" : "bg-gray-50 dark:bg-gray-700/50")">
+              <InputFile OnChange="SeleccionarArchivo" class="hidden" id="fileInput" accept="@ObtenerExtensionesAceptadas()" />
+              <label for="fileInput" class="cursor-pointer block">
+                @if (archivoCargado)
+                {
+                  <svg class="w-12 h-12 mx-auto text-blue-600 dark:text-blue-400 mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <p class="text-sm font-medium text-blue-700 dark:text-blue-300">@nombreArchivo</p>
+                  <p class="text-xs text-blue-600 dark:text-blue-400 mt-1">@(tamanoArchivo / 1024) KB</p>
+                }
+                else
+                {
+                  <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                  </svg>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Haz clic para seleccionar archivo</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Formatos aceptados: @ObtenerExtensionesAceptadas()</p>
+                }
+              </label>
+            </div>
+          </div>
+
+          <!-- Opciones -->
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-3">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Opciones de Procesamiento</h4>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500" @bind="crearItemsAutomaticamente" />
+              <span class="text-sm text-gray-700 dark:text-gray-300">Crear items automáticamente desde el extracto</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500" @bind="intentarMatchingAutomatico" />
+              <span class="text-sm text-gray-700 dark:text-gray-300">Intentar matching automático con movimientos contables</span>
+            </label>
+          </div>
+
+          <!-- Info box -->
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex gap-3">
+            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="text-sm text-blue-800 dark:text-blue-300">
+              <p class="font-medium mb-1">Información</p>
+              <ul class="list-disc list-inside space-y-1 text-xs">
+                <li>El extracto debe contener columnas: Fecha, Concepto, Referencia, Monto</li>
+                <li>Los movimientos se clasificarán automáticamente como débitos o créditos</li>
+                <li>El matching compara contra Recibos y Egresos del período</li>
+              </ul>
+            </div>
+          </div>
+        }
+        else if (procesando)
+        {
+          <!-- Estado de carga -->
+          <div class="py-8 text-center">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Procesando extracto bancario...</p>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Esto puede tomar unos momentos</p>
+          </div>
+        }
+        else if (completado)
+        {
+          <!-- Resultado -->
+          <div class="py-6">
+            <div class="text-center mb-4">
+              <svg class="w-16 h-16 mx-auto text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mt-3">Importación Completada</h3>
+            </div>
+            <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+              <div class="grid grid-cols-2 gap-4 text-center">
+                <div>
+                  <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">@itemsImportados</div>
+                  <div class="text-xs text-emerald-600 dark:text-emerald-400">Items Importados</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">@itemsMatcheados</div>
+                  <div class="text-xs text-blue-600 dark:text-blue-400">Matching Realizados</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Footer -->
+      <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        @if (!procesando && !completado)
+        {
+          <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition" @onclick="Cerrar">
+            Cancelar
+          </button>
+          <button class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" @onclick="ImportarExtracto" disabled="@(!archivoCargado)">
+            <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            Importar Extracto
+          </button>
+        }
+        else if (completado)
+        {
+          <button class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition shadow-sm" @onclick="CerrarYRecargar">
+            Aceptar
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@code {
+  [Parameter] public bool Mostrar { get; set; }
+  [Parameter] public Guid ConciliacionId { get; set; }
+  [Parameter] public EventCallback OnCerrar { get; set; }
+  [Parameter] public EventCallback OnImportado { get; set; }
+
+  private string formato = "CSV";
+  private bool archivoCargado = false;
+  private string nombreArchivo = string.Empty;
+  private long tamanoArchivo = 0;
+  private byte[] archivoBytes = Array.Empty<byte>();
+  private bool crearItemsAutomaticamente = true;
+  private bool intentarMatchingAutomatico = true;
+  private bool procesando = false;
+  private bool completado = false;
+  private int itemsImportados = 0;
+  private int itemsMatcheados = 0;
+
+  private async Task SeleccionarArchivo(InputFileChangeEventArgs e)
+  {
+    var archivo = e.File;
+    if (archivo != null)
+    {
+      // Validar tamaño (máx 10MB)
+      if (archivo.Size > 10 * 1024 * 1024)
+      {
+        Toast.ShowWarning("El archivo no debe superar 10 MB");
+        return;
+      }
+
+      nombreArchivo = archivo.Name;
+      tamanoArchivo = archivo.Size;
+
+      try
+      {
+        using var ms = new MemoryStream();
+        await archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+        archivoBytes = ms.ToArray();
+        archivoCargado = true;
+      }
+      catch
+      {
+        Toast.ShowError("Error al leer el archivo");
+        archivoCargado = false;
+      }
+    }
+  }
+
+  private async Task ImportarExtracto()
+  {
+    if (!archivoCargado || ConciliacionId == Guid.Empty)
+    {
+      Toast.ShowWarning("Debe seleccionar un archivo y tener una conciliación activa");
+      return;
+    }
+
+    try
+    {
+      procesando = true;
+      StateHasChanged();
+
+      var dto = new ImportarExtractoDto
+      {
+        ConciliacionId = ConciliacionId,
+        FormatoArchivo = formato,
+        ArchivoBytes = archivoBytes,
+        NombreArchivo = nombreArchivo,
+        CrearItemsAutomaticamente = crearItemsAutomaticamente,
+        IntentarMatchingAutomatico = intentarMatchingAutomatico
+      };
+
+      var json = JsonSerializer.Serialize(dto);
+      var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+      var resp = await Http.PostAsync("/api/conciliacionbancaria/importar-extracto", content);
+
+      if (resp.IsSuccessStatusCode)
+      {
+        var resultado = await resp.Content.ReadAsStringAsync();
+        var doc = JsonDocument.Parse(resultado);
+        itemsImportados = doc.RootElement.GetProperty("ItemsImportados").GetInt32();
+        itemsMatcheados = intentarMatchingAutomatico && doc.RootElement.TryGetProperty("ItemsMatcheados", out var matchProp) 
+          ? matchProp.GetInt32() 
+          : 0;
+
+        completado = true;
+        Toast.ShowSuccess($"Extracto importado: {itemsImportados} items");
+      }
+      else
+      {
+        var error = await resp.Content.ReadAsStringAsync();
+        Toast.ShowError($"Error al importar: {error}");
+        await Cerrar();
+      }
+    }
+    catch (Exception ex)
+    {
+      Toast.ShowError($"Error inesperado: {ex.Message}");
+      await Cerrar();
+    }
+    finally
+    {
+      procesando = false;
+      StateHasChanged();
+    }
+  }
+
+  private async Task CerrarYRecargar()
+  {
+    await OnImportado.InvokeAsync();
+    await Cerrar();
+  }
+
+  private async Task Cerrar()
+  {
+    // Reset state
+    archivoCargado = false;
+    nombreArchivo = string.Empty;
+    archivoBytes = Array.Empty<byte>();
+    procesando = false;
+    completado = false;
+    itemsImportados = 0;
+    itemsMatcheados = 0;
+    formato = "CSV";
+    crearItemsAutomaticamente = true;
+    intentarMatchingAutomatico = true;
+
+    await OnCerrar.InvokeAsync();
+  }
+
+  private string ObtenerExtensionesAceptadas() => formato switch
+  {
+    "CSV" => ".csv",
+    "Excel" => ".xlsx,.xls",
+    "PDF" => ".pdf",
+    _ => "*"
+  };
+}

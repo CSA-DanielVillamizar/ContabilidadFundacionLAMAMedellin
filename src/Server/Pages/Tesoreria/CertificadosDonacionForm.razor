@@ -1,0 +1,699 @@
+@page "/tesoreria/donaciones/nuevo"
+@page "/tesoreria/donaciones/{id:guid}"
+@using Server.DTOs.Donaciones
+@using Server.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@inject Server.Services.Donaciones.ICertificadosDonacionService CertificadosService
+@inject Server.Services.Recibos.IRecibosService RecibosService
+@inject Server.Services.Miembros.IMiembrosService MiembrosService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "Tesorero,Junta")]
+
+<PageTitle>@(Id == null ? "Nuevo Certificado de Donación" : "Editar Certificado de Donación")</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h3 class="mb-0">@(Id == null ? "Nuevo Certificado de Donación (RTE)" : $"Certificado {NumeroCompleto}")</h3>
+            @if (certificadoExistente != null && certificadoExistente.Estado != EstadoCertificado.Borrador)
+            {
+                <div class="alert alert-@GetEstadoClass(certificadoExistente.Estado) mt-2">
+                    <strong>Estado:</strong> @certificadoExistente.Estado
+                    @if (certificadoExistente.Estado == EstadoCertificado.Anulado && !string.IsNullOrWhiteSpace(certificadoExistente.RazonAnulacion))
+                    {
+                        <br /><strong>Razón de anulación:</strong> @certificadoExistente.RazonAnulacion
+                    }
+                </div>
+            }
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-outline-secondary" @onclick="Volver">
+                <svg class="bi me-1" width="16" height="16" fill="currentColor"><use href="/bootstrap-icons.svg#arrow-left"/></svg>
+                Volver
+            </button>
+        </div>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (certificadoExistente != null && certificadoExistente.Estado != EstadoCertificado.Borrador)
+    {
+        <!-- Vista de solo lectura para certificados emitidos o anulados -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Información del Donante</h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <strong>Tipo de Identificación:</strong>
+                        <p>@certificadoExistente.TipoIdentificacionDonante</p>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Número de Identificación:</strong>
+                        <p>@certificadoExistente.IdentificacionDonante</p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Nombre Completo:</strong>
+                        <p>@certificadoExistente.NombreDonante</p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Dirección:</strong>
+                        <p>@certificadoExistente.DireccionDonante</p>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Ciudad:</strong>
+                        <p>@certificadoExistente.CiudadDonante</p>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Teléfono:</strong>
+                        <p>@certificadoExistente.TelefonoDonante</p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Email:</strong>
+                        <p>@certificadoExistente.EmailDonante</p>
+                    </div>
+                </div>
+
+                <h5 class="card-title mb-3">Información de la Donación</h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <strong>Fecha de Donación:</strong>
+                        <p>@certificadoExistente.FechaDonacion.ToString("yyyy-MM-dd")</p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Valor en COP:</strong>
+                        <p class="fs-5 text-success">@certificadoExistente.ValorDonacionCOP.ToString("C0")</p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Forma de Donación:</strong>
+                        <p>@certificadoExistente.FormaDonacion</p>
+                    </div>
+                    <div class="col-12">
+                        <strong>Descripción:</strong>
+                        <p>@certificadoExistente.DescripcionDonacion</p>
+                    </div>
+                    <div class="col-12">
+                        <strong>Destinación:</strong>
+                        <p>@certificadoExistente.DestinacionDonacion</p>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(certificadoExistente.Observaciones))
+                    {
+                        <div class="col-12">
+                            <strong>Observaciones:</strong>
+                            <p>@certificadoExistente.Observaciones</p>
+                        </div>
+                    }
+                    @if (certificadoExistente.ReciboId.HasValue)
+                    {
+                        <div class="col-12">
+                            <strong>Recibo Asociado:</strong>
+                            <p>@certificadoExistente.ReciboNumero</p>
+                        </div>
+                    }
+                </div>
+
+                <div class="d-flex gap-2">
+                    @if (certificadoExistente.Estado == EstadoCertificado.Emitido)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="MostrarModalAnular">
+                            <svg class="bi me-1" width="16" height="16" fill="currentColor"><use href="/bootstrap-icons.svg#x-circle"/></svg>
+                            Anular Certificado
+                        </button>
+                    }
+                    <a href="@($"/api/certificados-donacion/{Id}/pdf")" target="_blank" class="btn btn-primary">
+                        <svg class="bi me-1" width="16" height="16" fill="currentColor"><use href="/bootstrap-icons.svg#file-pdf"/></svg>
+                        Descargar PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Formulario de edición (solo para Borrador o nuevo) -->
+        <EditForm Model="@modelo" OnValidSubmit="@GuardarCertificado">
+            <DataAnnotationsValidator />
+            
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Información del Donante</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo de Identificación <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="modelo.TipoIdentificacionDonante" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option value="CC">Cédula de Ciudadanía</option>
+                                <option value="CE">Cédula de Extranjería</option>
+                                <option value="NIT">NIT</option>
+                                <option value="Pasaporte">Pasaporte</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => modelo.TipoIdentificacionDonante)" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Número de Identificación <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="modelo.IdentificacionDonante" class="form-control" />
+                            <ValidationMessage For="@(() => modelo.IdentificacionDonante)" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre Completo <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="modelo.NombreDonante" class="form-control" />
+                            <ValidationMessage For="@(() => modelo.NombreDonante)" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dirección</label>
+                            <InputText @bind-Value="modelo.DireccionDonante" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Ciudad</label>
+                            <InputText @bind-Value="modelo.CiudadDonante" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Teléfono</label>
+                            <InputText @bind-Value="modelo.TelefonoDonante" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <InputText @bind-Value="modelo.EmailDonante" type="email" class="form-control" />
+                            <ValidationMessage For="@(() => modelo.EmailDonante)" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Información de la Donación</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha de Donación <span class="text-danger">*</span></label>
+                            <InputDate @bind-Value="modelo.FechaDonacion" class="form-control" />
+                            <ValidationMessage For="@(() => modelo.FechaDonacion)" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Valor en COP <span class="text-danger">*</span></label>
+                            <InputNumber @bind-Value="modelo.ValorDonacionCOP" class="form-control" />
+                            <ValidationMessage For="@(() => modelo.ValorDonacionCOP)" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Forma de Donación <span class="text-danger">*</span></label>
+                            <InputSelect @bind-Value="modelo.FormaDonacion" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option value="Efectivo">Efectivo</option>
+                                <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Tarjeta de Crédito/Débito">Tarjeta de Crédito/Débito</option>
+                                <option value="Especie (Bienes)">Especie (Bienes)</option>
+                                <option value="Especie (Servicios)">Especie (Servicios)</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => modelo.FormaDonacion)" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción de la Donación <span class="text-danger">*</span></label>
+                            <InputTextArea @bind-Value="modelo.DescripcionDonacion" class="form-control" rows="3" />
+                            <ValidationMessage For="@(() => modelo.DescripcionDonacion)" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Destinación de la Donación <span class="text-danger">*</span></label>
+                            <InputTextArea @bind-Value="modelo.DestinacionDonacion" class="form-control" rows="2" 
+                                placeholder="Ej: Destinada a actividades de beneficio social relacionadas con [describir el objeto social de la entidad]" />
+                            <ValidationMessage For="@(() => modelo.DestinacionDonacion)" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Observaciones</label>
+                            <InputTextArea @bind-Value="modelo.Observaciones" class="form-control" rows="2" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <ValidationSummary class="alert alert-danger" />
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@guardando">
+                    @if (guardando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    else
+                    {
+                        <svg class="bi me-1" width="16" height="16" fill="currentColor"><use href="/bootstrap-icons.svg#save"/></svg>
+                    }
+                    Guardar Borrador
+                </button>
+
+                @if (Id != null)
+                {
+                    <button type="button" class="btn btn-success" @onclick="MostrarModalEmitir" disabled="@guardando">
+                        <svg class="bi me-1" width="16" height="16" fill="currentColor"><use href="/bootstrap-icons.svg#check-circle"/></svg>
+                        Emitir Certificado
+                    </button>
+                }
+
+                <button type="button" class="btn btn-outline-secondary" @onclick="Volver" disabled="@guardando">
+                    Cancelar
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+<!-- Modal para confirmar emisión -->
+@if (mostrarModalEmitir)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Emisión de Certificado</h5>
+                    <button type="button" class="btn-close" @onclick="OcultarModalEmitir"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <svg class="bi me-2" width="24" height="24" fill="currentColor"><use href="/bootstrap-icons.svg#exclamation-triangle"/></svg>
+                        <strong>Atención:</strong> Una vez emitido, el certificado <strong>NO PODRÁ SER EDITADO</strong> y se le asignará un número consecutivo oficial.
+                    </div>
+                    <p>¿Está seguro de que desea emitir este certificado?</p>
+                    @if (!string.IsNullOrWhiteSpace(mensajeValidacion))
+                    {
+                        <div class="alert alert-danger">@mensajeValidacion</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OcultarModalEmitir">Cancelar</button>
+                    <button type="button" class="btn btn-success" @onclick="EmitirCertificado" disabled="@emitiendo">
+                        @if (emitiendo)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Sí, Emitir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal para anular certificado -->
+@if (mostrarModalAnular)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Anular Certificado</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="OcultarModalAnular"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <svg class="bi me-2" width="24" height="24" fill="currentColor"><use href="/bootstrap-icons.svg#x-circle"/></svg>
+                        <strong>Advertencia:</strong> Esta acción anulará el certificado de forma permanente.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Razón de Anulación <span class="text-danger">*</span></label>
+                        <textarea @bind="razonAnulacion" class="form-control" rows="3" required></textarea>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(mensajeValidacion))
+                    {
+                        <div class="alert alert-danger">@mensajeValidacion</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OcultarModalAnular">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="AnularCertificado" disabled="@anulando">
+                        @if (anulando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Anular Certificado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private CertificadoDonacionFormModel modelo = new();
+    private CertificadoDonacionDetailDto? certificadoExistente;
+    private bool cargando = false;
+    private bool guardando = false;
+    private bool emitiendo = false;
+    private bool anulando = false;
+    private bool mostrarModalEmitir = false;
+    private bool mostrarModalAnular = false;
+    private string razonAnulacion = string.Empty;
+    private string mensajeValidacion = string.Empty;
+    private string NumeroCompleto => certificadoExistente != null 
+        ? $"CD-{certificadoExistente.Ano}-{certificadoExistente.Consecutivo:D5}"
+        : string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            await CargarCertificado();
+        }
+        else
+        {
+            // Valores por defecto para nuevo certificado
+            modelo.FechaDonacion = DateTime.Today;
+            modelo.DestinacionDonacion = "Destinada a actividades de beneficio social conforme al objeto social de la entidad.";
+            
+            // Verificar si viene desde un recibo (query string)
+            var uri = new Uri(Navigation.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+            
+            if (queryParams.TryGetValue("reciboId", out var reciboIdStr) && Guid.TryParse(reciboIdStr, out var reciboId))
+            {
+                await CargarDatosDesdeRecibo(reciboId);
+            }
+        }
+    }
+
+    private async Task CargarCertificado()
+    {
+        cargando = true;
+        try
+        {
+            certificadoExistente = await CertificadosService.GetByIdAsync(Id!.Value);
+            if (certificadoExistente == null)
+            {
+                Navigation.NavigateTo("/tesoreria/donaciones");
+                return;
+            }
+
+            // Cargar datos en el modelo si es borrador
+            if (certificadoExistente.Estado == EstadoCertificado.Borrador)
+            {
+                modelo = new CertificadoDonacionFormModel
+                {
+                    FechaDonacion = certificadoExistente.FechaDonacion,
+                    TipoIdentificacionDonante = certificadoExistente.TipoIdentificacionDonante,
+                    IdentificacionDonante = certificadoExistente.IdentificacionDonante,
+                    NombreDonante = certificadoExistente.NombreDonante,
+                    DireccionDonante = certificadoExistente.DireccionDonante,
+                    CiudadDonante = certificadoExistente.CiudadDonante,
+                    TelefonoDonante = certificadoExistente.TelefonoDonante,
+                    EmailDonante = certificadoExistente.EmailDonante,
+                    DescripcionDonacion = certificadoExistente.DescripcionDonacion,
+                    ValorDonacionCOP = certificadoExistente.ValorDonacionCOP,
+                    FormaDonacion = certificadoExistente.FormaDonacion,
+                    DestinacionDonacion = certificadoExistente.DestinacionDonacion,
+                    Observaciones = certificadoExistente.Observaciones,
+                    ReciboId = certificadoExistente.ReciboId
+                };
+            }
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarDatosDesdeRecibo(Guid reciboId)
+    {
+        try
+        {
+            // Obtener recibo
+            var recibo = await RecibosService.GetByIdAsync(reciboId);
+            if (recibo == null) return;
+
+            // Pre-llenar modelo
+            modelo.ReciboId = reciboId;
+            modelo.FechaDonacion = recibo.FechaEmision;
+            modelo.ValorDonacionCOP = recibo.TotalCop;
+            modelo.FormaDonacion = "Transferencia Bancaria"; // Por defecto, puede cambiarse
+            
+            // Obtener descripción de los items
+            var descripciones = recibo.Items?
+                .Where(i => !string.IsNullOrEmpty(i.ConceptoNombre))
+                .Select(i => $"{i.ConceptoNombre} (x{i.Cantidad})")
+                .ToList();
+            
+            if (descripciones != null && descripciones.Any())
+            {
+                modelo.DescripcionDonacion = string.Join(", ", descripciones);
+            }
+            else
+            {
+                modelo.DescripcionDonacion = "Donación voluntaria";
+            }
+
+            // Si hay miembro asociado, cargar sus datos
+            if (recibo.MiembroId.HasValue)
+            {
+                try
+                {
+                    var miembro = await MiembrosService.GetByIdAsync(recibo.MiembroId.Value);
+                    
+                    if (miembro != null)
+                    {
+                        modelo.TipoIdentificacionDonante = "CC"; // Por defecto
+                        modelo.IdentificacionDonante = miembro.Cedula ?? "";
+                        modelo.NombreDonante = miembro.NombreCompleto;
+                        modelo.DireccionDonante = miembro.Direccion;
+                        modelo.CiudadDonante = ""; // No está en el DTO
+                        modelo.TelefonoDonante = miembro.Celular;
+                        modelo.EmailDonante = miembro.Email;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error cargando datos del miembro: {ex.Message}");
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(recibo.TerceroLibre))
+            {
+                // Si es tercero libre, solo el nombre
+                modelo.NombreDonante = recibo.TerceroLibre;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando datos desde recibo: {ex.Message}");
+        }
+    }
+
+    private async Task GuardarCertificado()
+    {
+        guardando = true;
+        mensajeValidacion = string.Empty;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var currentUser = authState.User.Identity?.Name ?? "Sistema";
+
+            if (Id == null)
+            {
+                // Crear nuevo
+                var createDto = new CreateCertificadoDonacionDto
+                {
+                    FechaDonacion = modelo.FechaDonacion,
+                    TipoIdentificacionDonante = modelo.TipoIdentificacionDonante,
+                    IdentificacionDonante = modelo.IdentificacionDonante,
+                    NombreDonante = modelo.NombreDonante,
+                    DireccionDonante = modelo.DireccionDonante,
+                    CiudadDonante = modelo.CiudadDonante,
+                    TelefonoDonante = modelo.TelefonoDonante,
+                    EmailDonante = modelo.EmailDonante,
+                    DescripcionDonacion = modelo.DescripcionDonacion,
+                    ValorDonacionCOP = modelo.ValorDonacionCOP,
+                    FormaDonacion = modelo.FormaDonacion,
+                    DestinacionDonacion = modelo.DestinacionDonacion,
+                    Observaciones = modelo.Observaciones,
+                    ReciboId = modelo.ReciboId
+                };
+
+                var nuevoId = await CertificadosService.CreateAsync(createDto, currentUser);
+                Navigation.NavigateTo($"/tesoreria/donaciones/{nuevoId}");
+            }
+            else
+            {
+                // Actualizar existente
+                var updateDto = new UpdateCertificadoDonacionDto
+                {
+                    Id = Id.Value,
+                    FechaDonacion = modelo.FechaDonacion,
+                    TipoIdentificacionDonante = modelo.TipoIdentificacionDonante,
+                    IdentificacionDonante = modelo.IdentificacionDonante,
+                    NombreDonante = modelo.NombreDonante,
+                    DireccionDonante = modelo.DireccionDonante,
+                    CiudadDonante = modelo.CiudadDonante,
+                    TelefonoDonante = modelo.TelefonoDonante,
+                    EmailDonante = modelo.EmailDonante,
+                    DescripcionDonacion = modelo.DescripcionDonacion,
+                    ValorDonacionCOP = modelo.ValorDonacionCOP,
+                    FormaDonacion = modelo.FormaDonacion,
+                    DestinacionDonacion = modelo.DestinacionDonacion,
+                    Observaciones = modelo.Observaciones,
+                    ReciboId = modelo.ReciboId
+                };
+
+                await CertificadosService.UpdateAsync(updateDto, currentUser);
+                await CargarCertificado();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeValidacion = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void MostrarModalEmitir()
+    {
+        mensajeValidacion = string.Empty;
+        mostrarModalEmitir = true;
+    }
+
+    private void OcultarModalEmitir()
+    {
+        mostrarModalEmitir = false;
+        mensajeValidacion = string.Empty;
+    }
+
+    private async Task EmitirCertificado()
+    {
+        if (Id == null) return;
+
+        emitiendo = true;
+        mensajeValidacion = string.Empty;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var currentUser = authState.User.Identity?.Name ?? "Sistema";
+
+            var dto = new EmitirCertificadoDto { Id = Id.Value };
+            var resultado = await CertificadosService.EmitirAsync(dto, currentUser);
+
+            if (resultado)
+            {
+                OcultarModalEmitir();
+                await CargarCertificado();
+            }
+            else
+            {
+                mensajeValidacion = "No se pudo emitir el certificado. Verifique que esté en estado Borrador.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeValidacion = $"Error al emitir: {ex.Message}";
+        }
+        finally
+        {
+            emitiendo = false;
+        }
+    }
+
+    private void MostrarModalAnular()
+    {
+        razonAnulacion = string.Empty;
+        mensajeValidacion = string.Empty;
+        mostrarModalAnular = true;
+    }
+
+    private void OcultarModalAnular()
+    {
+        mostrarModalAnular = false;
+        razonAnulacion = string.Empty;
+        mensajeValidacion = string.Empty;
+    }
+
+    private async Task AnularCertificado()
+    {
+        if (Id == null || string.IsNullOrWhiteSpace(razonAnulacion))
+        {
+            mensajeValidacion = "Debe proporcionar una razón para anular el certificado.";
+            return;
+        }
+
+        anulando = true;
+        mensajeValidacion = string.Empty;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var currentUser = authState.User.Identity?.Name ?? "Sistema";
+
+            var dto = new AnularCertificadoDto 
+            { 
+                Id = Id.Value,
+                RazonAnulacion = razonAnulacion
+            };
+            
+            var resultado = await CertificadosService.AnularAsync(dto, currentUser);
+
+            if (resultado)
+            {
+                OcultarModalAnular();
+                await CargarCertificado();
+            }
+            else
+            {
+                mensajeValidacion = "No se pudo anular el certificado. Verifique que esté en estado Emitido.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeValidacion = $"Error al anular: {ex.Message}";
+        }
+        finally
+        {
+            anulando = false;
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/tesoreria/donaciones");
+    }
+
+    private string GetEstadoClass(EstadoCertificado estado) => estado switch
+    {
+        EstadoCertificado.Borrador => "warning",
+        EstadoCertificado.Emitido => "success",
+        EstadoCertificado.Anulado => "danger",
+        _ => "secondary"
+    };
+
+    /// <summary>
+    /// Modelo de formulario para crear/editar certificado.
+    /// </summary>
+    private class CertificadoDonacionFormModel
+    {
+        public DateTime FechaDonacion { get; set; }
+        public string TipoIdentificacionDonante { get; set; } = string.Empty;
+        public string IdentificacionDonante { get; set; } = string.Empty;
+        public string NombreDonante { get; set; } = string.Empty;
+        public string? DireccionDonante { get; set; }
+        public string? CiudadDonante { get; set; }
+        public string? TelefonoDonante { get; set; }
+        public string? EmailDonante { get; set; }
+        public string DescripcionDonacion { get; set; } = string.Empty;
+        public decimal ValorDonacionCOP { get; set; }
+        public string FormaDonacion { get; set; } = string.Empty;
+        public string DestinacionDonacion { get; set; } = string.Empty;
+        public string? Observaciones { get; set; }
+        public Guid? ReciboId { get; set; }
+    }
+}

@@ -1,0 +1,42 @@
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" role="dialog" aria-modal="true">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8 w-full max-w-lg mx-auto @Class" @attributes="AdditionalAttributes">
+            @if (Header != null)
+            {
+                <div class="font-semibold text-lg mb-4">@Header</div>
+            }
+            else if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <div class="font-semibold text-lg mb-4">@Title</div>
+            }
+            <div>@ChildContent</div>
+            @if (Footer != null)
+            {
+                <div class="mt-6 flex justify-end gap-2">@Footer</div>
+            }
+        </div>
+    </div>
+}
+@code {
+    [Parameter] public RenderFragment Header { get; set; }
+    [Parameter] public RenderFragment Footer { get; set; }
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string Class { get; set; }
+    /// <summary>
+    /// Controla la visibilidad del modal. Por defecto visible para compatibilidad con UIModalHost.
+    /// </summary>
+    [Parameter] public bool IsOpen { get; set; } = true;
+    /// <summary>
+    /// Evento para notificar cambios en IsOpen (ej. cerrar modal desde el padre).
+    /// </summary>
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    /// <summary>
+    /// Título del modal (alternativa simple al slot Header).
+    /// </summary>
+    [Parameter] public string? Title { get; set; }
+    /// <summary>
+    /// Atributos adicionales no tipados (ej. aria-*, role) aplicados al contenedor del diálogo para accesibilidad.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

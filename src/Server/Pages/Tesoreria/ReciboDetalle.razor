@@ -1,0 +1,200 @@
+@page "/tesoreria/recibos/{id:guid}"
+@using Server.Models
+@using Microsoft.EntityFrameworkCore
+@inject Server.Data.AppDbContext Db
+@inject Server.Services.Donaciones.ICertificadosDonacionService CertificadosService
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+
+<PageTitle>Detalle de Recibo</PageTitle>
+
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 17v-6a2 2 0 012-2h6a2 2 0 012 2v6"/><path d="M9 17h6"/></svg>
+            <span class="text-2xl font-semibold">Detalle de Recibo</span>
+        </div>
+    </Header>
+    <ChildContent>
+        @if (recibo == null)
+        {
+            <div class="text-danger">Recibo no encontrado.</div>
+        }
+        else
+        {
+            <div class="mb-4">
+                <span class="font-semibold">Número:</span> @recibo.Serie-@recibo.Ano-@recibo.Consecutivo.ToString("D4")<br />
+                <span class="font-semibold">Fecha:</span> @recibo.FechaEmision.ToString("dd/MM/yyyy")<br />
+                <span class="font-semibold">Total COP:</span> @recibo.TotalCop.ToString("N0")<br />
+                <span class="font-semibold">Estado:</span> @recibo.Estado<br />
+            </div>
+            <div class="mb-4">
+                <span class="font-semibold">Tercero:</span> @recibo.TerceroLibre ?? miembroNombre
+            </div>
+            <div class="mb-4">
+                <span class="font-semibold">Observaciones:</span> @recibo.Observaciones
+            </div>
+            <div class="mb-4">
+                <span class="font-semibold">Items:</span>
+                <ul class="list-disc ml-6">
+                    @foreach (var item in items)
+                    {
+                        <li>@item.ConceptoNombre (@item.Cantidad x @item.PrecioUnitarioMonedaOrigen.ToString("N0") @item.MonedaOrigen) = @item.SubtotalCop.ToString("N0") COP</li>
+                    }
+                </ul>
+            </div>
+            
+            @if (certificado != null)
+            {
+                <div class="mb-4 p-4 border-l-4 @(certificado.Estado == EstadoCertificado.Anulado ? "border-danger bg-red-50" : "border-success bg-green-50") rounded">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-5 h-5 @(certificado.Estado == EstadoCertificado.Anulado ? "text-danger" : "text-success")" fill="currentColor" viewBox="0 0 24 24">
+                            <use href="/bootstrap-icons.svg#award"/>
+                        </svg>
+                        <span class="font-semibold @(certificado.Estado == EstadoCertificado.Anulado ? "text-danger" : "text-success")">
+                            Certificado de Donación: CD-@certificado.Ano-@certificado.Consecutivo.ToString("D5")
+                        </span>
+                        @if (certificado.Estado == EstadoCertificado.Anulado)
+                        {
+                            <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-danger text-white font-semibold">ANULADO</span>
+                        }
+                        else if (certificado.Estado == EstadoCertificado.Emitido)
+                        {
+                            <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-success text-white font-semibold">EMITIDO</span>
+                        }
+                    </div>
+                    <div class="text-sm text-slate-700">
+                        <strong>Donante:</strong> @certificado.NombreDonante<br />
+                        <strong>Valor:</strong> @certificado.ValorDonacionCOP.ToString("N0") COP<br />
+                        <strong>Fecha emisión:</strong> @certificado.FechaEmision.ToString("dd/MM/yyyy")
+                    </div>
+                    @if (certificado.Estado == EstadoCertificado.Anulado && !string.IsNullOrEmpty(certificado.RazonAnulacion))
+                    {
+                        <div class="mt-2 text-sm text-danger">
+                            <strong>Motivo anulación:</strong> @certificado.RazonAnulacion
+                        </div>
+                    }
+                </div>
+            }
+            
+            <div class="flex gap-3 mt-6">
+                <a href="/api/recibos/@recibo.Id/pdf" target="_blank" class="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-600 font-medium">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><use href="/bootstrap-icons.svg#file-pdf"/></svg>
+                    Ver PDF Recibo
+                </a>
+                @if (certificado != null)
+                {
+                    <a href="/tesoreria/donaciones/@certificado.Id" class="inline-flex items-center px-4 py-2 rounded-lg @(certificado.Estado == EstadoCertificado.Anulado ? "bg-danger" : "bg-warning") text-white hover:opacity-90 font-medium">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><use href="/bootstrap-icons.svg#award"/></svg>
+                        Ver Certificado @(certificado.Estado == EstadoCertificado.Anulado ? "(Anulado)" : "")
+                    </a>
+                    @if (certificado.Estado == EstadoCertificado.Emitido && !string.IsNullOrEmpty(certificado.EmailDonante))
+                    {
+                        <button @onclick="ReenviarCertificadoAsync" disabled="@enviando" class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><use href="/bootstrap-icons.svg#envelope"/></svg>
+                            @(enviando ? "Enviando..." : "Reenviar por Email")
+                        </button>
+                    }
+                }
+            </div>
+        }
+    </ChildContent>
+</UICard>
+
+@code {
+    [Parameter] public Guid id { get; set; }
+    private Recibo? recibo;
+    private string miembroNombre = "";
+    private List<ItemRow> items = new();
+    private CertInfo? certificado = null;
+    private bool enviando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        recibo = await Db.Recibos.Include(r => r.Items).FirstOrDefaultAsync(r => r.Id == id);
+        if (recibo != null)
+        {
+            if (recibo.MiembroId.HasValue)
+            {
+                miembroNombre = await Db.Miembros.Where(m => m.Id == recibo.MiembroId.Value).Select(m => m.NombreCompleto).FirstOrDefaultAsync() ?? "";
+            }
+            items = await Db.ReciboItems.Where(i => i.ReciboId == recibo.Id)
+                .Join(Db.Conceptos, i => i.ConceptoId, c => c.Id, (i, c) => new ItemRow
+                {
+                    ConceptoNombre = c.Nombre,
+                    Cantidad = i.Cantidad,
+                    PrecioUnitarioMonedaOrigen = i.PrecioUnitarioMonedaOrigen,
+                    MonedaOrigen = i.MonedaOrigen.ToString(),
+                    SubtotalCop = i.SubtotalCop
+                }).ToListAsync();
+            
+            // Buscar cualquier certificado (incluye anulados)
+            certificado = await Db.CertificadosDonacion
+                .Where(cd => cd.ReciboId == recibo.Id)
+                .OrderByDescending(cd => cd.FechaEmision)
+                .Select(cd => new CertInfo
+                {
+                    Id = cd.Id,
+                    Ano = cd.Ano,
+                    Consecutivo = cd.Consecutivo,
+                    FechaEmision = cd.FechaEmision,
+                    NombreDonante = cd.NombreDonante,
+                    ValorDonacionCOP = cd.ValorDonacionCOP,
+                    EmailDonante = cd.EmailDonante,
+                    Estado = cd.Estado,
+                    RazonAnulacion = cd.RazonAnulacion
+                })
+                .FirstOrDefaultAsync();
+        }
+    }
+
+    private async Task ReenviarCertificadoAsync()
+    {
+        if (certificado == null || string.IsNullOrEmpty(certificado.EmailDonante)) return;
+        enviando = true;
+        StateHasChanged();
+        try
+        {
+            var resultado = await CertificadosService.ReenviarEmailAsync(certificado.Id);
+            if (resultado)
+            {
+                Toasts.Show("Certificado reenviado exitosamente", "success");
+            }
+            else
+            {
+                Toasts.Show("No se pudo reenviar el certificado. Verifique que esté emitido y tenga email.", "warning");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toasts.Show($"Error al reenviar: {ex.Message}", "danger");
+        }
+        finally
+        {
+            enviando = false;
+            StateHasChanged();
+        }
+    }
+
+    private class ItemRow
+    {
+        public string ConceptoNombre { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitarioMonedaOrigen { get; set; }
+        public string MonedaOrigen { get; set; } = "";
+        public decimal SubtotalCop { get; set; }
+    }
+    
+    private class CertInfo
+    {
+        public Guid Id { get; set; }
+        public int Ano { get; set; }
+        public int Consecutivo { get; set; }
+        public DateTime FechaEmision { get; set; }
+        public string NombreDonante { get; set; } = "";
+        public decimal ValorDonacionCOP { get; set; }
+        public string? EmailDonante { get; set; }
+        public EstadoCertificado Estado { get; set; }
+        public string? RazonAnulacion { get; set; }
+    }
+}

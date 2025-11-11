@@ -1,0 +1,30 @@
+@* Componente reutilizable para tarjetas de estadísticas *@
+
+<div class="stats-card @CssClass" @onclick="OnClick" style="@Style">
+    <div class="stats-card-icon @Variant">
+        <span class="oi oi-@Icon"></span>
+    </div>
+    <div class="stats-card-label">@Label</div>
+    <div class="stats-card-value">@Value</div>
+    @if (!string.IsNullOrEmpty(Change))
+    {
+        <div class="stats-card-change @ChangeClass">
+            <span class="oi oi-@ChangeIcon"></span>
+            @Change
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "graph";
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = "0";
+    [Parameter] public string Change { get; set; } = string.Empty;
+    [Parameter] public string Variant { get; set; } = "primary"; // primary, success, warning, danger
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public string Style { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private string ChangeClass => Change?.StartsWith("+") == true ? "positive" : "negative";
+    private string ChangeIcon => Change?.StartsWith("+") == true ? "arrow-top" : "arrow-bottom";
+}

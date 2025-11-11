@@ -1,0 +1,434 @@
+is_global = true
+build_property.MudDebugAnalyzer = 
+build_property.MudAllowedAttributePattern = 
+build_property.MudIllegalParameters = 
+build_property.TargetFramework = net8.0
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v8.0
+build_property.RootNamespace = Server
+build_property.RootNamespace = Server
+build_property.ProjectDir = C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 8.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 8.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/App.razor]
+build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Auth/RedirectToLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBdXRoXFJlZGlyZWN0VG9Mb2dpbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Security/TwoFactorWarningBanner.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTZWN1cml0eVxUd29GYWN0b3JXYXJuaW5nQmFubmVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/DataTableWrapper.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcRGF0YVRhYmxlV3JhcHBlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/KpiCard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcS3BpQ2FyZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/MetricCard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcTWV0cmljQ2FyZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/ModernSearch.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcTW9kZXJuU2VhcmNoLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/ModernStatCard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcTW9kZXJuU3RhdENhcmQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/PageHeader.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUGFnZUhlYWRlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/StatCard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcU3RhdENhcmQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/ThemeToggle.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcVGhlbWVUb2dnbGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Tesoreria/ImportarExtractoModal.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUZXNvcmVyaWFcSW1wb3J0YXJFeHRyYWN0b01vZGFsLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIBadge.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSUJhZGdlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIButton.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSUJ1dHRvbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UICard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSUNhcmQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIModal.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSU1vZGFsLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIModalHost.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSU1vZGFsSG9zdC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UISkeleton.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSVNrZWxldG9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UITable.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSVRhYmxlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIToast.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSVRvYXN0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIToastStack.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxVSVRvYXN0U3RhY2sucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/ActualizarDeudoresOctubre.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cQWN0dWFsaXphckRldWRvcmVzT2N0dWJyZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/Auditoria.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cQXVkaXRvcmlhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/AuditoriaTimeline.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cQXVkaXRvcmlhVGltZWxpbmUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/Backups.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cQmFja3Vwcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/CorreccionFechasIngresoOct2025.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cQ29ycmVjY2lvbkZlY2hhc0luZ3Jlc29PY3QyMDI1LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/EjecutarActualizacionDeudores.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cRWplY3V0YXJBY3R1YWxpemFjaW9uRGV1ZG9yZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Conceptos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uY2VwdG9zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Config/ImportarMiembros.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uZmlnXEltcG9ydGFyTWllbWJyb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Config/Usuarios.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uZmlnXFVzdWFyaW9zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/ClienteDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDbGllbnRlRGV0YWxsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/ClienteEditar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDbGllbnRlRWRpdGFyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/ClienteNuevo.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDbGllbnRlTnVldm8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Clientes.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDbGllbnRlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Compras.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDb21wcmFzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/CotizacionDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDb3RpemFjaW9uRGV0YWxsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/CotizacionEditar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDb3RpemFjaW9uRWRpdGFyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Cotizaciones.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDb3RpemFjaW9uZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/CotizacionNueva.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDb3RpemFjaW9uTnVldmEucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/CuentasCobroPersonalizadas.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xDdWVudGFzQ29icm9QZXJzb25hbGl6YWRhcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Inventario.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xJbnZlbnRhcmlvLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Productos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xQcm9kdWN0b3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/ProveedorDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xQcm92ZWVkb3JEZXRhbGxlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/ProveedorEditar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xQcm92ZWVkb3JFZGl0YXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Proveedores.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xQcm92ZWVkb3Jlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/ProveedorNuevo.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xQcm92ZWVkb3JOdWV2by5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/GerenciaNegocios/Ventas.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2VyZW5jaWFOZWdvY2lvc1xWZW50YXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Index.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXgucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/ListaMiembros.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTGlzdGFNaWVtYnJvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Miembros/Importar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWllbWJyb3NcSW1wb3J0YXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Recibos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVjaWJvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/AppLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXEFwcExheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/Components/Modal.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXENvbXBvbmVudHNcTW9kYWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/Components/StatsCard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXENvbXBvbmVudHNcU3RhdHNDYXJkLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/Footer.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXEZvb3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXE1haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXE5hdk1lbnUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/Sidebar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXFNpZGViYXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/ThemeToggle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXFRoZW1lVG9nZ2xlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/ThemeToggleLegacy.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXFRoZW1lVG9nZ2xlTGVnYWN5LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/Topbar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXFRvcGJhci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/TasasCambio.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGFzYXNDYW1iaW8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/CertificadosDonacion.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENlcnRpZmljYWRvc0RvbmFjaW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/CertificadosDonacionForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENlcnRpZmljYWRvc0RvbmFjaW9uRm9ybS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Cierre.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENpZXJyZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/ConciliacionDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENvbmNpbGlhY2lvbkRldGFsbGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/ConciliacionesBancarias.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENvbmNpbGlhY2lvbmVzQmFuY2FyaWFzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/ConciliacionForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENvbmNpbGlhY2lvbkZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/DeudorDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXERldWRvckRldGFsbGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Deudores.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXERldWRvcmVzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Egresos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXEVncmVzb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/PresupuestoDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFByZXN1cHVlc3RvRGV0YWxsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/PresupuestoForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFByZXN1cHVlc3RvRm9ybS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Presupuestos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFByZXN1cHVlc3Rvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/ReciboDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFJlY2lib0RldGFsbGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/RecibosForm.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFJlY2lib3NGb3JtLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/RecibosRapido.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFJlY2lib3NSYXBpZG8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Reportes.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFJlcG9ydGVzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/ReportesDonacionesCertificados.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFJlcG9ydGVzRG9uYWNpb25lc0NlcnRpZmljYWRvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Respaldo.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFJlc3BhbGRvLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Verificacion.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXFZlcmlmaWNhY2lvbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = X0ltcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/AccessDenied.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxBY2Nlc3NEZW5pZWQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Logout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxMb2dvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Manage/Disable2fa.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxNYW5hZ2VcRGlzYWJsZTJmYS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Manage/EnableAuthenticator.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxNYW5hZ2VcRW5hYmxlQXV0aGVudGljYXRvci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Manage/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxNYW5hZ2VcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Manage/ResetAuthenticator.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxNYW5hZ2VcUmVzZXRBdXRoZW50aWNhdG9yLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Manage/_ManageNav.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxNYW5hZ2VcX01hbmFnZU5hdi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Manage/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxNYW5hZ2VcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/Register.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxSZWdpc3Rlci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/Account/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcQWNjb3VudFxfVmlld0ltcG9ydHMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Areas/Identity/Pages/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = QXJlYXNcSWRlbnRpdHlcUGFnZXNcX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9MYXlvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/_LoginPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9Mb2dpblBhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Shared/_ValidationScriptsPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/_Host.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX0hvc3QuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 

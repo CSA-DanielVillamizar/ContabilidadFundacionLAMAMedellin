@@ -1,0 +1,78 @@
+
+@page "/Tesoreria/Reportes"
+@using Microsoft.JSInterop
+@using Server.Services.Reportes
+@using Server.Models
+@inject IJSRuntime JS
+@inject IReportesService ReportesService
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V9a2 2 0 012-2h6a2 2 0 012 2v8"/></svg>
+            <span class="text-2xl font-semibold">Reportes Tesorería</span>
+        </div>
+    </Header>
+    <ChildContent>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 items-end">
+            <div>
+                <label class="block text-sm font-medium mb-1">Año</label>
+                <input type="number" @bind="anio" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Mes</label>
+                <input type="number" @bind="mes" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
+            </div>
+            <div class="flex gap-2">
+                <UIButton Variant="primary" Size="md" OnClick="@Cargar">Cargar</UIButton>
+                <a class="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center font-semibold" href="@($"/api/reportes/tesoreria/pdf?anio={anio}&mes={mes}")" target="_blank" download>Descargar PDF</a>
+                <a class="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center font-semibold" href="@($"/api/reportes/tesoreria/excel?anio={anio}&mes={mes}")" target="_blank" download>Descargar Excel</a>
+            </div>
+        </div>
+        @if (resultado is not null)
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div class="bg-slate-100 dark:bg-slate-800 rounded-xl p-4">
+                    <div class="font-semibold text-primary mb-2">Saldo inicial</div>
+                    <div class="text-lg">@resultado.SaldoInicial</div>
+                </div>
+                <div class="bg-slate-100 dark:bg-slate-800 rounded-xl p-4">
+                    <div class="font-semibold text-primary mb-2">Ingresos</div>
+                    <div class="text-lg">@resultado.Ingresos</div>
+                </div>
+                <div class="bg-slate-100 dark:bg-slate-800 rounded-xl p-4">
+                    <div class="font-semibold text-primary mb-2">Egresos</div>
+                    <div class="text-lg">@resultado.Egresos</div>
+                </div>
+                <div class="bg-slate-100 dark:bg-slate-800 rounded-xl p-4">
+                    <div class="font-semibold text-primary mb-2">Saldo final</div>
+                    <div class="text-lg">@resultado.SaldoFinal</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <UISkeleton Class="h-6 w-full" />
+        }
+    </ChildContent>
+</UICard>
+
+@code {
+    int anio = DateTime.UtcNow.Year;
+    int mes = DateTime.UtcNow.Month;
+    TesoreriaMesResult? resultado;
+
+    async Task Cargar()
+    {
+        resultado = await ReportesService.GenerarReporteMensualAsync(anio, mes);
+    }
+
+    // Descarga directa por <a href> para archivos grandes. El endpoint debe retornar Content-Disposition: attachment.
+}
+    </Authorized>
+</AuthorizeView>

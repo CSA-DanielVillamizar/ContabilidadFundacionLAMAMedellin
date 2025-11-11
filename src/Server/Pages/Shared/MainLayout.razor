@@ -1,0 +1,207 @@
+@inherits LayoutComponentBase
+@inject ToastService Toasts
+@inject NavigationManager NavManager
+
+<HeadOutlet />
+
+<style>
+    /* ESTILOS INLINE PARA HEADER Y MAIN CONTENT */
+    .mud-appbar {
+        min-height: 80px !important;
+        height: 80px !important;
+    }
+    
+    .mud-appbar .mud-icon-button .mud-icon-root,
+    .mud-appbar .mud-icon-button svg {
+        font-size: 28px !important;
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .mud-main-content {
+        padding-top: 32px !important;
+        margin-top: 16px !important;
+    }
+    
+    .mud-drawer-header img {
+        width: 48px !important;
+        height: 48px !important;
+    }
+</style>
+
+<!-- Proveedores globales de MudBlazor -->
+<MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider MaximumSnackbars="4" ShowCloseIcon="true" SnackbarVariant="Variant.Filled" />
+
+<!-- Toasts globales existentes (legacy) -->
+<UIToast Toasts="_toasts" OnDismiss="OnToastDismiss" />
+
+<!-- Layout principal: MudLayout con Drawer y AppBar -->
+<CascadingValue Value="this">
+    <MudLayout>
+    <!-- Drawer lateral izquierdo (Responsive: auto-cierra en móvil, persiste en desktop) -->
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="@DrawerVariant.Responsive">
+            <MudDrawerHeader Class="d-flex align-center gap-3 px-4 py-3">
+                <MudImage Src="images/LogoLAMAMedellin.png" Alt="LAMA Logo" Width="48" Height="48" Class="rounded" />
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">L.A.M.A.</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Medellín</MudText>
+                </div>
+            </MudDrawerHeader>
+            
+            <!-- Usuario actual y ThemeToggle -->
+            <div class="px-4 py-3 border-t">
+                <div class="d-flex align-center gap-2 mb-2">
+                    <MudAvatar Size="Size.Small" Src="images/avatar-default.png" />
+                    <div class="flex-grow-1">
+                        <AuthorizeView>
+                            <Authorized Context="auth">
+                                <MudText Typo="Typo.body2" Class="font-weight-medium">@((auth?.User?.Identity?.Name) ?? "Usuario")</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetUserRole(auth)</MudText>
+                            </Authorized>
+                            <NotAuthorized>
+                                <MudText Typo="Typo.body2">Invitado</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">No autenticado</MudText>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+                    <Server.Components.Shared.ThemeToggle />
+                </div>
+                
+                <AuthorizeView>
+                    <Authorized>
+                        <MudButton OnClick="Logout" Variant="Variant.Text" Color="Color.Error" Size="Size.Small" StartIcon="@Icons.Material.Filled.Logout" FullWidth="true">
+                            Cerrar sesión
+                        </MudButton>
+                    </Authorized>
+                    <NotAuthorized>
+                        <MudButton Href="/Identity/Account/Login" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Login" FullWidth="true">
+                            Iniciar sesión
+                        </MudButton>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+            
+            <!-- Navegación -->
+            <NavMenu />
+        </MudDrawer>
+
+        <!-- AppBar superior -->
+        <MudAppBar Elevation="1" Dense="false">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+            <MudText Typo="Typo.h6" Class="ml-6" Style="font-weight: 600;">Contabilidad LAMA Medellín</MudText>
+            <MudSpacer />
+            <MudText Typo="Typo.body2" Color="Color.Inherit">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</MudText>
+        </MudAppBar>
+
+        <!-- Contenido principal -->
+        <MudMainContent Class="pa-4">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+                <!-- Banner de advertencia 2FA -->
+                <TwoFactorWarningBanner />
+                
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+</CascadingValue>
+
+@code {
+    private List<UIToast.ToastModel> _toasts = new();
+    private bool _isDarkMode = false;
+    private bool _drawerOpen = true;
+    private MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#3B82F6",
+            Success = "#10B981",
+            Warning = "#F59E0B",
+            Error = "#EF4444",
+            Info = "#0ea5e9",
+            Background = "#F8FAFC",
+            Surface = "#FFFFFF",
+            AppbarBackground = "#FFFFFF",
+            DrawerBackground = "#FFFFFF",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#60A5FA",
+            Success = "#34D399",
+            Warning = "#FBBF24",
+            Error = "#F87171",
+            Info = "#38bdf8",
+            Background = "#0F172A",
+            Surface = "#1E293B",
+            AppbarBackground = "#1E293B",
+            DrawerBackground = "#1E293B",
+        },
+        Typography = new Typography
+        {
+            Default = new Default { FontFamily = new[] { "Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif" } }
+        },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "8px" }
+    };
+
+    protected override void OnInitialized()
+    {
+        // Suscribirse al servicio para re-renderizar cuando haya cambios
+        Toasts.StateHasChanged += StateHasChanged;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // Reflejar la lista actual del servicio
+        _toasts = Toasts.Toasts;
+    }
+
+    /// <summary>
+    /// Método público para cambiar el modo oscuro desde componentes hijos
+    /// </summary>
+    public Task SetDarkMode(bool isDark)
+    {
+        _isDarkMode = isDark;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Alterna la visibilidad del drawer lateral
+    /// </summary>
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void OnToastDismiss(Guid id)
+    {
+        Toasts.Dismiss(id);
+    }
+
+    /// <summary>
+    /// Obtiene el rol principal del usuario autenticado
+    /// </summary>
+    private static string GetUserRole(AuthenticationState? auth)
+    {
+        var user = auth?.User;
+        if (user is null) return "";
+        var role = user.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
+        return string.IsNullOrWhiteSpace(role) ? "Usuario" : role;
+    }
+
+    /// <summary>
+    /// Cierra la sesión del usuario
+    /// </summary>
+    private void Logout()
+    {
+        var returnUrl = Uri.EscapeDataString(NavManager.BaseUri);
+        NavManager.NavigateTo($"/Identity/Account/Logout?returnUrl={returnUrl}", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        Toasts.StateHasChanged -= StateHasChanged;
+    }
+}

@@ -1,0 +1,34 @@
+NombreCompleto Rango FechaIngreso MesesAdeudados RangoAdeudado
+-------------- ----- ------------ -------------- -------------
+Carlos Julio RendÃ³n DÃ­az Full Color 2021-10-03 10 Enero - Octubre
+Carlos Mario Ceballos Full Color 2020-04-30 10 Enero - Octubre
+Carlos Mario Díaz Díaz Full Color 2022-08-01 10 Enero - Octubre
+Héctor Mario González Henao Full Color 2013-05-01 10 Enero - Octubre
+Jefferson  Montoya Muñoz Full Color 2021-10-03 10 Enero - Octubre
+Jennifer Andrea Cardona Benítez Prospecto 2025-01-01 10 Enero - Octubre
+Jhon David Sánchez Full Color 2023-09-01 10 Enero - Octubre
+Jhon Emmanuel Arzuza Páez Full Color 2021-06-30 10 Enero - Octubre
+Jhon Harvey Gómez Patiño Full Color 2015-09-01 10 Enero - Octubre
+José Edinson  Ospina Cruz Full Color 2021-10-03 10 Enero - Octubre
+Juan Esteban  Osorio Full Color 2021-10-01 10 Enero - Octubre
+Juan Esteban SuÃ¡rez Correa Full Color 2020-04-30 10 Enero - Octubre
+RamÃ³n Antonio GonzÃ¡lez  CastaÃ±o Full Color 2013-05-01 10 Enero - Octubre
+Robinson Alejandro Galvis Parra Full Color 2022-07-01 10 Enero - Octubre
+William Humberto Jiménez Perez Full Color 2017-06-01 10 Enero - Octubre
+Yeferson Bairon  Úsuga Agudelo Full Color 2023-09-01 10 Enero - Octubre
+Girlesa María Buitrago Full Color 2021-05-26 9 Febrero - Octubre
+José Julián Villamizar Araque Rockets 2025-06-04 5 Junio - Octubre
+Laura Viviana Salazar Moreno Full Color 2025-06-04 5 Junio - Octubre
+Carlos AndrÃ©s PÃ©rez Areiza Full Color 2020-04-30 4 Julio - Octubre
+Daniel Andrey Villamizar Araque Full Color 2024-02-01 4 Julio - Octubre
+Milton DarÃ­o GÃ³mez Rivera Full Color 2019-06-19 4 Julio - Octubre
+Ángela Maria Rodríguez Ochoa Full Color 2024-11-01 1 Octubre - Octubre
+César Leonel RodrÍguez Galán Full Color 2015-02-01 1 Octubre - Octubre
+Gustavo Adolfo Gómez Zuluaga Prospecto 2025-10-14 1 Octubre - Octubre
+Nelson Augusto Montoya Mataute Prospecto 2025-10-20 1 Octubre - Octubre
+Tipo
+----
+RESUMEN
+TotalDeudores TotalMesesAdeudados PromedioMesesDeuda
+------------- ------------------- ------------------
+26 195 7

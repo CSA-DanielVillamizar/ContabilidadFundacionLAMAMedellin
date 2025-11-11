@@ -1,0 +1,147 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Options
+@using Server.Security
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IJSRuntime JSRuntime
+@inject IOptions<TwoFactorEnforcementOptions> EnforcementOptions
+
+@if (_showBanner && _shouldDisplay)
+{
+    <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 mb-6" role="alert">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3 flex-1">
+                <h3 class="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    Seguridad: Autenticación de dos factores no activada
+                </h3>
+                <div class="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                    <p>
+                        Por razones de seguridad, se recomienda encarecidamente activar la autenticación de dos factores (2FA) 
+                        para proteger tu cuenta y las operaciones sensibles del sistema.
+                    </p>
+                    @if (_daysRemaining.HasValue && _daysRemaining.Value > 0)
+                    {
+                        <p class="mt-2 font-semibold">
+                            @if (EnforcementOptions.Value.EnforceAfterGracePeriod)
+                            {
+                                <span>⚠️ Tiempo restante: @_daysRemaining días. Después de este período, se bloqueará el acceso a funciones críticas hasta activar 2FA.</span>
+                            }
+                            else
+                            {
+                                <span>📅 Se asignó rol administrativo hace @(_gracePeriodDays - _daysRemaining.Value) días.</span>
+                            }
+                        </p>
+                    }
+                    else if (_daysRemaining.HasValue && _daysRemaining.Value <= 0)
+                    {
+                        <p class="mt-2 font-bold text-red-700 dark:text-red-400">
+                            🚨 Período de gracia expirado. El acceso a funciones críticas está bloqueado hasta activar 2FA.
+                        </p>
+                    }
+                </div>
+                <div class="mt-4 flex gap-3">
+                    <a href="/Identity/Account/Manage/TwoFactorAuthentication" 
+                       class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors">
+                        <svg class="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
+                        </svg>
+                        Activar 2FA ahora
+                    </a>
+                    <button @onclick="DismissBanner" 
+                            type="button"
+                            class="inline-flex items-center px-3 py-2 border border-amber-300 dark:border-amber-700 text-sm leading-4 font-medium rounded-md text-amber-700 dark:text-amber-300 bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors">
+                        Recordar más tarde
+                    </button>
+                </div>
+            </div>
+            <div class="ml-3 flex-shrink-0">
+                <button @onclick="DismissBanner" 
+                        type="button" 
+                        class="inline-flex rounded-md text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    <span class="sr-only">Cerrar</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _showBanner = true;
+    private bool _shouldDisplay = false;
+    private int? _daysRemaining;
+    private int _gracePeriodDays;
+    private const string DismissalKey = "TwoFactorWarningDismissed";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _gracePeriodDays = EnforcementOptions.Value.GracePeriodDays;
+        
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            // Verificar si el usuario tiene rol Admin o Tesorero
+            var isAdminOrTesorero = user.IsInRole("Admin") || user.IsInRole("Tesorero");
+            
+            if (isAdminOrTesorero)
+            {
+                // Obtener usuario de Identity
+                var userId = UserManager.GetUserId(user);
+                if (userId != null)
+                {
+                    var appUser = await UserManager.FindByIdAsync(userId);
+                    if (appUser != null && !appUser.TwoFactorEnabled)
+                    {
+                        // Calcular días restantes si hay fecha de inicio
+                        if (appUser.TwoFactorRequiredSince.HasValue)
+                        {
+                            var gracePeriodEnd = appUser.TwoFactorRequiredSince.Value.AddDays(_gracePeriodDays);
+                            var timeRemaining = gracePeriodEnd - DateTime.UtcNow;
+                            _daysRemaining = (int)Math.Ceiling(timeRemaining.TotalDays);
+                        }
+                        
+                        // Verificar si el usuario no ha descartado el banner en esta sesión
+                        _shouldDisplay = !await CheckIfDismissedAsync();
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task<bool> CheckIfDismissedAsync()
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", DismissalKey);
+            return result == "true";
+        }
+        catch
+        {
+            // Si JSInterop falla (ej: durante prerenderizado), retornar false
+            return false;
+        }
+    }
+
+    private async Task DismissBanner()
+    {
+        _showBanner = false;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", DismissalKey, "true");
+        }
+        catch
+        {
+            // Ignorar errores de JSInterop
+        }
+    }
+}

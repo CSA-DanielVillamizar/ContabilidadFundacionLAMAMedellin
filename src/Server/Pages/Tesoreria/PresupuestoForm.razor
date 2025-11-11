@@ -1,0 +1,518 @@
+@page "/tesoreria/presupuestos/form"
+@page "/tesoreria/presupuestos/form/{Id:guid}"
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@using Server.DTOs
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ToastService Toast
+
+<PageTitle>@(Id == null ? "Nuevo" : "Editar") Presupuesto - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+        <div class="mb-6">
+            <nav class="flex mb-4" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                    <li class="inline-flex items-center">
+                        <a href="/" class="text-slate-700 dark:text-slate-300 hover:text-emerald-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="w-6 h-6 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                            <a href="/tesoreria/presupuestos" class="ml-1 text-slate-700 dark:text-slate-300 hover:text-emerald-600">Presupuestos</a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="w-6 h-6 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                            <span class="ml-1 font-semibold text-slate-900 dark:text-white">@(Id == null ? "Nuevo" : "Editar")</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">@(Id == null ? "Nuevo Presupuesto" : "Editar Presupuesto")</h1>
+                    <p class="text-slate-600 dark:text-slate-400">Complete los datos del presupuesto</p>
+                </div>
+            </div>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-12 text-center">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 dark:border-slate-700 border-t-emerald-500 mb-4"></div>
+                <p class="text-slate-600 dark:text-slate-400">Cargando datos...</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Formulario Principal -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Datos del Presupuesto
+                        </h2>
+
+                        <div class="space-y-4">
+                            <!-- Período -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                                        Año <span class="text-red-500">*</span>
+                                    </label>
+                                    <select @bind="formulario.Ano" disabled="@(Id != null)" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                                        @for (int i = DateTime.Now.Year + 1; i >= DateTime.Now.Year - 5; i--)
+                                        {
+                                            <option value="@i">@i</option>
+                                        }
+                                    </select>
+                                    @if (Id != null)
+                                    {
+                                        <p class="text-xs text-slate-500 mt-1">No se puede modificar el año</p>
+                                    }
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                                        Mes <span class="text-red-500">*</span>
+                                    </label>
+                                    <select @bind="formulario.Mes" disabled="@(Id != null)" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                                        <option value="1">Enero</option>
+                                        <option value="2">Febrero</option>
+                                        <option value="3">Marzo</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Mayo</option>
+                                        <option value="6">Junio</option>
+                                        <option value="7">Julio</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Septiembre</option>
+                                        <option value="10">Octubre</option>
+                                        <option value="11">Noviembre</option>
+                                        <option value="12">Diciembre</option>
+                                    </select>
+                                    @if (Id != null)
+                                    {
+                                        <p class="text-xs text-slate-500 mt-1">No se puede modificar el mes</p>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Concepto -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                                    Concepto <span class="text-red-500">*</span>
+                                </label>
+                                <select @bind="formulario.ConceptoId" disabled="@(Id != null)" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                                    <option value="0">-- Seleccione un concepto --</option>
+                                    @if (conceptos != null)
+                                    {
+                                        @foreach (var concepto in conceptos)
+                                        {
+                                            <option value="@concepto.Id">@concepto.Nombre</option>
+                                        }
+                                    }
+                                </select>
+                                @if (Id != null)
+                                {
+                                    <p class="text-xs text-slate-500 mt-1">No se puede modificar el concepto</p>
+                                }
+                            </div>
+
+                            <!-- Monto Presupuestado -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                                    Monto Presupuestado (COP) <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                                    <input type="number" @bind="formulario.MontoPresupuestado" step="1000" min="0" class="w-full pl-8 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition" placeholder="0" />
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Monto en pesos colombianos (COP)</p>
+                            </div>
+
+                            <!-- Notas -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                                    Notas (opcional)
+                                </label>
+                                <textarea @bind="formulario.Notas" rows="4" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition" placeholder="Observaciones o notas adicionales..."></textarea>
+                                <p class="text-xs text-slate-500 mt-1">Máximo 500 caracteres</p>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="flex gap-3 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                            <button @onclick="Cancelar" type="button" class="flex-1 px-6 py-3 border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                Cancelar
+                            </button>
+                            <button @onclick="Guardar" disabled="@guardando" class="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg">
+                                @if (guardando)
+                                {
+                                    <div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                                    <span>Guardando...</span>
+                                }
+                                else
+                                {
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    <span>Guardar Presupuesto</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel Lateral: Información -->
+                <div class="lg:col-span-1 space-y-4">
+                    <!-- Vista Previa -->
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-6 shadow-md border border-blue-200 dark:border-blue-800">
+                        <h3 class="text-lg font-bold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            Vista Previa
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Período</div>
+                                <div class="text-sm font-semibold text-blue-900 dark:text-blue-100">@ObtenerNombreMes(formulario.Mes) @formulario.Ano</div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Concepto</div>
+                                <div class="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                    @if (formulario.ConceptoId > 0 && conceptos != null)
+                                    {
+                                        @(conceptos.FirstOrDefault(c => c.Id == formulario.ConceptoId)?.Nombre ?? "No seleccionado")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-slate-500">No seleccionado</span>
+                                    }
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Monto Presupuestado</div>
+                                <div class="text-2xl font-bold text-blue-900 dark:text-blue-100">@formulario.MontoPresupuestado.ToString("C0")</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ayuda -->
+                    <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 shadow-md border border-amber-200 dark:border-amber-800">
+                        <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Información
+                        </h3>
+                        <ul class="text-sm text-amber-800 dark:text-amber-200 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span>El presupuesto se crea por concepto y período (año-mes)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span>La ejecución se calcula automáticamente desde movimientos reales</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span>No puede haber dos presupuestos para el mismo concepto y período</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span>Usa la función "Copiar Presupuestos" para replicar entre períodos</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    @if (Id != null)
+                    {
+                        <!-- Auditoría -->
+                        <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 shadow-md border border-slate-200 dark:border-slate-700">
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Auditoría
+                            </h3>
+                            <div class="space-y-3 text-sm">
+                                <div>
+                                    <div class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Creado</div>
+                                    <div class="text-slate-900 dark:text-white">@presupuestoActual?.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">por @presupuestoActual?.CreatedBy</div>
+                                </div>
+                                @if (presupuestoActual?.UpdatedAt != null)
+                                {
+                                    <div>
+                                        <div class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Última modificación</div>
+                                        <div class="text-slate-900 dark:text-white">@presupuestoActual.UpdatedAt?.ToString("dd/MM/yyyy HH:mm")</div>
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">por @presupuestoActual.UpdatedBy</div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private PresupuestoFormDto formulario = new() { Ano = DateTime.Now.Year, Mes = DateTime.Now.Month };
+    private PresupuestoDetalleDto? presupuestoActual;
+    private List<ConceptoSimpleDto>? conceptos;
+    private bool cargando = false;
+    private bool guardando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != null)
+        {
+            await CargarPresupuesto();
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        try
+        {
+            cargando = true;
+            conceptos = await Http.GetFromJsonAsync<List<ConceptoSimpleDto>>("api/conceptos/simples");
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al cargar datos: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarPresupuesto()
+    {
+        if (Id == null) return;
+
+        try
+        {
+            cargando = true;
+            presupuestoActual = await Http.GetFromJsonAsync<PresupuestoDetalleDto>($"api/presupuestos/{Id}");
+            
+            if (presupuestoActual != null)
+            {
+                formulario = new PresupuestoFormDto
+                {
+                    Ano = presupuestoActual.Ano,
+                    Mes = presupuestoActual.Mes,
+                    ConceptoId = presupuestoActual.ConceptoId,
+                    MontoPresupuestado = presupuestoActual.MontoPresupuestado,
+                    Notas = presupuestoActual.Notas
+                };
+            }
+            else
+            {
+                Toast.ShowError("Presupuesto no encontrado");
+                Navigation.NavigateTo("/tesoreria/presupuestos");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al cargar presupuesto: {ex.Message}");
+            Navigation.NavigateTo("/tesoreria/presupuestos");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task Guardar()
+    {
+        // Validaciones
+        if (formulario.Ano < 2000 || formulario.Ano > 2100)
+        {
+            Toast.ShowWarning("El año no es válido");
+            return;
+        }
+
+        if (formulario.Mes < 1 || formulario.Mes > 12)
+        {
+            Toast.ShowWarning("El mes debe estar entre 1 y 12");
+            return;
+        }
+
+        if (formulario.ConceptoId <= 0)
+        {
+            Toast.ShowWarning("Debe seleccionar un concepto");
+            return;
+        }
+
+        if (formulario.MontoPresupuestado <= 0)
+        {
+            Toast.ShowWarning("El monto presupuestado debe ser mayor a cero");
+            return;
+        }
+
+        try
+        {
+            guardando = true;
+
+            if (Id == null)
+            {
+                // Crear
+                var crearDto = new CrearPresupuestoDto
+                {
+                    Ano = formulario.Ano,
+                    Mes = formulario.Mes,
+                    ConceptoId = formulario.ConceptoId,
+                    MontoPresupuestado = formulario.MontoPresupuestado,
+                    Notas = formulario.Notas
+                };
+
+                var response = await Http.PostAsJsonAsync("api/presupuestos", crearDto);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Toast.ShowSuccess("Presupuesto creado exitosamente");
+                    Navigation.NavigateTo("/tesoreria/presupuestos");
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Toast.ShowError($"Error al crear presupuesto: {error}");
+                }
+            }
+            else
+            {
+                // Actualizar
+                var actualizarDto = new ActualizarPresupuestoDto
+                {
+                    MontoPresupuestado = formulario.MontoPresupuestado,
+                    Notas = formulario.Notas
+                };
+
+                var response = await Http.PutAsJsonAsync($"api/presupuestos/{Id}", actualizarDto);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Toast.ShowSuccess("Presupuesto actualizado exitosamente");
+                    Navigation.NavigateTo("/tesoreria/presupuestos");
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Toast.ShowError($"Error al actualizar presupuesto: {error}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error al guardar presupuesto: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/tesoreria/presupuestos");
+    }
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero",
+            2 => "Febrero",
+            3 => "Marzo",
+            4 => "Abril",
+            5 => "Mayo",
+            6 => "Junio",
+            7 => "Julio",
+            8 => "Agosto",
+            9 => "Septiembre",
+            10 => "Octubre",
+            11 => "Noviembre",
+            12 => "Diciembre",
+            _ => mes.ToString()
+        };
+    }
+
+    // DTOs locales
+    private class PresupuestoFormDto
+    {
+        public int Ano { get; set; }
+        public int Mes { get; set; }
+        public int ConceptoId { get; set; }
+        public decimal MontoPresupuestado { get; set; }
+        public string? Notas { get; set; }
+    }
+
+    private class ConceptoSimpleDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+
+    private class CrearPresupuestoDto
+    {
+        public int Ano { get; set; }
+        public int Mes { get; set; }
+        public int ConceptoId { get; set; }
+        public decimal MontoPresupuestado { get; set; }
+        public string? Notas { get; set; }
+    }
+
+    private class ActualizarPresupuestoDto
+    {
+        public decimal MontoPresupuestado { get; set; }
+        public string? Notas { get; set; }
+    }
+
+    private class PresupuestoDetalleDto
+    {
+        public Guid Id { get; set; }
+        public int Ano { get; set; }
+        public int Mes { get; set; }
+        public int ConceptoId { get; set; }
+        public string ConceptoNombre { get; set; } = string.Empty;
+        public decimal MontoPresupuestado { get; set; }
+        public decimal MontoEjecutado { get; set; }
+        public decimal Diferencia { get; set; }
+        public decimal PorcentajeEjecucion { get; set; }
+        public string? Notas { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public DateTime? UpdatedAt { get; set; }
+        public string? UpdatedBy { get; set; }
+    }
+}

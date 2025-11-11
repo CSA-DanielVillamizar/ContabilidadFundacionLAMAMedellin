@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+
+<!-- AppLayout: SaaS moderno con Tailwind -->
+<div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
+    <Sidebar />
+    <div class="flex-1 flex flex-col">
+        <Topbar />
+        <main class="max-w-7xl mx-auto w-full p-6">
+            @Body
+        </main>
+        <Footer />
+    </div>
+    <UIToastStack />
+    <UIModalHost />
+</div>

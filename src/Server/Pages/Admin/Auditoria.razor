@@ -1,0 +1,460 @@
+@page "/admin/auditoria"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
+@inject Server.Services.Audit.IAuditService AuditService
+@inject Server.Services.Export.ICsvExportService CsvExportService
+@inject Microsoft.JSInterop.IJSRuntime JS
+@using Server.Models
+@using System.Text.Json
+
+<PageTitle>Auditoría del Sistema - LAMA Medellín</PageTitle>
+
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <span class="text-2xl font-semibold">Registro de Auditoría</span>
+        </div>
+        <div class="flex gap-2">
+            <!-- Toggle Vista -->
+            <div class="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 p-1 bg-slate-50 dark:bg-slate-800">
+                <button 
+                    @onclick="@(() => vistaTimeline = false)"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md transition @(!vistaTimeline ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200")"
+                    title="Vista de tabla">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </button>
+                <button 
+                    @onclick="@(() => vistaTimeline = true)"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md transition @(vistaTimeline ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200")"
+                    title="Vista de timeline">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <UIButton Variant="ghost" Size="sm" OnClick="@ExportarCsv">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Exportar CSV
+            </UIButton>
+        </div>
+    </Header>
+    <ChildContent>
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tipo de Entidad</label>
+                        <select @bind="filtroEntityType" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary">
+                            <option value="">Todas</option>
+                            <option value="CertificadoDonacion">Certificados</option>
+                            <option value="Recibo">Recibos</option>
+                            <option value="Miembro">Miembros</option>
+                            <option value="Egreso">Egresos</option>
+                            <option value="CierreMensual">Cierres</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Acción</label>
+                        <select @bind="filtroAction" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary">
+                            <option value="">Todas</option>
+                            <option value="Emitted">Emitido</option>
+                            <option value="Annulled">Anulado</option>
+                            <option value="Created">Creado</option>
+                            <option value="Updated">Actualizado</option>
+                            <option value="Deleted">Eliminado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Usuario</label>
+                        <input @bind="filtroUserName" type="text" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" placeholder="usuario@fundacionlamamedellin.org" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha Desde</label>
+                        <input @bind="filtroFechaDesde" type="date" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha Hasta</label>
+                        <input @bind="filtroFechaHasta" type="date" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">ID de Entidad</label>
+                        <input @bind="filtroEntityId" type="text" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" placeholder="GUID de la entidad" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Registros</label>
+                        <select @bind="cantidadRegistros" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary">
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                            <option value="500">500</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <UIButton Variant="primary" Size="md" OnClick="@BuscarAsync" IsLoading="@isLoading">Buscar</UIButton>
+                        <UIButton Variant="ghost" Size="md" OnClick="@LimpiarFiltros">Limpiar</UIButton>
+                    </div>
+                </div>
+
+                <!-- Resultados: Tabla o Timeline -->
+                @if (isLoading)
+                {
+                    <div class="text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        <p class="mt-4 text-slate-500">Cargando registros de auditoría...</p>
+                    </div>
+                }
+                else if (logs == null || !logs.Any())
+                {
+                    <div class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <p class="mt-4 text-slate-500">No se encontraron registros de auditoría</p>
+                    </div>
+                }
+                else
+                {
+                    @if (vistaTimeline)
+                    {
+                        <!-- Vista Timeline -->
+                        <AuditoriaTimeline Logs="@logs" />
+                        
+                        <div class="mt-4 text-sm text-slate-500">
+                            Mostrando @logs.Count registro(s)
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Vista Tabla -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                                <thead class="bg-slate-50 dark:bg-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha/Hora</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Usuario</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entidad</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Acción</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Detalles</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
+                                    @foreach (var log in logs)
+                                    {
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                                <div>@log.Timestamp.ToString("dd/MM/yyyy")</div>
+                                                <div class="text-xs text-slate-500">@log.Timestamp.ToString("HH:mm:ss")</div>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm">
+                                                <div class="font-medium">@ObtenerNombreCorto(log.UserName)</div>
+                                                <div class="text-xs text-slate-500">@log.UserName</div>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm">
+                                                <UIBadge Variant="@ObtenerColorEntidad(log.EntityType)">@ObtenerNombreEntidad(log.EntityType)</UIBadge>
+                                                <div class="text-xs text-slate-500 mt-1 font-mono">@log.EntityId.Substring(0, 8)...</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <UIBadge Variant="@ObtenerColorAccion(log.Action)">@ObtenerNombreAccion(log.Action)</UIBadge>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm max-w-md">
+                                                @if (!string.IsNullOrWhiteSpace(log.AdditionalInfo))
+                                                {
+                                                    <div class="truncate" title="@log.AdditionalInfo">@log.AdditionalInfo</div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-slate-400 italic">Sin información adicional</span>
+                                                }
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                                <button @onclick="() => MostrarDetalleLog(log)" class="text-primary hover:text-primary-dark">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 text-sm text-slate-500">
+                            Mostrando @logs.Count registro(s)
+                        </div>
+                    }
+                }
+            </ChildContent>
+        </UICard>
+
+        <!-- Modal de detalles -->
+        @if (mostrarModalDetalle && logSeleccionado != null)
+        {
+            <UIModal Show="@mostrarModalDetalle" OnClose="@CerrarModalDetalle" Class="max-w-4xl">
+                <Header>
+                    <h3 class="text-lg font-semibold">Detalles del Registro de Auditoría</h3>
+                </Header>
+                <ChildContent>
+                    <div class="space-y-4">
+                        <!-- Información General -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Fecha y Hora</label>
+                                <p class="text-sm">@logSeleccionado.Timestamp.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Usuario</label>
+                                <p class="text-sm">@logSeleccionado.UserName</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Tipo de Entidad</label>
+                                <p class="text-sm">@ObtenerNombreEntidad(logSeleccionado.EntityType)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">ID de Entidad</label>
+                                <p class="text-sm font-mono">@logSeleccionado.EntityId</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Acción</label>
+                                <p class="text-sm">@ObtenerNombreAccion(logSeleccionado.Action)</p>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(logSeleccionado.IpAddress))
+                            {
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Dirección IP</label>
+                                    <p class="text-sm">@logSeleccionado.IpAddress</p>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Información Adicional -->
+                        @if (!string.IsNullOrWhiteSpace(logSeleccionado.AdditionalInfo))
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Información Adicional</label>
+                                <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                                    <p class="text-sm">@logSeleccionado.AdditionalInfo</p>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Valores Anteriores -->
+                        @if (!string.IsNullOrWhiteSpace(logSeleccionado.OldValues))
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Valores Anteriores</label>
+                                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 overflow-x-auto">
+                                    <pre class="text-xs font-mono">@FormatearJson(logSeleccionado.OldValues)</pre>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Valores Nuevos -->
+                        @if (!string.IsNullOrWhiteSpace(logSeleccionado.NewValues))
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Valores Nuevos</label>
+                                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 overflow-x-auto">
+                                    <pre class="text-xs font-mono">@FormatearJson(logSeleccionado.NewValues)</pre>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </ChildContent>
+                <Footer>
+                    <UIButton Variant="ghost" OnClick="@(() => CerrarModalDetalle())">Cerrar</UIButton>
+                </Footer>
+            </UIModal>
+        }
+
+@code {
+    private List<AuditLog> logs = new();
+    private bool isLoading = false;
+    private bool vistaTimeline = false;
+
+    // Filtros
+    private string filtroEntityType = "";
+    private string filtroAction = "";
+    private string filtroUserName = "";
+    private string filtroEntityId = "";
+    private DateTime? filtroFechaDesde = DateTime.Now.AddMonths(-1);
+    private DateTime? filtroFechaHasta = DateTime.Now;
+    private int cantidadRegistros = 100;
+
+    // Modal
+    private bool mostrarModalDetalle = false;
+    private AuditLog? logSeleccionado = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        isLoading = true;
+        try
+        {
+            // Si hay entityId específico, buscar por entidad
+            if (!string.IsNullOrWhiteSpace(filtroEntityId))
+            {
+                logs = await AuditService.GetEntityLogsAsync(filtroEntityType, filtroEntityId);
+            }
+            else
+            {
+                // Obtener logs recientes
+                logs = await AuditService.GetRecentLogsAsync(cantidadRegistros);
+            }
+
+            // Aplicar filtros en memoria
+            var query = logs.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroEntityType))
+                query = query.Where(l => l.EntityType == filtroEntityType);
+
+            if (!string.IsNullOrWhiteSpace(filtroAction))
+                query = query.Where(l => l.Action == filtroAction);
+
+            if (!string.IsNullOrWhiteSpace(filtroUserName))
+                query = query.Where(l => l.UserName.Contains(filtroUserName, StringComparison.OrdinalIgnoreCase));
+
+            if (filtroFechaDesde.HasValue)
+                query = query.Where(l => l.Timestamp >= filtroFechaDesde.Value);
+
+            if (filtroFechaHasta.HasValue)
+                query = query.Where(l => l.Timestamp <= filtroFechaHasta.Value.AddDays(1));
+
+            logs = query.OrderByDescending(l => l.Timestamp).ToList();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void LimpiarFiltros()
+    {
+        filtroEntityType = "";
+        filtroAction = "";
+        filtroUserName = "";
+        filtroEntityId = "";
+        filtroFechaDesde = DateTime.Now.AddMonths(-1);
+        filtroFechaHasta = DateTime.Now;
+        cantidadRegistros = 100;
+    }
+
+    private void MostrarDetalleLog(AuditLog log)
+    {
+        logSeleccionado = log;
+        mostrarModalDetalle = true;
+    }
+
+    private void CerrarModalDetalle()
+    {
+        mostrarModalDetalle = false;
+        logSeleccionado = null;
+    }
+
+    private string ObtenerNombreCorto(string userName)
+    {
+        if (string.IsNullOrWhiteSpace(userName)) return "Sistema";
+        var parts = userName.Split('@');
+        return parts.Length > 0 ? parts[0] : userName;
+    }
+
+    private string ObtenerNombreEntidad(string entityType)
+    {
+        return entityType switch
+        {
+            "CertificadoDonacion" => "Certificado",
+            "Recibo" => "Recibo",
+            "Miembro" => "Miembro",
+            "Egreso" => "Egreso",
+            "CierreMensual" => "Cierre",
+            _ => entityType
+        };
+    }
+
+    private string ObtenerColorEntidad(string entityType)
+    {
+        return entityType switch
+        {
+            "CertificadoDonacion" => "success",
+            "Recibo" => "primary",
+            "Miembro" => "info",
+            "Egreso" => "warning",
+            "CierreMensual" => "danger",
+            _ => "default"
+        };
+    }
+
+    private string ObtenerNombreAccion(string action)
+    {
+        return action switch
+        {
+            "Emitted" => "Emitido",
+            "Annulled" => "Anulado",
+            "Created" => "Creado",
+            "Updated" => "Actualizado",
+            "Deleted" => "Eliminado",
+            _ => action
+        };
+    }
+
+    private string ObtenerColorAccion(string action)
+    {
+        return action switch
+        {
+            "Emitted" or "Created" => "success",
+            "Annulled" or "Deleted" => "danger",
+            "Updated" => "info",
+            _ => "default"
+        };
+    }
+
+    private string FormatearJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return "";
+        try
+        {
+            var jsonElement = JsonSerializer.Deserialize<JsonElement>(json);
+            return JsonSerializer.Serialize(jsonElement, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    private async Task ExportarCsv()
+    {
+        try
+        {
+            // Exportar los logs actualmente filtrados
+            var csvBytes = await CsvExportService.ExportarAuditoriaAsync(logs);
+            
+            // Generar nombre de archivo con timestamp
+            var fileName = $"auditoria_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            
+            // Descargar archivo usando JavaScript
+            await JS.InvokeVoidAsync("downloadFile", fileName, "text/csv", Convert.ToBase64String(csvBytes));
+        }
+        catch (Exception ex)
+        {
+            // Manejo básico de errores (podría mejorarse con Toast)
+            Console.WriteLine($"Error al exportar CSV: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,18 @@
+<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold @GetVariant() @Class" role="status">
+    @ChildContent
+</span>
+
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string Variant { get; set; } = "default";
+    [Parameter] public string Class { get; set; }
+    private string GetVariant() => Variant switch
+    {
+        "success" => "bg-success text-white",
+        "warning" => "bg-warning text-white",
+        "danger" => "bg-danger text-white",
+        "info" => "bg-primary text-white",
+        "default" => "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200",
+        _ => ""
+    };
+}

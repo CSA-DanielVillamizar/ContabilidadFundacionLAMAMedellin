@@ -1,0 +1,538 @@
+@page "/gerencia-negocios/ventas"
+@using Server.DTOs.Ventas
+@using Server.DTOs.Productos
+@using Server.Services.Ventas
+@using Server.Services.Productos
+@using Server.Services.Miembros
+@attribute [Authorize(Policy = "TesoreroJunta")]
+@inject IVentasService VentasService
+@inject IProductosService ProductosService
+@inject IMiembrosService MiembrosService
+@inject ToastService Toast
+@inject IJSRuntime JSRuntime
+@inject HttpClient HttpClient
+
+<PageTitle>Ventas - Gerencia de Negocios</PageTitle>
+
+<div class="container-fluid py-4">
+    <PageHeader Icon="@Icons.Material.Filled.PointOfSale" Title="Ventas de Productos" Subtitle="Registro y gestión de ventas">
+        <Actions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirModalNuevaVenta">Nueva Venta</MudButton>
+        </Actions>
+    </PageHeader>
+
+    <MudCard Class="glass-card mb-4" Elevation="3">
+        <MudCardContent>
+            <MudGrid Class="g-3">
+                <MudItem xs="12" md="4">
+                    <ModernSearch Placeholder="🔍 Buscar por número de venta" Value="@busqueda" ValueChanged="@((value) => busqueda = value)" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Estado" @bind-Value="filtroEstado">
+                        <MudSelectItem T="string" Value="@("")">Todos los estados</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Pendiente")">Pendiente</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Pagada")">Pagada</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Entregada")">Entregada</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Cancelada")">Cancelada</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="5" Class="d-flex justify-end align-center gap-2 text-end">
+                    <span class="badge-modern badge-primary">Ventas: @ventas.Count</span>
+                    <span class="badge-modern badge-success">Total COP: $@ventas.Sum(v => v.TotalCOP).ToString("N0")</span>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+
+    @if (cargando)
+    {
+        <div class="glass-card pa-6 text-center">
+            <div class="skeleton skeleton-card" style="height: 200px;"></div>
+        </div>
+    }
+    else if (!ventasFiltradas.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No se encontraron ventas.
+        </div>
+    }
+    else
+    {
+        <DataTableWrapper TItem="VentaProductoDto"
+                           Items="@ventasFiltradas"
+                           SearchFunction="@SearchVentas"
+                           Loading="@cargando"
+                           Dense="true" Hover="true">
+            <TableHeader>
+                <MudTh>Número</MudTh>
+                <MudTh>Fecha</MudTh>
+                <MudTh>Cliente</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh>Total COP</MudTh>
+                <MudTh>Método Pago</MudTh>
+                <MudTh Style="text-align:center;">Estado</MudTh>
+                <MudTh Style="text-align:center;">Acciones</MudTh>
+            </TableHeader>
+            <TableRow Context="venta">
+                <MudTd DataLabel="Número"><strong>@venta.NumeroVenta</strong></MudTd>
+                <MudTd DataLabel="Fecha">@venta.FechaVenta.ToString("yyyy-MM-dd")</MudTd>
+                <MudTd DataLabel="Cliente">@(string.IsNullOrEmpty(venta.NombreMiembro) ? venta.NombreCliente : venta.NombreMiembro)</MudTd>
+                <MudTd DataLabel="Tipo">
+                    <MudChip T="string" Size="Size.Small" Color="@(venta.TipoCliente == "MiembroLocal" ? Color.Primary : venta.TipoCliente == "OtroCapitulo" ? Color.Info : Color.Default)">@venta.TipoCliente</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Total COP"><strong>$@venta.TotalCOP.ToString("N0")</strong></MudTd>
+                <MudTd DataLabel="Método Pago">@venta.MetodoPago</MudTd>
+                <MudTd DataLabel="Estado" Style="text-align:center;">
+                    <MudChip T="string" Size="Size.Small" Color="@(venta.Estado == "Pendiente" ? Color.Warning : venta.Estado == "Pagada" ? Color.Info : venta.Estado == "Entregada" ? Color.Success : venta.Estado == "Cancelada" ? Color.Error : Color.Default)">@venta.Estado</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Acciones" Style="text-align:center;">
+                    <MudTooltip Text="Ver detalle">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="@(() => VerDetalle(venta))" />
+                    </MudTooltip>
+                </MudTd>
+            </TableRow>
+        </DataTableWrapper>
+    }
+</div>
+
+@* Modal Nueva Venta *@
+<MudDialog @bind-Visible="mostrarModalVenta" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Nueva Venta</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="formularioVenta" OnValidSubmit="GuardarVenta">
+            <MudGrid Class="g-3 mb-2">
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" Label="Tipo de Cliente" @bind-Value="formularioVenta.TipoCliente" Required="true">
+                        <MudSelectItem Value="1">Miembro Local</MudSelectItem>
+                        <MudSelectItem Value="2">Otro Capítulo LAMA</MudSelectItem>
+                        <MudSelectItem Value="3">Cliente Externo</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int" Label="Método de Pago" @bind-Value="formularioVenta.MetodoPago" Required="true">
+                        <MudSelectItem Value="1">Efectivo</MudSelectItem>
+                        <MudSelectItem Value="2">Transferencia</MudSelectItem>
+                        <MudSelectItem Value="3">Tarjeta</MudSelectItem>
+                        <MudSelectItem Value="4">Nequi</MudSelectItem>
+                        <MudSelectItem Value="5">DaviPlata</MudSelectItem>
+                        <MudSelectItem Value="6">Otro</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @if (formularioVenta.TipoCliente == 1)
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="Guid" Label="Miembro" @onchange="SeleccionarMiembro">
+                            <MudSelectItem Value="@Guid.Empty">Seleccione un miembro...</MudSelectItem>
+                            @foreach (var miembro in miembros)
+                            {
+                                <MudSelectItem Value="@miembro.Id">@miembro.NombreCompleto</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Nombre Cliente" @bind-Value="formularioVenta.NombreCliente" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Identificación" @bind-Value="formularioVenta.IdentificacionCliente" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Email" @bind-Value="formularioVenta.EmailCliente" Type="InputType.Email" />
+                    </MudItem>
+                }
+            </MudGrid>
+
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Productos</MudText>
+
+            <MudGrid Class="g-3 mb-2">
+                <MudItem xs="12" md="5">
+                    <MudSelect T="string" Label="Producto" @bind-Value="productoSeleccionadoId">
+                        <MudSelectItem T="string" Value="@("")">Seleccione...</MudSelectItem>
+                        @foreach (var p in productosActivos)
+                        {
+                            <MudSelectItem T="string" Value="@p.Id.ToString()">@p.Nombre (@p.Codigo) - Stock: @p.StockActual - $@p.PrecioVentaCOP.ToString("N0")</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudNumericField T="int" Label="Cantidad" Min="1" @bind-Value="cantidadAgregar" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudNumericField T="decimal" Label="Descuento COP" Min="0" @bind-Value="descuentoAgregar" />
+                </MudItem>
+                <MudItem xs="12" md="3" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarProducto" Class="w-100">Agregar</MudButton>
+                </MudItem>
+            </MudGrid>
+
+            @if (formularioVenta.Detalles.Any())
+            {
+                <MudTable Dense="true" Hover="true" Items="@formularioVenta.Detalles">
+                    <HeaderContent>
+                        <MudTh>Producto</MudTh>
+                        <MudTh>Cantidad</MudTh>
+                        <MudTh>Precio Unit.</MudTh>
+                        <MudTh>Descuento</MudTh>
+                        <MudTh>Subtotal</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="detalle">
+                        @{
+                            var prod = productosActivos.FirstOrDefault(p => p.Id == detalle.ProductoId);
+                        }
+                        <MudTd>@prod?.Nombre</MudTd>
+                        <MudTd>@detalle.Cantidad</MudTd>
+                        <MudTd>$@detalle.PrecioUnitarioCOP.ToString("N0")</MudTd>
+                        <MudTd>$@(detalle.DescuentoCOP?.ToString("N0") ?? "0")</MudTd>
+                        <MudTd><strong>$@((detalle.Cantidad * detalle.PrecioUnitarioCOP - (detalle.DescuentoCOP ?? 0)).ToString("N0"))</strong></MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarProducto(detalle))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <FooterContent>
+                        <MudTr>
+                            <MudTd ColSpan="4" Class="text-end"><strong>TOTAL:</strong></MudTd>
+                            <MudTd ColSpan="2"><strong>$@CalcularTotal().ToString("N0")</strong></MudTd>
+                        </MudTr>
+                    </FooterContent>
+                </MudTable>
+            }
+
+            <MudTextField Label="Observaciones" @bind-Value="formularioVenta.Observaciones" Lines="2" Class="mt-2" />
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CerrarModalVenta">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(guardando || !formularioVenta.Detalles.Any())" OnClick="GuardarVenta">
+            @if (guardando)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-2" />
+            }
+            Guardar Venta
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* Modal Detalle Venta *@
+@if (mostrarModalDetalle && ventaDetalle != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Venta @ventaDetalle.NumeroVenta</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalDetalle"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Fecha:</strong> @ventaDetalle.FechaVenta.ToString("yyyy-MM-dd HH:mm")
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Estado:</strong> 
+                            <span class="badge @GetBadgeClassEstado(ventaDetalle.Estado)">@ventaDetalle.Estado</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Cliente:</strong> @(ventaDetalle.NombreMiembro ?? ventaDetalle.NombreCliente)
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Método Pago:</strong> @ventaDetalle.MetodoPago
+                        </div>
+                    </div>
+
+                    <h6>Productos</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var det in ventaDetalle.Detalles)
+                            {
+                                <tr>
+                                    <td>@det.NombreProducto</td>
+                                    <td>@det.Cantidad</td>
+                                    <td>$@det.PrecioUnitarioCOP.ToString("N0")</td>
+                                    <td>$@det.SubtotalCOP.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>TOTAL:</strong></td>
+                                <td><strong>$@ventaDetalle.TotalCOP.ToString("N0")</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    @if (!string.IsNullOrEmpty(ventaDetalle.Observaciones))
+                    {
+                        <div class="mt-3">
+                            <strong>Observaciones:</strong>
+                            <p>@ventaDetalle.Observaciones</p>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <div>
+                        <button type="button" class="btn btn-success" @onclick="() => GenerarCuentaCobroPdf(ventaDetalle.Id)">
+                            <i class="bi bi-file-earmark-pdf-fill"></i> Generar Cuenta de Cobro (PDF)
+                        </button>
+                        <small class="text-muted">TipoCliente: @ventaDetalle.TipoCliente</small>
+                    </div>
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalDetalle">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<VentaProductoDto> ventas = new();
+    private List<ProductoDto> productosActivos = new();
+    private List<Server.DTOs.Miembros.MiembroListItem> miembros = new();
+    private bool cargando = true;
+    private bool mostrarModalVenta = false;
+    private bool mostrarModalDetalle = false;
+    private bool guardando = false;
+    private string busqueda = "";
+    private string filtroEstado = "";
+    private VentaProductoDto? ventaDetalle = null;
+
+    private VentaProductoCreateDto formularioVenta = new();
+    private string productoSeleccionadoId = "";
+    private int cantidadAgregar = 1;
+    private decimal descuentoAgregar = 0;
+
+    private List<VentaProductoDto> ventasFiltradas
+    {
+        get
+        {
+            var filtered = ventas.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroEstado))
+                filtered = filtered.Where(v => v.Estado == filtroEstado);
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+                filtered = filtered.Where(v => v.NumeroVenta.Contains(busqueda, StringComparison.OrdinalIgnoreCase));
+
+            return filtered.OrderByDescending(v => v.FechaVenta).ToList();
+        }
+    }
+
+    // Función de búsqueda para DataTableWrapper: evalúa campos clave de la venta
+    private bool SearchVentas(VentaProductoDto v, string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return true;
+        s = s.Trim();
+        return (v.NumeroVenta?.Contains(s, StringComparison.OrdinalIgnoreCase) == true)
+            || (!string.IsNullOrEmpty(v.NombreMiembro) && v.NombreMiembro.Contains(s, StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrEmpty(v.NombreCliente) && v.NombreCliente.Contains(s, StringComparison.OrdinalIgnoreCase))
+            || (v.MetodoPago?.Contains(s, StringComparison.OrdinalIgnoreCase) == true)
+            || (v.Estado?.Contains(s, StringComparison.OrdinalIgnoreCase) == true)
+            || (v.TipoCliente?.Contains(s, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            ventas = await VentasService.GetAllAsync();
+            productosActivos = await ProductosService.GetActivosAsync();
+            var resultado = await MiembrosService.GetPagedAsync(null, null, 1, 1000);
+            miembros = resultado.Items.ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar datos: {ex.Message}", "error");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModalNuevaVenta()
+    {
+        formularioVenta = new VentaProductoCreateDto
+        {
+            TipoCliente = 1,
+            MetodoPago = 1,
+            FechaVenta = DateTime.Now,
+            Detalles = new()
+        };
+        productoSeleccionadoId = "";
+        cantidadAgregar = 1;
+        descuentoAgregar = 0;
+        mostrarModalVenta = true;
+    }
+
+    private void SeleccionarMiembro(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var miembroId))
+        {
+            formularioVenta.MiembroId = miembroId;
+        }
+    }
+
+    private void AgregarProducto()
+    {
+        if (string.IsNullOrEmpty(productoSeleccionadoId) || !Guid.TryParse(productoSeleccionadoId, out var prodId))
+        {
+            Toast.Show("Seleccione un producto", "warning");
+            return;
+        }
+
+        var producto = productosActivos.FirstOrDefault(p => p.Id == prodId);
+        if (producto == null) return;
+
+        if (cantidadAgregar <= 0)
+        {
+            Toast.Show("La cantidad debe ser mayor a 0", "warning");
+            return;
+        }
+
+        if (cantidadAgregar > producto.StockActual)
+        {
+            Toast.Show($"Stock insuficiente. Disponible: {producto.StockActual}", "warning");
+            return;
+        }
+
+        formularioVenta.Detalles.Add(new DetalleVentaCreateDto
+        {
+            ProductoId = prodId,
+            Cantidad = cantidadAgregar,
+            PrecioUnitarioCOP = producto.PrecioVentaCOP,
+            DescuentoCOP = descuentoAgregar > 0 ? descuentoAgregar : null
+        });
+
+        productoSeleccionadoId = "";
+        cantidadAgregar = 1;
+        descuentoAgregar = 0;
+    }
+
+    private void EliminarProducto(DetalleVentaCreateDto detalle)
+    {
+        formularioVenta.Detalles.Remove(detalle);
+    }
+
+    private decimal CalcularTotal()
+    {
+        return formularioVenta.Detalles.Sum(d => (d.Cantidad * d.PrecioUnitarioCOP) - (d.DescuentoCOP ?? 0));
+    }
+
+    private async Task GuardarVenta()
+    {
+        if (!formularioVenta.Detalles.Any())
+        {
+            Toast.Show("Agregue al menos un producto", "warning");
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            await VentasService.CreateAsync(formularioVenta);
+            Toast.Show("Venta registrada exitosamente", "success");
+            await CargarDatos();
+            CerrarModalVenta();
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error: {ex.Message}", "error");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void VerDetalle(VentaProductoDto venta)
+    {
+        ventaDetalle = venta;
+        mostrarModalDetalle = true;
+    }
+
+    private void CerrarModalVenta() => mostrarModalVenta = false;
+    private void CerrarModalDetalle() => mostrarModalDetalle = false;
+
+    private string GetBadgeClassEstado(string estado) => estado switch
+    {
+        "Pendiente" => "bg-warning text-dark",
+        "Pagada" => "bg-info",
+        "Entregada" => "bg-success",
+        "Cancelada" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private string GetBadgeClassTipoCliente(string tipo) => tipo switch
+    {
+        "MiembroLocal" => "bg-primary",
+        "OtroCapitulo" => "bg-info",
+        "Externo" => "bg-secondary",
+        _ => "bg-light text-dark"
+    };
+
+        private async Task GenerarCuentaCobroPdf(Guid ventaId)
+        {
+            try
+            {
+                Toast.Show("Generando cuenta de cobro...", "info");
+                
+                // Log para debug
+                Console.WriteLine($"[DEBUG] Iniciando generación PDF para venta: {ventaId}");
+            
+                var response = await HttpClient.GetAsync($"/api/cuentas-cobro/venta/{ventaId}");
+                
+                Console.WriteLine($"[DEBUG] Respuesta del servidor: {response.StatusCode}");
+            
+                if (response.IsSuccessStatusCode)
+                {
+                    var bytes = await response.Content.ReadAsByteArrayAsync();
+                    Console.WriteLine($"[DEBUG] Bytes recibidos: {bytes.Length}");
+                    
+                    // DEBUG: Ver los primeros bytes para saber si es PDF
+                    var primeros10 = string.Join(" ", bytes.Take(10).Select(b => b.ToString("X2")));
+                    Console.WriteLine($"[DEBUG] Primeros 10 bytes (HEX): {primeros10}");
+                    
+                    var base64 = Convert.ToBase64String(bytes);
+                    Console.WriteLine($"[DEBUG] Primeros 50 caracteres base64: {base64.Substring(0, Math.Min(50, base64.Length))}");
+                    
+                    var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? "CuentaCobro.pdf";
+                    
+                    Console.WriteLine($"[DEBUG] Nombre archivo: {fileName}");
+                
+                    await JSRuntime.InvokeVoidAsync("downloadFileFromBase64", base64, fileName);
+                    Toast.Show("Cuenta de cobro generada exitosamente", "success");
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[ERROR] Respuesta del servidor: {error}");
+                    Toast.Show($"Error al generar PDF: {error}", "error");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Excepción: {ex.Message}");
+                Console.WriteLine($"[ERROR] Stack: {ex.StackTrace}");
+                Toast.Show($"Error: {ex.Message}", "error");
+            }
+        }
+}

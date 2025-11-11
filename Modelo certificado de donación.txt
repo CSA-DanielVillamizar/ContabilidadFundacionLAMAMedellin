@@ -1,0 +1,40 @@
+Modelo de certificado de donación.
+Un certificado de donación podría ser como el siguiente:
+
+CERTIFICADO DE DONACIÓN
+
+[Nombre de la Entidad Donataria]
+NIT: [Número de identificación tributaria de la entidad donataria]
+
+Lugar y fecha: [Ciudad], [Día] de [Mes] de [Año]
+
+Señor(a):
+
+[Nombre del donante]
+
+Identificación del Donante: [Tipo y número de documento]
+
+Certifico bajo la gravedad del juramento que la siguiente información corresponde a la donación recibida durante el año gravable [Año]:
+
+Fecha de la donación: [Día/Mes/Año]
+Tipo de entidad donataria: [Ejemplo: Entidad Sin Ánimo de Lucro / Fundación / Asociación]
+Clase de bien donado: [Descripción detallada del bien o recurso donado, por ejemplo: Dinero, Muebles, Equipos, etc.]
+Valor de la donación: [Valor en números y letras]
+Forma en que se efectuó la donación: [Ejemplo: Transferencia bancaria, cheque, entrega en especie]
+Destinación de la donación: [Indicar el propósito específico de la donación, por ejemplo: Programas sociales, proyectos educativos, etc.]
+Observaciones adicionales (si aplica): [Ejemplo: Declaración bajo juramento de que el valor certificado corresponde al efectivamente recibido.]
+
+Este certificado se expide en cumplimiento de las disposiciones legales aplicables, en especial el artículo 1.2.1.4.3 del decreto 1625 de 20026.
+
+Firma del representante legal
+
+[Nombre del representante legal]
+
+
+Cargo: [Ejemplo: Representante Legal, Contador Público, Revisor Fiscal]
+
+Número de tarjeta profesional (si aplica): [Tarjeta profesional del contador o revisor Fiscal]
+
+Teléfono de Contacto: [Número de teléfono]
+
+Correo Electrónico: [Correo electrónico de la entidad donataria]

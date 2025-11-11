@@ -1,0 +1,8 @@
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\bin\Debug\net10.0\.msCoverageSourceRootsMapping_Server.Tests
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\bin\Debug\net10.0\CoverletSourceRootsMapping_Server.Tests
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\obj\Debug\net10.0\Server.Tests.csproj.AssemblyReference.cache
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\obj\Debug\net10.0\MvcTestingAppManifest.json
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\obj\Debug\net10.0\Server.Tests.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\obj\Debug\net10.0\Server.Tests.AssemblyInfoInputs.cache
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\obj\Debug\net10.0\Server.Tests.AssemblyInfo.cs
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\Server.Tests\obj\Debug\net10.0\Server.Tests.csproj.CoreCompileInputs.cache

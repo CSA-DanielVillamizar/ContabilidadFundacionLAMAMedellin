@@ -1,0 +1,476 @@
+
+@page "/tesoreria/recibos/nuevo"
+@using Server.DTOs.Recibos
+@using Server.Models
+@inject Server.Services.Miembros.IMiembrosService MiembrosService
+@inject Server.Services.Recibos.IRecibosService RecibosService
+@inject Server.Services.Donaciones.ICertificadosDonacionService CertificadosService
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+
+<PageTitle>Nuevo Recibo - Tesorería</PageTitle>
+
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 17v-6a2 2 0 012-2h6a2 2 0 012 2v6"/><path d="M9 17h6"/></svg>
+            <span class="text-2xl font-semibold">Nuevo Recibo</span>
+        </div>
+        <span class="text-slate-500 dark:text-slate-400">Registro de ingreso de fondos</span>
+    </Header>
+    <ChildContent>
+        <EditForm Model="formData" OnValidSubmit="GuardarReciboAsync" OnInvalidSubmit="OnInvalidSubmitHandler" class="space-y-6">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="mb-4 text-red-500" />
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Miembro</label>
+                    <select name="miembroId"
+                            class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary"
+                            value="@(formData.MiembroId?.ToString() ?? "")"
+                            @onchange="(e => OnMiembroChanged(e.Value?.ToString()))">
+                        <option value="">-- Seleccione --</option>
+                        @foreach (var m in miembros)
+                        {
+                            <option value="@m.Id.ToString()">@m.NombreCompleto (@m.NumeroSocio)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Tercero Libre</label>
+                    <InputText name="terceroLibre" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="formData.TerceroLibre" maxlength="200" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Fecha Emisión</label>
+                    <InputDate name="fechaEmision" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="formData.FechaEmision" />
+                </div>
+            </div>
+            <UICard Class="mt-6">
+                <Header>
+                    <span class="font-semibold">Items</span>
+                </Header>
+                <ChildContent>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-slate-100 dark:bg-slate-800">
+                                <tr>
+                                    <th class="px-3 py-2">Concepto</th>
+                                    <th class="px-3 py-2">Cantidad</th>
+                                    <th class="px-3 py-2">Moneda</th>
+                                    <th class="px-3 py-2">Precio</th>
+                                    <th class="px-3 py-2">TRM</th>
+                                    <th class="px-3 py-2">Subtotal COP</th>
+                                    <th class="px-3 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{var itemIndex = 0;}
+                                @foreach (var item in formData.Items)
+                                {
+                                    var idx = itemIndex++;
+                                    <tr class="border-b border-slate-200 dark:border-slate-700" @key="item">
+                                        <td class="px-3 py-2">
+                                            <select name="@($"item_{idx}_concepto")"
+                                                    class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" 
+                                                    value="@item.ConceptoId" 
+                                                    @onchange="@(e => OnConceptoChanged(item, e.Value?.ToString()))">
+                                                <option value="0">-- Seleccione --</option>
+                                                @foreach (var c in conceptos)
+                                                {
+                                                    <option value="@c.Id">@c.Nombre (@c.Codigo)</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <input type="number"
+                                                   name="@($"item_{idx}_cantidad")"
+                                                   class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" 
+                                                   value="@item.Cantidad" 
+                                                   @onchange="@(e => OnCantidadChanged(item, e.Value?.ToString()))"
+                                                   min="1" max="999" />
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <select name="@($"item_{idx}_moneda")"
+                                                    class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" 
+                                                    value="@((int)item.MonedaOrigen)" 
+                                                    @onchange="@(async (e) => await OnMonedaChangedAsync(item, e.Value?.ToString()))">
+                                                <option value="@((int)Moneda.COP)">COP</option>
+                                                <option value="@((int)Moneda.USD)">USD</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <input type="number"
+                                                   name="@($"item_{idx}_precio")"
+                                                   class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" 
+                                                   value="@item.PrecioUnitarioMonedaOrigen" 
+                                                   @onchange="@(e => OnPrecioChanged(item, e.Value?.ToString()))"
+                                                   step="0.01" min="0.01" />
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <input type="number"
+                                                   name="@($"item_{idx}_trm")"
+                                                   class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" 
+                                                   value="@item.TrmAplicada" 
+                                                   @onchange="@(e => OnTrmChanged(item, e.Value?.ToString()))"
+                                                   step="0.01" min="0" 
+                                                   disabled="@(item.MonedaOrigen == Moneda.COP)" />
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span class="font-semibold">@CalcularSubtotalCop(item).ToString("N0")</span>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                                <button type="button" class="inline-flex items-center font-semibold text-sm px-3 py-1 rounded-lg text-white bg-danger hover:bg-danger/80" @onclick="@(() => QuitarItem(item))" @onclick:preventDefault @onclick:stopPropagation>Eliminar</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 flex gap-2">
+                            <button type="button" class="inline-flex items-center font-semibold text-sm px-3 py-1 rounded-lg text-white bg-primary hover:bg-primary-600" @onclick="AgregarItem" @onclick:preventDefault @onclick:stopPropagation>Agregar Item</button>
+                    </div>
+                </ChildContent>
+            </UICard>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium mb-1">Observaciones</label>
+                    <InputTextArea class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="formData.Observaciones" maxlength="500" rows="2" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Total COP</label>
+                    <div class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 font-bold py-2 px-3">@formData.Items.Sum(i => CalcularSubtotalCop(i)).ToString("N0")</div>
+                </div>
+            </div>
+            @if (!CanSave)
+            {
+                <div class="text-sm text-danger mt-2">Completa los campos de los ítems: concepto, cantidad (>0), precio (>0) y TRM si la moneda es USD.</div>
+            }
+            <div class="flex gap-2 mt-6">
+                <button type="submit" class="inline-flex items-center font-semibold text-base px-4 py-2 rounded-lg text-white bg-success hover:bg-success/80 disabled:opacity-60" disabled="@(!CanSave)">Guardar Recibo</button>
+                <button type="button" class="inline-flex items-center font-semibold text-base px-4 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" @onclick="LimpiarForm" @onclick:preventDefault @onclick:stopPropagation>Limpiar</button>
+            </div>
+        </EditForm>
+    </ChildContent>
+</UICard>
+
+<!-- Modal para generar certificado de donación -->
+@if (mostrarModalCertificado)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <svg class="bi me-2" width="24" height="24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                            <use href="/bootstrap-icons.svg#award"/>
+                        </svg>
+                        Recibo Guardado - Donación Detectada
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <svg class="bi me-2" width="24" height="24" fill="currentColor">
+                            <use href="/bootstrap-icons.svg#info-circle"/>
+                        </svg>
+                        <strong>Recibo guardado exitosamente.</strong>
+                    </div>
+                    <p>Se detectó que este recibo contiene un concepto de <strong>DONACIÓN</strong>.</p>
+                    <p class="mb-3">¿Desea generar un <strong>Certificado de Donación (RTE)</strong> para este recibo?</p>
+                    <div class="bg-light p-3 rounded mb-3">
+                        <small class="text-muted d-block mb-1">Donante:</small>
+                        <strong>@nombreTerceroParaCertificado</strong>
+                    </div>
+                    <p class="text-muted small">
+                        <svg class="bi me-1" width="16" height="16" fill="currentColor">
+                            <use href="/bootstrap-icons.svg#lightbulb"/>
+                        </svg>
+                        <strong>Tip:</strong> El certificado pre-llenará los datos del donante y el valor de la donación automáticamente.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="IrAListaRecibos">
+                        No, ir a lista de recibos
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="CrearCertificadoDonacion">
+                        <svg class="bi me-1" width="16" height="16" fill="currentColor">
+                            <use href="/bootstrap-icons.svg#file-earmark-text"/>
+                        </svg>
+                        Sí, Crear Certificado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private CreateReciboDto formData = new() { FechaEmision = DateTime.Today };
+    private List<Server.DTOs.Miembros.MiembroListItem> miembros = new();
+    private List<Server.DTOs.Recibos.ConceptoListItem> conceptos = new();
+    private static bool _dataLoaded = false;
+    private static List<Server.DTOs.Miembros.MiembroListItem> _cachedMiembros = new();
+    private static List<Server.DTOs.Recibos.ConceptoListItem> _cachedConceptos = new();
+    
+    // Variables para modal de certificado de donación
+    private bool mostrarModalCertificado = false;
+    private Guid? reciboIdParaCertificado = null;
+    private string nombreTerceroParaCertificado = string.Empty;
+    
+    // Indica si el formulario cumple condiciones mínimas para permitir guardar.
+    private bool CanSave => formData.Items.Count > 0 &&
+                            formData.Items.All(i => i.ConceptoId > 0 &&
+                                                     i.Cantidad > 0 &&
+                                                     i.PrecioUnitarioMonedaOrigen > 0 &&
+                                                     (i.MonedaOrigen != Moneda.USD || (i.TrmAplicada.HasValue && i.TrmAplicada.Value > 0)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cargar datos solo si no están en caché
+        if (!_dataLoaded)
+        {
+            try
+            {
+                var paged = await MiembrosService.GetPagedAsync("", EstadoMiembro.Activo, 1, 1000);
+                _cachedMiembros = paged?.Items ?? new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando miembros: {ex.Message}");
+                _cachedMiembros = new();
+            }
+
+            try
+            {
+                _cachedConceptos = await RecibosService.GetConceptosAsync() ?? new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando conceptos: {ex.Message}");
+                _cachedConceptos = new();
+            }
+
+            _dataLoaded = true;
+        }
+
+        // Usar datos cacheados
+        miembros = _cachedMiembros;
+        conceptos = _cachedConceptos;
+
+        // Siempre asegurar que haya al menos un ítem inicial
+        if (formData.Items.Count == 0)
+        {
+            formData.Items.Add(new CreateReciboItemDto { MonedaOrigen = Moneda.COP, Cantidad = 1, PrecioUnitarioMonedaOrigen = 0 });
+            Console.WriteLine($"✅ Item inicial agregado. Total: {formData.Items.Count}");
+        }
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        return Task.CompletedTask;
+    }
+
+    private void OnMiembroChanged(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            formData.MiembroId = null;
+        }
+        else if (Guid.TryParse(value, out var guid))
+        {
+            formData.MiembroId = guid;
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void AgregarItem()
+    {
+        Console.WriteLine("AgregarItem: clic detectado, agregando fila...");
+        var newItem = new CreateReciboItemDto { MonedaOrigen = Moneda.COP, Cantidad = 1, PrecioUnitarioMonedaOrigen = 0 };
+        formData.Items.Add(newItem);
+        Console.WriteLine($"Total items después de agregar: {formData.Items.Count}");
+        // Forzar re-render inmediato
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void QuitarItem(CreateReciboItemDto item)
+    {
+        if (formData.Items.Count > 1)
+        {
+            formData.Items.Remove(item);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void LimpiarForm()
+    {
+        formData = new() { FechaEmision = DateTime.Today };
+        AgregarItem();
+    }
+
+    private void OnConceptoChanged(CreateReciboItemDto item, string? value)
+    {
+        if (int.TryParse(value, out var conceptoId))
+        {
+            item.ConceptoId = conceptoId;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnCantidadChanged(CreateReciboItemDto item, string? value)
+    {
+        if (TryParseInt(value, out var cantidad))
+        {
+            item.Cantidad = cantidad;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnPrecioChanged(CreateReciboItemDto item, string? value)
+    {
+        if (TryParseDecimal(value, out var precio))
+        {
+            item.PrecioUnitarioMonedaOrigen = precio;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnTrmChanged(CreateReciboItemDto item, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            item.TrmAplicada = null;
+        }
+        else if (TryParseDecimal(value, out var trm))
+        {
+            item.TrmAplicada = trm;
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnMonedaChangedAsync(CreateReciboItemDto item, string? monedaValue)
+    {
+        if (string.IsNullOrEmpty(monedaValue)) return;
+        
+        if (int.TryParse(monedaValue, out var monedaInt))
+        {
+            item.MonedaOrigen = (Moneda)monedaInt;
+            
+            if (item.MonedaOrigen == Moneda.USD)
+            {
+                // Buscar TRM para la fecha
+                var trm = await RecibosService.GetTrmAsync(formData.FechaEmision);
+                item.TrmAplicada = trm;
+                Console.WriteLine($"TRM obtenida: {trm}");
+            }
+            else
+            {
+                item.TrmAplicada = null;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private decimal CalcularSubtotalCop(CreateReciboItemDto item)
+    {
+        if (item.MonedaOrigen == Moneda.USD && item.TrmAplicada.HasValue)
+            return item.Cantidad * item.PrecioUnitarioMonedaOrigen * item.TrmAplicada.Value;
+        return item.Cantidad * item.PrecioUnitarioMonedaOrigen;
+    }
+
+    private static bool TryParseDecimal(string? value, out decimal result)
+    {
+        if (string.IsNullOrWhiteSpace(value)) { result = 0; return false; }
+        return decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out result)
+            || decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out result);
+    }
+
+    private static bool TryParseInt(string? value, out int result)
+    {
+        return int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.CurrentCulture, out result)
+            || int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out result);
+    }
+
+    private async Task GuardarReciboAsync()
+    {
+        try
+        {
+            Console.WriteLine($"Guardando recibo con {formData.Items.Count} items...");
+            foreach (var item in formData.Items)
+            {
+                Console.WriteLine($"  Item: ConceptoId={item.ConceptoId}, Cantidad={item.Cantidad}, Precio={item.PrecioUnitarioMonedaOrigen}, Moneda={item.MonedaOrigen}");
+            }
+            
+            var reciboId = await RecibosService.CreateAsync(formData, "tesorero");
+            Console.WriteLine($"Recibo creado con ID: {reciboId}");
+            
+            // Verificar si algún item es de tipo DONACION
+            var tieneDonacion = formData.Items.Any(item => 
+            {
+                var concepto = conceptos.FirstOrDefault(c => c.Id == item.ConceptoId);
+                return concepto != null && concepto.Codigo.Contains("DONACION", StringComparison.OrdinalIgnoreCase);
+            });
+
+            await InvokeAsync(() =>
+            {
+                if (tieneDonacion)
+                {
+                    reciboIdParaCertificado = reciboId;
+                    nombreTerceroParaCertificado = !string.IsNullOrWhiteSpace(formData.TerceroLibre) 
+                        ? formData.TerceroLibre 
+                        : miembros.FirstOrDefault(m => m.Id == formData.MiembroId)?.NombreCompleto ?? "";
+                    mostrarModalCertificado = true;
+                    StateHasChanged();
+                }
+                else
+                {
+                    Toasts.Show("Recibo guardado exitosamente", "success");
+                    Navigation.NavigateTo("/tesoreria/recibos", forceLoad: true);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar recibo: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            await InvokeAsync(() =>
+            {
+                Toasts.Show($"Error al guardar recibo: {ex.Message}", "danger");
+            });
+        }
+    }
+
+    private void OnInvalidSubmitHandler(EditContext editContext)
+    {
+        Console.WriteLine("Formulario inválido. Mostrando errores de validación...");
+        foreach (var validation in editContext.GetValidationMessages())
+        {
+            Console.WriteLine($" - {validation}");
+        }
+        // El ValidationSummary ya está en el formulario y mostrará los errores.
+    }
+
+    private void IrAListaRecibos()
+    {
+           InvokeAsync(() =>
+           {
+              mostrarModalCertificado = false;
+              Toasts.Show("Recibo guardado exitosamente", "success");
+              Navigation.NavigateTo("/tesoreria/recibos", forceLoad: true);
+           });
+    }
+
+    private void CrearCertificadoDonacion()
+    {
+            InvokeAsync(() =>
+        {
+                if (reciboIdParaCertificado.HasValue)
+                {
+                    mostrarModalCertificado = false;
+                    Navigation.NavigateTo($"/tesoreria/donaciones/nuevo?reciboId={reciboIdParaCertificado.Value}", forceLoad: true);
+                }
+            });
+    }
+
+    // DTOs para autocompletar
+    // Eliminadas clases locales. Se usan los DTOs importados.
+}

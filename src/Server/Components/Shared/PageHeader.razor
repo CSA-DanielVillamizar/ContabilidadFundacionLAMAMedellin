@@ -1,0 +1,80 @@
+@*
+    Componente reutilizable para encabezado de página
+    Incluye icono, título y área de acciones (botones, filtros, etc.)
+*@
+
+<div class="d-flex justify-space-between align-center @($"mb-{MarginBottom} {Class}")">
+    <div class="d-flex align-center gap-3">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <MudIcon Icon="@Icon" Color="@IconColor" Size="@IconSize" />
+        }
+        <MudText Typo="@TitleTypo">@Title</MudText>
+        @if (Subtitle != null)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Subtitle</MudText>
+        }
+    </div>
+    @if (Actions != null)
+    {
+        <div class="d-flex align-center gap-3">
+            @Actions
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Título de la página
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Subtítulo opcional
+    /// </summary>
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Icono Material (ej: Icons.Material.Filled.Dashboard)
+    /// </summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>
+    /// Color del icono
+    /// </summary>
+    [Parameter]
+    public Color IconColor { get; set; } = Color.Primary;
+
+    /// <summary>
+    /// Tamaño del icono
+    /// </summary>
+    [Parameter]
+    public Size IconSize { get; set; } = Size.Medium;
+
+    /// <summary>
+    /// Tipografía del título
+    /// </summary>
+    [Parameter]
+    public Typo TitleTypo { get; set; } = Typo.h4;
+
+    /// <summary>
+    /// Contenido de acciones (botones, filtros, etc.)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    /// <summary>
+    /// Margen inferior (en unidades de MudBlazor, ej: 4, 6)
+    /// </summary>
+    [Parameter]
+    public int MarginBottom { get; set; } = 4;
+
+    /// <summary>
+    /// Clases CSS adicionales
+    /// </summary>
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+}

@@ -1,0 +1,42 @@
+@inject NavigationManager Nav
+@inject IHttpContextAccessor HttpContextAccessor
+
+@code {
+    private string? loginUrl;
+
+    protected override void OnInitialized()
+    {
+        var current = Nav.Uri;
+        var baseUri = Nav.BaseUri?.TrimEnd('/') ?? string.Empty;
+        var relative = current.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
+            ? current.Substring(baseUri.Length)
+            : current;
+        var returnUrl = Uri.EscapeDataString("/" + relative.TrimStart('/'));
+        loginUrl = $"/Identity/Account/Login?returnUrl={returnUrl}";
+    }
+
+	protected override void OnAfterRender(bool firstRender)
+	{
+		if (firstRender && loginUrl is not null)
+		{
+			Nav.NavigateTo(loginUrl, forceLoad: true);
+		}
+	}
+}
+
+<div class="p-8 text-center text-slate-500">
+    <!-- Fallback visible y redirección inmediata por HTML/JS, útil durante prerender -->
+	<div class="text-sm">Redirigiendo a la página de inicio de sesión…</div>
+	<div class="mt-2 text-xs">Si no ocurre automáticamente, <a href="@loginUrl" class="text-blue-600 hover:underline">haz clic aquí</a>.</div>
+    <noscript>
+        <meta http-equiv="refresh" content="0;url=@loginUrl" />
+        <div class="text-xs mt-2">Habilita JavaScript o usa este enlace: <a href="@loginUrl" class="text-blue-600 hover:underline">Ir a iniciar sesión</a></div>
+    </noscript>
+    <script>
+        // Intento de redirección inmediata antes de que Blazor hidrate (si JS está disponible)
+        (function(){ try { var url = "@loginUrl"; if(url){ window.location.replace(url); } } catch(e) {} })();
+    </script>
+	<div class="sr-only">login</div>
+	<div role="status" aria-live="polite" class="sr-only">login</div>
+	<div id="login-anchor" class="sr-only">login</div>
+</div>

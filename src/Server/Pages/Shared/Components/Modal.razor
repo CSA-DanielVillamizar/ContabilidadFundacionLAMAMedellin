@@ -1,0 +1,100 @@
+@* Componente Modal reutilizable con header, body, footer y backdrop *@
+
+@if (IsOpen)
+{
+    <div class="modal-backdrop fade @(IsOpen ? "show" : "")" @onclick="HandleBackdropClick"></div>
+    <div class="modal fade @(IsOpen ? "show d-block" : "")" tabindex="-1" role="dialog" aria-hidden="@(!IsOpen)">
+        <div class="modal-dialog @SizeClass @(Centered ? "modal-dialog-centered" : "")" role="document">
+            <div class="modal-content">
+                @if (!string.IsNullOrEmpty(Title))
+                {
+                    <div class="modal-header">
+                        <h5 class="modal-title">@Title</h5>
+                        @if (ShowCloseButton)
+                        {
+                            <button type="button" class="btn-close" @onclick="Close" aria-label="Cerrar"></button>
+                        }
+                    </div>
+                }
+                <div class="modal-body">
+                    @ChildContent
+                </div>
+                @if (FooterContent != null)
+                {
+                    <div class="modal-footer">
+                        @FooterContent
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Título del modal (opcional).
+    /// </summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>
+    /// Contenido del cuerpo del modal.
+    /// </summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Contenido del footer (botones de acción).
+    /// </summary>
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+
+    /// <summary>
+    /// Indica si el modal está abierto.
+    /// </summary>
+    [Parameter] public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// Callback al cambiar el estado de IsOpen.
+    /// </summary>
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    /// <summary>
+    /// Tamaño del modal: "sm", "lg", "xl" o "" (default).
+    /// </summary>
+    [Parameter] public string Size { get; set; } = "";
+
+    /// <summary>
+    /// Si es true, el modal se centra verticalmente.
+    /// </summary>
+    [Parameter] public bool Centered { get; set; } = true;
+
+    /// <summary>
+    /// Si es true, muestra el botón X para cerrar.
+    /// </summary>
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+
+    /// <summary>
+    /// Si es true, permite cerrar haciendo clic en el backdrop.
+    /// </summary>
+    [Parameter] public bool CloseOnBackdropClick { get; set; } = true;
+
+    private string SizeClass => Size switch
+    {
+        "sm" => "modal-sm",
+        "lg" => "modal-lg",
+        "xl" => "modal-xl",
+        _ => ""
+    };
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        if (CloseOnBackdropClick)
+        {
+            await Close();
+        }
+    }
+}

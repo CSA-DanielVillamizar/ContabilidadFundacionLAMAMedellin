@@ -1,0 +1,92 @@
+@page "/miembros/importar"
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Tesorero,Junta")]
+@inject Server.Services.Import.IImportService ImportService
+
+<h3>Importar Miembros</h3>
+<p>Carga el archivo <strong>CSV</strong> o <strong>Excel (.xlsx)</strong> con las columnas esperadas: <code>FullName,Nombres,Apellidos,Cedula,Email,Celular,Direccion,MemberNumber,Cargo,Rango,Estatus,FechaIngresoISO</code>.</p>
+
+<InputFile OnChange="OnFileSelected" multiple="false" />
+
+@if (!string.IsNullOrEmpty(_status))
+{
+    <p><em>@_status</em></p>
+}
+
+@if (_preview?.Any() == true)
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>FullName</th>
+                    <th>Nombres</th>
+                    <th>Apellidos</th>
+                    <th>Cedula</th>
+                    <th>Email</th>
+                    <th>Celular</th>
+                    <th>Direccion</th>
+                    <th>MemberNumber</th>
+                    <th>Cargo</th>
+                    <th>Rango</th>
+                    <th>Estatus</th>
+                    <th>FechaIngresoISO</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var r in _preview!.Take(200))
+            {
+                <tr>
+                    <td>@r.FullName</td>
+                    <td>@r.Nombres</td>
+                    <td>@r.Apellidos</td>
+                    <td>@r.Cedula</td>
+                    <td>@r.Email</td>
+                    <td>@r.Celular</td>
+                    <td>@r.Direccion</td>
+                    <td>@r.MemberNumber</td>
+                    <td>@r.Cargo</td>
+                    <td>@r.Rango</td>
+                    <td>@r.Estatus</td>
+                    <td>@r.FechaIngresoISO</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <p>Total filas: <strong>@_preview!.Count</strong> (vista previa muestra hasta 200).</p>
+        <button class="btn btn-primary" @onclick="ImportarAsync">Importar</button>
+    </div>
+}
+
+@code {
+    private string? _status;
+    private IBrowserFile? _file;
+    private List<Server.DTOs.Import.ImportRowDto>? _preview;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        _status = $"Archivo seleccionado: {_file.Name}";
+        var (rows, mensajes) = await ImportService.PreviewAsync(_file);
+        _preview = rows;
+        _status = string.Join(" | ", mensajes);
+        StateHasChanged();
+    }
+
+    private async Task ImportarAsync()
+    {
+        if (_preview is null || _preview.Count == 0)
+        {
+            _status = "No hay filas para importar.";
+            return;
+        }
+        var currentUser = "tesorero@lama.medellin.org";
+        var res = await ImportService.ImportAsync(_preview, currentUser);
+        _status = $"Importación finalizada. Total: {res.Total}, Creados: {res.Creados}, Actualizados: {res.Actualizados}, Errores: {res.Errores}.";
+        if (res.Mensajes.Any())
+        {
+            _status += " Detalles: " + string.Join(" | ", res.Mensajes.Take(10)) + (res.Mensajes.Count > 10 ? " ..." : "");
+        }
+    }
+}

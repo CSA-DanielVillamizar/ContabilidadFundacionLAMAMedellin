@@ -1,0 +1,128 @@
+@* 
+    ModernStatCard.razor
+    Componente de tarjeta estadística moderna con glassmorphism e iconos grandes
+    Basado en diseños modernos tipo FinBoard/Sales Analytics
+*@
+
+<div class="stat-card @GetColorClass()">
+    <div class="stat-card-header">
+        <div class="stat-card-icon @GetIconColorClass()">
+            <MudIcon Icon="@Icon" Size="Size.Large" />
+        </div>
+        @if (!string.IsNullOrEmpty(Trend))
+        {
+            <div class="stat-card-trend @GetTrendClass()">
+                <MudIcon Icon="@GetTrendIcon()" Size="Size.Small" />
+                <span>@Trend</span>
+            </div>
+        }
+    </div>
+    <div class="stat-card-body">
+        <h3 class="stat-card-value">@Value</h3>
+        <p class="stat-card-label">@Title</p>
+        @if (!string.IsNullOrEmpty(Subtitle))
+        {
+            <p class="stat-card-subtitle">@Subtitle</p>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Título de la tarjeta estadística
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Valor principal a mostrar (número, cantidad, métrica)
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = "0";
+
+    /// <summary>
+    /// Subtítulo opcional (información adicional)
+    /// </summary>
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Icono de Material Icons (e.g., Icons.Material.Filled.TrendingUp)
+    /// </summary>
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Filled.BarChart;
+
+    /// <summary>
+    /// Color del icono: primary, success, warning, info
+    /// </summary>
+    [Parameter]
+    public string IconColor { get; set; } = "primary";
+
+    /// <summary>
+    /// Tendencia/cambio porcentual (e.g., "+12.5%", "-3.2%")
+    /// </summary>
+    [Parameter]
+    public string? Trend { get; set; }
+
+    /// <summary>
+    /// Dirección de la tendencia: up, down, neutral
+    /// </summary>
+    [Parameter]
+    public string TrendDirection { get; set; } = "neutral";
+
+    /// <summary>
+    /// Determina el color de fondo de la tarjeta según el color del icono
+    /// </summary>
+    private string GetColorClass()
+    {
+        return IconColor.ToLower() switch
+        {
+            "primary" => "stat-card-primary",
+            "success" => "stat-card-success",
+            "warning" => "stat-card-warning",
+            "info" => "stat-card-info",
+            _ => "stat-card-primary"
+        };
+    }
+
+    /// <summary>
+    /// Determina el color del contenedor del icono
+    /// </summary>
+    private string GetIconColorClass()
+    {
+        return IconColor.ToLower() switch
+        {
+            "primary" => "icon-primary",
+            "success" => "icon-success",
+            "warning" => "icon-warning",
+            "info" => "icon-info",
+            _ => "icon-primary"
+        };
+    }
+
+    /// <summary>
+    /// Determina la clase CSS para la tendencia (positiva, negativa, neutral)
+    /// </summary>
+    private string GetTrendClass()
+    {
+        return TrendDirection.ToLower() switch
+        {
+            "up" => "trend-up",
+            "down" => "trend-down",
+            _ => "trend-neutral"
+        };
+    }
+
+    /// <summary>
+    /// Obtiene el icono de flecha según la dirección de la tendencia
+    /// </summary>
+    private string GetTrendIcon()
+    {
+        return TrendDirection.ToLower() switch
+        {
+            "up" => Icons.Material.Filled.ArrowUpward,
+            "down" => Icons.Material.Filled.ArrowDownward,
+            _ => Icons.Material.Filled.Remove
+        };
+    }
+}

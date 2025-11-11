@@ -1,0 +1,331 @@
+@page "/tesoreria/conciliaciones-bancarias"
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@using Server.DTOs.ConciliacionBancaria
+@using Server.Services
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ToastService Toast
+
+<PageTitle>Conciliación Bancaria</PageTitle>
+
+<nav class="flex px-5 py-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" aria-label="Breadcrumb">
+  <ol class="inline-flex items-center space-x-1 md:space-x-3">
+    <li class="inline-flex items-center">
+      <a href="/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+        Inicio
+      </a>
+    </li>
+    <li aria-current="page">
+      <div class="flex items-center">
+        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+        <span class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400">Conciliación Bancaria</span>
+      </div>
+    </li>
+  </ol>
+</nav>
+
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Conciliación Bancaria</h1>
+      <p class="text-gray-600 dark:text-gray-400">Administra las conciliaciones por período.</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition" @onclick="LimpiarFiltros">Limpiar</button>
+      <button class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition shadow-sm" @onclick="Nuevo">
+        <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        Nueva Conciliación
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros y KPIs -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Año</label>
+      <select class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="filtroAno">
+        <option value="">Todos</option>
+        @foreach (var y in AniosDisponibles())
+        {
+          <option value="@y">@y</option>
+        }
+      </select>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Mes</label>
+      <select class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="filtroMes">
+        <option value="">Todos</option>
+        @for (int m = 1; m <= 12; m++)
+        {
+          <option value="@m">@NombreMes(m)</option>
+        }
+      </select>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Estado</label>
+      <select class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="filtroEstado">
+        <option value="">Todos</option>
+        <option>Pendiente</option>
+        <option>EnProceso</option>
+        <option>Conciliada</option>
+        <option>ConDiferencias</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPIs simples -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+      <div class="text-sm text-blue-600 dark:text-blue-400">Conciliaciones</div>
+      <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">@totalCount</div>
+    </div>
+    <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+      <div class="text-sm text-emerald-600 dark:text-emerald-400">Conciliadas</div>
+      <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">@conciliaciones.Count(c => c.Estado == "Conciliada")</div>
+    </div>
+    <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+      <div class="text-sm text-orange-600 dark:text-orange-400">Pendientes</div>
+      <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">@conciliaciones.Count(c => c.Estado == "Pendiente")</div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Período</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">S. Libros</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">S. Banco</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Diferencia</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+            <th class="px-6 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          @if (cargando)
+          {
+            <tr><td colspan="6" class="px-6 py-10 text-center text-gray-500">Cargando...</td></tr>
+          }
+          else if (conciliaciones.Count == 0)
+          {
+            <tr><td colspan="6" class="px-6 py-10 text-center text-gray-500">No hay conciliaciones</td></tr>
+          }
+          else
+          {
+            @foreach (var c in conciliaciones)
+            {
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                <td class="px-6 py-4">
+                  <div class="font-medium text-gray-900 dark:text-white">@c.Periodo</div>
+                  <div class="text-xs text-gray-500">@c.Ano-@c.Mes.ToString("00")</div>
+                </td>
+                <td class="px-6 py-4 text-blue-700 dark:text-blue-300 font-semibold">@c.SaldoLibros.ToString("C0")</td>
+                <td class="px-6 py-4 text-emerald-700 dark:text-emerald-300 font-semibold">@c.SaldoBanco.ToString("C0")</td>
+                <td class="px-6 py-4">
+                  <span class="@(c.Diferencia >= 0 ? "text-orange-700 dark:text-orange-300" : "text-red-600 dark:text-red-400") font-semibold">@c.Diferencia.ToString("C0")</span>
+                </td>
+                <td class="px-6 py-4">
+                  <span class="px-3 py-1 rounded-full text-xs font-semibold @ClaseEstado(c.Estado)">@c.Estado</span>
+                </td>
+                <td class="px-6 py-4 text-right whitespace-nowrap">
+                  <button class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg" title="Ver" @onclick="() => VerDetalle(c.Id)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </button>
+                  <AuthorizeView Roles="Admin,Gerente" Context="adminContext">
+                    <Authorized>
+                      <button class="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg" title="Editar" @onclick="() => Editar(c.Id)">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      </button>
+                      <button class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Eliminar" @onclick="() => ConfirmarEliminar(c)">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      </button>
+                    </Authorized>
+                  </AuthorizeView>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    <div class="flex items-center justify-between px-6 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+      <div class="text-sm text-gray-600 dark:text-gray-400">Mostrando @((paginaActual - 1) * porPagina + Math.Min(1, conciliaciones.Count)) a @(((paginaActual - 1) * porPagina) + conciliaciones.Count) de @totalCount</div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1 border rounded disabled:opacity-50" @onclick="Anterior" disabled="@(paginaActual == 1)">Anterior</button>
+        <button class="px-3 py-1 border rounded disabled:opacity-50" @onclick="Siguiente" disabled="@(((paginaActual * porPagina) >= totalCount))">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Eliminar -->
+  @if (mostrarModalEliminar && seleccion != null)
+  {
+    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700">
+        <div class="flex items-start">
+          <svg class="w-8 h-8 text-red-600 dark:text-red-400 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div>
+            <h3 class="text-lg font-semibold">Eliminar conciliación</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">¿Seguro que deseas eliminar la conciliación de <b>@seleccion.Periodo</b>?</p>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button class="px-4 py-2 border rounded-lg" @onclick="() => mostrarModalEliminar = false">Cancelar</button>
+          <button class="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50" disabled="@eliminando" @onclick="Eliminar">@((eliminando ? "Eliminando..." : "Eliminar"))</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+@code {
+  private List<ConciliacionBancariaDto> conciliaciones = new();
+  // Filtros con setter que disparan recarga automática
+  private int? _filtroAno;
+  private int? filtroAno
+  {
+    get => _filtroAno;
+    set { _filtroAno = value; paginaActual = 1; _ = Cargar(); }
+  }
+  private int? _filtroMes;
+  private int? filtroMes
+  {
+    get => _filtroMes;
+    set { _filtroMes = value; paginaActual = 1; _ = Cargar(); }
+  }
+  private string? _filtroEstado;
+  private string? filtroEstado
+  {
+    get => _filtroEstado;
+    set { _filtroEstado = value; paginaActual = 1; _ = Cargar(); }
+  }
+  private int paginaActual = 1;
+  private int porPagina = 20;
+  private int totalCount = 0;
+  private bool cargando = true;
+  private bool mostrarModalEliminar = false;
+  private bool eliminando = false;
+  private ConciliacionBancariaDto? seleccion;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Cargar();
+  }
+
+  private async Task Cargar()
+  {
+    try
+    {
+      cargando = true;
+      var qs = new List<string>();
+      if (filtroAno.HasValue) qs.Add($"ano={filtroAno.Value}");
+      if (filtroMes.HasValue) qs.Add($"mes={filtroMes.Value}");
+      if (!string.IsNullOrWhiteSpace(filtroEstado)) qs.Add($"estado={filtroEstado}");
+      qs.Add($"pagina={paginaActual}");
+      qs.Add($"porPagina={porPagina}");
+      var url = "/api/conciliacionbancaria" + (qs.Count > 0 ? ("?" + string.Join("&", qs)) : string.Empty);
+
+      var resp = await Http.GetAsync(url);
+      if (!resp.IsSuccessStatusCode)
+      {
+        Toast.ShowError("No se pudo cargar el listado");
+        return;
+      }
+      var content = await resp.Content.ReadAsStringAsync();
+      var opciones = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+      var data = JsonSerializer.Deserialize<ListadoResponse>(content, opciones);
+      conciliaciones = data?.Conciliaciones ?? new();
+      totalCount = data?.TotalCount ?? 0;
+    }
+    catch
+    {
+      Toast.ShowError("Error inesperado al cargar");
+    }
+    finally
+    {
+      cargando = false;
+      StateHasChanged();
+    }
+  }
+
+  // Método de búsqueda ya no requerido (recarga se hace en setters de filtros)
+
+  private async Task LimpiarFiltros()
+  {
+    filtroAno = null; filtroMes = null; filtroEstado = null; paginaActual = 1;
+    await Cargar();
+  }
+
+  private async Task Eliminar()
+  {
+    if (seleccion is null) return;
+    try
+    {
+      eliminando = true;
+      var resp = await Http.DeleteAsync($"/api/conciliacionbancaria/{seleccion.Id}");
+      if (resp.IsSuccessStatusCode)
+      {
+        Toast.ShowSuccess("Conciliación eliminada");
+        mostrarModalEliminar = false;
+        await Cargar();
+      }
+      else
+      {
+        var msg = await resp.Content.ReadAsStringAsync();
+        Toast.ShowWarning($"No se eliminó: {msg}");
+      }
+    }
+    catch
+    {
+      Toast.ShowError("Error eliminando");
+    }
+    finally
+    {
+      eliminando = false;
+    }
+  }
+
+  private void ConfirmarEliminar(ConciliacionBancariaDto c)
+  {
+    seleccion = c; mostrarModalEliminar = true;
+  }
+
+  private void Nuevo() => Nav.NavigateTo("/tesoreria/conciliaciones-bancarias/form");
+  private void Editar(Guid id) => Nav.NavigateTo($"/tesoreria/conciliaciones-bancarias/form/{id}");
+  private void VerDetalle(Guid id) => Nav.NavigateTo($"/tesoreria/conciliaciones-bancarias/{id}");
+
+  private async Task Anterior()
+  {
+    if (paginaActual > 1) { paginaActual--; await Cargar(); }
+  }
+  private async Task Siguiente()
+  {
+    if ((paginaActual * porPagina) < totalCount) { paginaActual++; await Cargar(); }
+  }
+
+  private IEnumerable<int> AniosDisponibles()
+  {
+    var actual = DateTime.Now.Year;
+    for (int y = actual - 5; y <= actual + 1; y++) yield return y;
+  }
+
+  private static string NombreMes(int m) => new[]{"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"}[m-1];
+
+  private static string ClaseEstado(string estado) => estado switch
+  {
+    "Pendiente" => "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+    "EnProceso" => "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    "Conciliada" => "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+    "ConDiferencias" => "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    _ => "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+  };
+
+  private class ListadoResponse { public List<ConciliacionBancariaDto> Conciliaciones { get; set; } = new(); public int TotalCount { get; set; } }
+}

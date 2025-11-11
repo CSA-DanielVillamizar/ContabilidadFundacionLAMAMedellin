@@ -1,0 +1,249 @@
+@page "/gerencia-negocios/clientes/nuevo"
+@using Server.DTOs.Clientes
+@attribute [Authorize(Roles = "Admin,Gerente")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ToastService Toast
+
+<PageTitle>Nuevo Cliente - LAMA Medellín</PageTitle>
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/gerencia-negocios/clientes">Clientes</a></li>
+                    <li class="breadcrumb-item active">Nuevo Cliente</li>
+                </ol>
+            </nav>
+            <h2><i class="bi bi-person-plus me-2"></i>Nuevo Cliente</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <EditForm Model="@model" OnValidSubmit="GuardarCliente">
+                        <DataAnnotationsValidator />
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="model.Nombre" class="form-control" placeholder="Nombre del cliente" />
+                                <ValidationMessage For="@(() => model.Nombre)" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Identificación <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <InputText @bind-Value="model.Identificacion" @bind-Value:event="oninput" @onkeyup="ValidarIdentificacionConDelay" class="form-control" placeholder="CC, NIT, etc." />
+                                    @if (validandoIdentificacion)
+                                    {
+                                        <span class="input-group-text"><div class="spinner-border spinner-border-sm"></div></span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(model.Identificacion) && identificacionValida.HasValue)
+                                    {
+                                        <span class="input-group-text">
+                                            <i class="bi @(identificacionValida.Value ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                                        </span>
+                                    }
+                                </div>
+                                <ValidationMessage For="@(() => model.Identificacion)" class="text-danger small" />
+                                @if (identificacionValida.HasValue && !identificacionValida.Value)
+                                {
+                                    <small class="text-danger">Esta identificación ya está registrada</small>
+                                }
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Tipo <span class="text-danger">*</span></label>
+                                <InputSelect @bind-Value="model.Tipo" class="form-select">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Persona Natural">Persona Natural</option>
+                                    <option value="Empresa">Empresa</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => model.Tipo)" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Teléfono <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="model.Telefono" class="form-control" placeholder="(+57) 300 123 4567" />
+                                <ValidationMessage For="@(() => model.Telefono)" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="model.Email" type="email" class="form-control" placeholder="cliente@ejemplo.com" />
+                                <ValidationMessage For="@(() => model.Email)" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Límite de Crédito (COP)</label>
+                                <InputNumber @bind-Value="model.LimiteCredito" class="form-control" placeholder="0" />
+                                <small class="text-muted">Dejar en 0 si no aplica</small>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Dirección</label>
+                                <InputTextArea @bind-Value="model.Direccion" class="form-control" rows="2" placeholder="Dirección completa del cliente" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Puntos de Fidelización</label>
+                                <InputNumber @bind-Value="model.PuntosFidelizacion" class="form-control" placeholder="0" />
+                                <small class="text-muted">Puntos iniciales del programa de lealtad</small>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <InputCheckbox @bind-Value="model.Activo" class="form-check-input" id="activoCheck" />
+                                    <label class="form-check-label" for="activoCheck">Cliente activo</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="Cancelar">
+                                <i class="bi bi-x-circle me-2"></i>Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@(guardando || (identificacionValida.HasValue && !identificacionValida.Value))">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-2"></i>
+                                }
+                                Guardar Cliente
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>Información</h5>
+                    <ul class="small mb-0">
+                        <li>Los campos marcados con <span class="text-danger">*</span> son obligatorios</li>
+                        <li>La identificación debe ser única en el sistema</li>
+                        <li>El límite de crédito se usa para control de ventas a crédito</li>
+                        <li>Los puntos de fidelización se acumulan con cada compra</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ClienteFormDto model = new() { Activo = true, PuntosFidelizacion = 0, LimiteCredito = 0 };
+    private bool guardando = false;
+    private bool validandoIdentificacion = false;
+    private bool? identificacionValida = null;
+    private System.Threading.Timer? _debounceTimer;
+
+    private void ValidarIdentificacionConDelay()
+    {
+        identificacionValida = null;
+        if (string.IsNullOrWhiteSpace(model.Identificacion))
+        {
+            return;
+        }
+
+        validandoIdentificacion = true;
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await ValidarIdentificacion();
+                validandoIdentificacion = false;
+                StateHasChanged();
+            });
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task ValidarIdentificacion()
+    {
+        if (string.IsNullOrWhiteSpace(model.Identificacion))
+        {
+            identificacionValida = null;
+            return;
+        }
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<bool>($"/api/clientes/validar-identificacion?identificacion={Uri.EscapeDataString(model.Identificacion)}");
+            identificacionValida = !response;
+        }
+        catch
+        {
+            identificacionValida = null;
+        }
+    }
+
+    private async Task GuardarCliente()
+    {
+        if (identificacionValida.HasValue && !identificacionValida.Value)
+        {
+            Toast.Show("La identificación ya está registrada", "danger");
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/clientes", model);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<SaveClienteResponse>();
+                if (result?.Success == true)
+                {
+                    Toast.Show("Cliente creado exitosamente", "success");
+                    Nav.NavigateTo("/gerencia-negocios/clientes");
+                }
+                else
+                {
+                    Toast.Show(result?.Message ?? "Error al crear el cliente", "danger");
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Toast.Show($"Error: {error}", "danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al guardar: {ex.Message}", "danger");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Nav.NavigateTo("/gerencia-negocios/clientes");
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
+
+    public class SaveClienteResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public Guid? ClienteId { get; set; }
+    }
+}

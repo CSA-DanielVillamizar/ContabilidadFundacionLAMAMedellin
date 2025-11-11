@@ -1,0 +1,433 @@
+@page "/gerencia-negocios/proveedores/editar/{Id:guid}"
+@using Server.DTOs.Proveedores
+@using Server.Services.Proveedores
+@using Server.Services.Auth
+@inject IProveedoresService ProveedoresService
+@inject ICurrentUserService CurrentUserService
+@inject NavigationManager Navigation
+@inject ToastService ToastService
+
+<PageTitle>Editar Proveedor - LAMA Medellín</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="bi bi-pencil-square me-2"></i>Editar Proveedor
+                        </h4>
+                        <button class="btn btn-light btn-sm" @onclick="Volver">
+                            <i class="bi bi-arrow-left me-1"></i>Volver
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (cargando)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando información del proveedor...</p>
+                        </div>
+                    }
+                    else if (proveedor == null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No se encontró el proveedor solicitado.
+                        </div>
+                        <button class="btn btn-primary" @onclick="Volver">
+                            <i class="bi bi-arrow-left me-1"></i>Volver al Listado
+                        </button>
+                    }
+                    else
+                    {
+                        <EditForm Model="@proveedor" OnValidSubmit="@GuardarCambios">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="row g-3">
+                                <!-- Información General -->
+                                <div class="col-12">
+                                    <h5 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="bi bi-info-circle me-2"></i>Información General
+                                    </h5>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="nombre" class="form-label">
+                                        Nombre <span class="text-danger">*</span>
+                                    </label>
+                                    <InputText id="nombre" @bind-Value="proveedor.Nombre" class="form-control" placeholder="Nombre del proveedor" />
+                                    <ValidationMessage For="@(() => proveedor.Nombre)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="nit" class="form-label">NIT</label>
+                                    <InputText id="nit" @bind-Value="proveedor.Nit" class="form-control" placeholder="Ej: 900123456-7" />
+                                    <ValidationMessage For="@(() => proveedor.Nit)" />
+                                    @if (!string.IsNullOrEmpty(mensajeNit))
+                                    {
+                                        <div class="text-danger small mt-1">@mensajeNit</div>
+                                    }
+                                </div>
+
+                                <!-- Información de Contacto -->
+                                <div class="col-12 mt-4">
+                                    <h5 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="bi bi-telephone me-2"></i>Información de Contacto
+                                    </h5>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="contacto" class="form-label">
+                                        Contacto <span class="text-danger">*</span>
+                                    </label>
+                                    <InputText id="contacto" @bind-Value="proveedor.Contacto" class="form-control" placeholder="Nombre del contacto" />
+                                    <ValidationMessage For="@(() => proveedor.Contacto)" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="telefono" class="form-label">
+                                        Teléfono <span class="text-danger">*</span>
+                                    </label>
+                                    <InputText id="telefono" @bind-Value="proveedor.Telefono" class="form-control" placeholder="Ej: +57 300 123 4567" />
+                                    <ValidationMessage For="@(() => proveedor.Telefono)" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="email" class="form-label">
+                                        Email <span class="text-danger">*</span>
+                                    </label>
+                                    <InputText id="email" type="email" @bind-Value="proveedor.Email" class="form-control" placeholder="contacto@proveedor.com" />
+                                    <ValidationMessage For="@(() => proveedor.Email)" />
+                                </div>
+
+                                <!-- Dirección -->
+                                <div class="col-12 mt-4">
+                                    <h5 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="bi bi-geo-alt me-2"></i>Dirección
+                                    </h5>
+                                </div>
+
+                                <div class="col-md-12">
+                                    <label for="direccion" class="form-label">Dirección</label>
+                                    <InputText id="direccion" @bind-Value="proveedor.Direccion" class="form-control" placeholder="Dirección completa" />
+                                    <ValidationMessage For="@(() => proveedor.Direccion)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="ciudad" class="form-label">Ciudad</label>
+                                    <InputText id="ciudad" @bind-Value="proveedor.Ciudad" class="form-control" placeholder="Ej: Medellín" />
+                                    <ValidationMessage For="@(() => proveedor.Ciudad)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="pais" class="form-label">País</label>
+                                    <InputText id="pais" @bind-Value="proveedor.Pais" class="form-control" placeholder="Ej: Colombia" />
+                                    <ValidationMessage For="@(() => proveedor.Pais)" />
+                                </div>
+
+                                <!-- Condiciones Comerciales -->
+                                <div class="col-12 mt-4">
+                                    <h5 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="bi bi-cash-coin me-2"></i>Condiciones Comerciales
+                                    </h5>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="terminosPago" class="form-label">Términos de Pago</label>
+                                    <InputText id="terminosPago" @bind-Value="proveedor.TerminosPago" class="form-control" placeholder="Ej: 30 días, Contado, etc." />
+                                    <ValidationMessage For="@(() => proveedor.TerminosPago)" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="diasCredito" class="form-label">
+                                        Días de Crédito <span class="text-danger">*</span>
+                                    </label>
+                                    <InputNumber id="diasCredito" @bind-Value="proveedor.DiasCredito" class="form-control" />
+                                    <ValidationMessage For="@(() => proveedor.DiasCredito)" />
+                                    <small class="text-muted">0 = Contado</small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="calificacion" class="form-label">Calificación</label>
+                                    <div class="input-group">
+                                        <InputNumber id="calificacion" @bind-Value="proveedor.Calificacion" class="form-control" min="0" max="5" step="0.5" />
+                                        <span class="input-group-text">
+                                            @if (proveedor.Calificacion.HasValue)
+                                            {
+                                                @for (decimal i = 1; i <= 5; i++)
+                                                {
+                                                    if (i <= proveedor.Calificacion.Value)
+                                                    {
+                                                        <i class="bi bi-star-fill text-warning"></i>
+                                                    }
+                                                    else if (i - 0.5m <= proveedor.Calificacion.Value)
+                                                    {
+                                                        <i class="bi bi-star-half text-warning"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-star text-muted"></i>
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Sin calificación</span>
+                                            }
+                                        </span>
+                                    </div>
+                                    <ValidationMessage For="@(() => proveedor.Calificacion)" />
+                                    <small class="text-muted">Rango: 0 a 5 estrellas</small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Estado</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <InputCheckbox id="activo" @bind-Value="proveedor.Activo" class="form-check-input" />
+                                        <label class="form-check-label" for="activo">
+                                            @(proveedor.Activo ? "Activo" : "Inactivo")
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Notas -->
+                                <div class="col-12 mt-4">
+                                    <h5 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="bi bi-sticky me-2"></i>Notas Adicionales
+                                    </h5>
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="notas" class="form-label">Notas</label>
+                                    <InputTextArea id="notas" @bind-Value="proveedor.Notas" class="form-control" rows="4" placeholder="Información adicional sobre el proveedor..." />
+                                    <ValidationMessage For="@(() => proveedor.Notas)" />
+                                </div>
+
+                                <!-- Información de Auditoría -->
+                                @if (!string.IsNullOrEmpty(proveedor.CreadoPor))
+                                {
+                                    <div class="col-12 mt-4">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title text-muted mb-2">
+                                                    <i class="bi bi-clock-history me-2"></i>Información de Auditoría
+                                                </h6>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block">
+                                                            <strong>Creado por:</strong> @proveedor.CreadoPor
+                                                        </small>
+                                                        @if (proveedor.FechaCreacion.HasValue)
+                                                        {
+                                                            <small class="text-muted d-block">
+                                                                <strong>Fecha creación:</strong> @proveedor.FechaCreacion.Value.ToString("dd/MM/yyyy HH:mm")
+                                                            </small>
+                                                        }
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(proveedor.ActualizadoPor))
+                                                    {
+                                                        <div class="col-md-6">
+                                                            <small class="text-muted d-block">
+                                                                <strong>Última actualización:</strong> @proveedor.ActualizadoPor
+                                                            </small>
+                                                            @if (proveedor.FechaActualizacion.HasValue)
+                                                            {
+                                                                <small class="text-muted d-block">
+                                                                    <strong>Fecha actualización:</strong> @proveedor.FechaActualizacion.Value.ToString("dd/MM/yyyy HH:mm")
+                                                                </small>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <!-- Botones -->
+                                <div class="col-12 mt-4">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="Volver" disabled="@guardando">
+                                            <i class="bi bi-x-circle me-1"></i>Cancelar
+                                        </button>
+                                        <button type="submit" class="btn btn-warning text-dark" disabled="@guardando">
+                                            @if (guardando)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                                <span>Guardando...</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-save me-1"></i>
+                                                <span>Guardar Cambios</span>
+                                            }
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ProveedorFormDto? proveedor;
+    private string nitOriginal = string.Empty;
+    private bool cargando = true;
+    private bool guardando = false;
+    private string mensajeNit = string.Empty;
+    private System.Threading.Timer? validacionNitTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedor();
+    }
+
+    private async Task CargarProveedor()
+    {
+        cargando = true;
+        try
+        {
+            var proveedorDto = await ProveedoresService.ObtenerProveedorPorIdAsync(Id);
+            if (proveedorDto != null)
+            {
+                proveedor = new ProveedorFormDto
+                {
+                    Nombre = proveedorDto.Nombre,
+                    Nit = proveedorDto.Nit,
+                    Contacto = proveedorDto.Contacto,
+                    Telefono = proveedorDto.Telefono,
+                    Email = proveedorDto.Email,
+                    Direccion = proveedorDto.Direccion,
+                    Ciudad = proveedorDto.Ciudad,
+                    Pais = proveedorDto.Pais,
+                    TerminosPago = proveedorDto.TerminosPago,
+                    DiasCredito = proveedorDto.DiasCredito,
+                    Calificacion = proveedorDto.Calificacion,
+                    Notas = proveedorDto.Notas,
+                    Activo = proveedorDto.Activo,
+                    CreadoPor = proveedorDto.CreadoPor,
+                    FechaCreacion = proveedorDto.FechaCreacion,
+                    ActualizadoPor = proveedorDto.ActualizadoPor,
+                    FechaActualizacion = proveedorDto.FechaActualizacion
+                };
+                nitOriginal = proveedorDto.Nit ?? string.Empty;
+
+                // Configurar validación de NIT con debounce
+                proveedor.PropertyChanged += (s, e) =>
+                {
+                    if (e.PropertyName == nameof(proveedor.Nit))
+                    {
+                        ValidarNitConDebounce();
+                    }
+                };
+            }
+            else
+            {
+                ToastService.Show("No se pudo cargar la información del proveedor.", "danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Show($"Error al cargar el proveedor: {ex.Message}", "danger");
+            Console.WriteLine($"Error cargando proveedor: {ex}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void ValidarNitConDebounce()
+    {
+        validacionNitTimer?.Dispose();
+        mensajeNit = string.Empty;
+
+        // Solo validar si el NIT cambió
+        if (!string.IsNullOrWhiteSpace(proveedor!.Nit) && proveedor.Nit != nitOriginal)
+        {
+            validacionNitTimer = new System.Threading.Timer(async _ =>
+            {
+                await ValidarNit();
+                await InvokeAsync(StateHasChanged);
+            }, null, 500, Timeout.Infinite);
+        }
+    }
+
+    private async Task ValidarNit()
+    {
+        try
+        {
+            var existe = await ProveedoresService.ExisteNitAsync(proveedor!.Nit!, Id);
+            if (existe)
+            {
+                mensajeNit = "⚠️ Este NIT ya está registrado en otro proveedor.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error validando NIT: {ex.Message}");
+        }
+    }
+
+    private async Task GuardarCambios()
+    {
+        if (!string.IsNullOrEmpty(mensajeNit))
+        {
+            ToastService.Show("El NIT ingresado ya existe en el sistema.", "danger");
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            var usuarioId = CurrentUserService.GetUserId();
+            if (string.IsNullOrEmpty(usuarioId))
+            {
+                ToastService.Show("No se pudo identificar el usuario actual.", "danger");
+                return;
+            }
+
+            var resultado = await ProveedoresService.ActualizarProveedorAsync(Id, proveedor!, usuarioId);
+            if (resultado.Success)
+            {
+                ToastService.Show($"Proveedor '{proveedor!.Nombre}' actualizado exitosamente.", "success");
+                Navigation.NavigateTo("/gerencia-negocios/proveedores");
+            }
+            else
+            {
+                ToastService.Show(resultado.Message, "danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Show($"Error: {ex.Message}", "danger");
+            Console.WriteLine($"Error actualizando proveedor: {ex}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/gerencia-negocios/proveedores");
+    }
+
+    public void Dispose()
+    {
+        validacionNitTimer?.Dispose();
+    }
+}

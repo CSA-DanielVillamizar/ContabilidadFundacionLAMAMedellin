@@ -1,0 +1,73 @@
+@*
+    Navegación principal - Diseñado para funcionar dentro de MudDrawer
+    Usa MudNavMenu y MudNavLink para integración nativa con MudBlazor
+    Estilo moderno con modern-sidebar-item aplicado
+*@
+
+<style>
+    /* ESTILOS INLINE PARA GARANTIZAR APLICACIÓN */
+    .mud-nav-link .mud-icon-root,
+    .mud-nav-link svg {
+        font-size: 28px !important;
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .mud-nav-link {
+        font-size: 16px !important;
+        padding: 14px 18px !important;
+        gap: 14px !important;
+    }
+</style>
+
+<div class="modern-sidebar">
+<MudNavMenu>
+    <!-- Principal -->
+    <MudText Typo="Typo.caption" Class="px-4 mb-2 mt-2" Color="Color.Secondary" Style="font-weight: 600;">PRINCIPAL</MudText>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Class="modern-sidebar-item">Dashboard</MudNavLink>
+    <MudNavLink Href="/miembros" Icon="@Icons.Material.Filled.People" Class="modern-sidebar-item">Miembros</MudNavLink>
+    
+    <!-- Tesorería -->
+    <MudText Typo="Typo.caption" Class="px-4 mb-2 mt-4" Color="Color.Secondary" Style="font-weight: 600;">TESORERÍA</MudText>
+    <MudNavLink Href="/tesoreria/recibos" Icon="@Icons.Material.Filled.Receipt" Class="modern-sidebar-item">Recibos</MudNavLink>
+    <MudNavLink Href="/tesoreria/recibos/nuevo" Icon="@Icons.Material.Filled.Add" Class="modern-sidebar-item">Nuevo Recibo</MudNavLink>
+    <MudNavLink Href="/tesoreria/recibos/rapido" Icon="@Icons.Material.Filled.Bolt" Class="modern-sidebar-item">Recibos Rápidos</MudNavLink>
+    <MudNavLink Href="/tesoreria/egresos" Icon="@Icons.Material.Filled.ShoppingCart" Class="modern-sidebar-item">Egresos</MudNavLink>
+    <MudNavLink Href="/tesoreria/deudores" Icon="@Icons.Material.Filled.Check" Class="modern-sidebar-item">Deudores</MudNavLink>
+    <MudNavLink Href="/tesoreria/donaciones" Icon="@Icons.Material.Filled.MonetizationOn" Class="modern-sidebar-item">Certificados Donación</MudNavLink>
+    <MudNavLink Href="/tesoreria/reportes" Icon="@Icons.Material.Filled.BarChart" Class="modern-sidebar-item">Reportes</MudNavLink>
+    <MudNavLink Href="/tesoreria/reportes/donaciones-certificados" Icon="@Icons.Material.Filled.CompareArrows" Class="modern-sidebar-item">Donaciones vs Certificados</MudNavLink>
+    <MudNavLink Href="/tesoreria/verificacion" Icon="@Icons.Material.Filled.VerifiedUser" Class="modern-sidebar-item">Verificación</MudNavLink>
+    <MudNavLink Href="/tesoreria/cierre" Icon="@Icons.Material.Filled.Lock" Class="modern-sidebar-item">Cierre Contable</MudNavLink>
+    <MudNavLink Href="/tesoreria/respaldo" Icon="@Icons.Material.Filled.Backup" Class="modern-sidebar-item">Respaldo y Exportaciones</MudNavLink>
+    <MudNavLink Href="/tesoreria/presupuestos" Icon="@Icons.Material.Filled.Calculate" Class="modern-sidebar-item">Presupuestos</MudNavLink>
+    <MudNavLink Href="/tesoreria/conciliaciones-bancarias" Icon="@Icons.Material.Filled.AccountBalance" Class="modern-sidebar-item">Conciliación Bancaria</MudNavLink>
+    
+    <!-- Gerencia de Negocios -->
+    <MudText Typo="Typo.caption" Class="px-4 mb-2 mt-4" Color="Color.Secondary" Style="font-weight: 600;">GERENCIA DE NEGOCIOS</MudText>
+    <MudNavLink Href="/gerencia-negocios/productos" Icon="@Icons.Material.Filled.Inventory" Class="modern-sidebar-item">Productos</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/ventas" Icon="@Icons.Material.Filled.ShoppingCart" Class="modern-sidebar-item">Ventas</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/compras" Icon="@Icons.Material.Filled.ShoppingBag" Class="modern-sidebar-item">Compras</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/proveedores" Icon="@Icons.Material.Filled.Store" Class="modern-sidebar-item">Proveedores</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/clientes" Icon="@Icons.Material.Filled.PersonOutline" Class="modern-sidebar-item">Clientes</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/cotizaciones" Icon="@Icons.Material.Filled.Description" Class="modern-sidebar-item">Cotizaciones</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/inventario" Icon="@Icons.Material.Filled.Inventory2" Class="modern-sidebar-item">Inventario</MudNavLink>
+    <MudNavLink Href="/gerencia-negocios/cuentas-cobro-personalizadas" Icon="@Icons.Material.Filled.RequestQuote" Class="modern-sidebar-item">Cuentas de Cobro</MudNavLink>
+    
+    <!-- Configuración -->
+    <MudText Typo="Typo.caption" Class="px-4 mb-2 mt-4" Color="Color.Secondary" Style="font-weight: 600;">CONFIGURACIÓN</MudText>
+    <MudNavLink Href="/tasas-cambio" Icon="@Icons.Material.Filled.CurrencyExchange" Class="modern-sidebar-item">Tasas de Cambio</MudNavLink>
+    <MudNavLink Href="/config/conceptos" Icon="@Icons.Material.Filled.Category" Class="modern-sidebar-item">Conceptos</MudNavLink>
+    <MudNavLink Href="/config/usuarios" Icon="@Icons.Material.Filled.ManageAccounts" Class="modern-sidebar-item">Usuarios</MudNavLink>
+    
+    <!-- Administración -->
+    <MudText Typo="Typo.caption" Class="px-4 mb-2 mt-4" Color="Color.Secondary" Style="font-weight: 600;">ADMINISTRACIÓN</MudText>
+    <MudNavLink Href="/admin/auditoria" Icon="@Icons.Material.Filled.History" Class="modern-sidebar-item">Auditoría del Sistema</MudNavLink>
+    <MudNavLink Href="/admin/backups" Icon="@Icons.Material.Filled.CloudUpload" Class="modern-sidebar-item">Gestión de Backups</MudNavLink>
+</MudNavMenu>
+</div>
+
+@code {
+    // MudNavMenu y MudNavLink manejan automáticamente el estado activo
+    // No requiere lógica adicional
+}

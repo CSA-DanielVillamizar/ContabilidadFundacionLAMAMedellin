@@ -1,0 +1,243 @@
+@page "/tesoreria/conciliaciones-bancarias/form"
+@page "/tesoreria/conciliaciones-bancarias/form/{Id:guid}"
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@using Server.DTOs.ConciliacionBancaria
+@using Server.Services
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ToastService Toast
+
+<PageTitle>Conciliación - Formulario</PageTitle>
+
+<nav class="flex px-5 py-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" aria-label="Breadcrumb">
+  <ol class="inline-flex items-center space-x-1 md:space-x-3">
+    <li class="inline-flex items-center">
+      <a href="/" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a 1 1 0 001.414 1.414L4 10.414V17a 1 1 0 001 1h2a 1 1 0 001-1v-2a 1 1 0 011-1h2a 1 1 0 011 1v2a 1 1 0 001 1h2a 1 1 0 001-1v-6.586l.293.293a 1 1 0 001.414-1.414l-7-7z"></path></svg>
+        Inicio
+      </a>
+    </li>
+    <li>
+      <div class="flex items-center">
+        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a 1 1 0 010-1.414L10.586 10 7.293 6.707a 1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+        <a href="/tesoreria/conciliaciones-bancarias" class="ml-1 text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">Conciliación Bancaria</a>
+      </div>
+    </li>
+    <li aria-current="page">
+      <div class="flex items-center">
+        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a 1 1 0 010-1.414L10.586 10 7.293 6.707a 1 1 0 011.414-1.414l4 4a 1 1 0 010 1.414l-4 4a 1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+        <span class="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400">@((Id.HasValue ? "Editar" : "Nueva"))</span>
+      </div>
+    </li>
+  </ol>
+</nav>
+
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">@((Id.HasValue ? "Editar Conciliación" : "Nueva Conciliación"))</h1>
+      <p class="text-gray-600 dark:text-gray-400">Define saldos y observaciones del período.</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition" @onclick="Cancelar">Cancelar</button>
+      <button class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition shadow-sm disabled:opacity-50" disabled="@guardando" @onclick="Guardar">@((guardando ? "Guardando..." : "Guardar"))</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Año</label>
+          <select class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="form.Ano">
+            @foreach (var y in AniosDisponibles()) { <option value="@y">@y</option> }
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Mes</label>
+          <select class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="form.Mes">
+            @for (int m = 1; m <= 12; m++) { <option value="@m">@NombreMes(m)</option> }
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Fecha Conciliación</label>
+          <input type="date" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="fechaConciliacion" />
+        </div>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Saldo según Libros</label>
+            <input type="number" step="0.01" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="form.SaldoLibros" />
+          </div>
+          <button class="px-3 py-2 border rounded-md" title="Calcular desde movimientos" @onclick="CalcularSaldos">Calcular</button>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Saldo según Banco</label>
+          <input type="number" step="0.01" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="form.SaldoBanco" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Estado</label>
+          <select class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="form.Estado">
+            <option>Pendiente</option>
+            <option>EnProceso</option>
+            <option>Conciliada</option>
+            <option>ConDiferencias</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-4">
+        <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Observaciones</label>
+        <textarea rows="4" maxlength="1000" class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700" @bind="form.Observaciones"></textarea>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-lg shadow-sm border border-blue-200 dark:border-blue-700 p-6">
+        <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">Resumen</h3>
+        <div class="text-sm text-blue-800 dark:text-blue-200">Período: <b>@NombreMes(form.Mes) @form.Ano</b></div>
+        <div class="text-sm text-blue-800 dark:text-blue-200">Saldo Libros: <b>@form.SaldoLibros.ToString("C0")</b></div>
+        <div class="text-sm text-blue-800 dark:text-blue-200">Saldo Banco: <b>@form.SaldoBanco.ToString("C0")</b></div>
+        <div class="mt-2 text-sm font-semibold @( (form.SaldoLibros - form.SaldoBanco) == 0 ? "text-emerald-700 dark:text-emerald-300" : "text-orange-700 dark:text-orange-300")">
+          Diferencia: @(form.SaldoLibros - form.SaldoBanco).ToString("C0")
+        </div>
+      </div>
+      <div class="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 rounded-lg shadow-sm border border-amber-200 dark:border-amber-700 p-6">
+        <h3 class="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-2">Ayuda</h3>
+        <ul class="text-sm text-amber-800 dark:text-amber-200 list-disc list-inside space-y-1">
+          <li>Puede usar "Calcular" para estimar el saldo según Libros.</li>
+          <li>El saldo según Banco proviene del extracto del mes.</li>
+          <li>Los items se gestionan en el detalle de la conciliación.</li>
+          <li>Estados válidos: Pendiente, EnProceso, Conciliada, ConDiferencias.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+@code {
+  [Parameter] public Guid? Id { get; set; }
+  private ConciliacionBancariaFormDto form = new();
+  private bool guardando = false;
+  private bool cargado = false;
+  private DateTime fechaConciliacion
+  {
+    get => form.FechaConciliacion;
+    set => form.FechaConciliacion = value;
+  }
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (Id.HasValue && !cargado)
+    {
+      await Cargar();
+      cargado = true;
+    }
+  }
+
+  private async Task Cargar()
+  {
+    try
+    {
+      var resp = await Http.GetAsync($"/api/conciliacionbancaria/{Id}");
+      if (!resp.IsSuccessStatusCode)
+      {
+        Toast.ShowWarning("No se pudo cargar la conciliación");
+        return;
+      }
+      var contenido = await resp.Content.ReadAsStringAsync();
+      var dto = JsonSerializer.Deserialize<ConciliacionBancariaDetalleDto>(contenido, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+      if (dto != null)
+      {
+        form.Id = dto.Id;
+        form.Ano = dto.Ano;
+        form.Mes = dto.Mes;
+        form.FechaConciliacion = dto.FechaConciliacion;
+        form.SaldoLibros = dto.SaldoLibros;
+        form.SaldoBanco = dto.SaldoBanco;
+        form.Observaciones = dto.Observaciones;
+        form.Estado = dto.Estado;
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error al cargar conciliación: {ex.Message}");
+      Toast.ShowError($"Error al cargar: {ex.Message}");
+    }
+  }
+
+  private async Task Guardar()
+  {
+    // Validaciones básicas
+    if (form.Ano < 2000 || form.Ano > 2100) { Toast.ShowWarning("Año inválido"); return; }
+    if (form.Mes < 1 || form.Mes > 12) { Toast.ShowWarning("Mes inválido"); return; }
+
+    try
+    {
+      guardando = true;
+      HttpResponseMessage resp;
+      if (Id.HasValue)
+      {
+        resp = await Http.PutAsync($"/api/conciliacionbancaria/{Id}", new StringContent(JsonSerializer.Serialize(form), System.Text.Encoding.UTF8, "application/json"));
+      }
+      else
+      {
+        resp = await Http.PostAsync("/api/conciliacionbancaria", new StringContent(JsonSerializer.Serialize(form), System.Text.Encoding.UTF8, "application/json"));
+      }
+
+      if (resp.IsSuccessStatusCode)
+      {
+        Toast.ShowSuccess("Conciliación guardada");
+        Nav.NavigateTo("/tesoreria/conciliaciones-bancarias");
+      }
+      else
+      {
+        var msg = await resp.Content.ReadAsStringAsync();
+        Toast.ShowWarning($"No se guardó: {msg}");
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error al guardar: {ex.Message}");
+      Toast.ShowError($"Error al guardar: {ex.Message}");
+    }
+    finally
+    {
+      guardando = false;
+    }
+  }
+
+  private async Task CalcularSaldos()
+  {
+    try
+    {
+      var resp = await Http.GetAsync($"/api/conciliacionbancaria/calcular-saldos?ano={form.Ano}&mes={form.Mes}");
+      if (resp.IsSuccessStatusCode)
+      {
+        var contenido = await resp.Content.ReadAsStringAsync();
+        var obj = JsonDocument.Parse(contenido).RootElement;
+        form.SaldoLibros = obj.GetProperty("SaldoLibros").GetDecimal();
+        Toast.ShowInfo("Saldo de Libros actualizado");
+      }
+      else
+      {
+        Toast.ShowWarning("No se pudo calcular");
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error al calcular: {ex.Message}");
+      Toast.ShowError($"Error al calcular: {ex.Message}");
+    }
+  }
+
+  private void Cancelar() => Nav.NavigateTo("/tesoreria/conciliaciones-bancarias");
+
+  private IEnumerable<int> AniosDisponibles() { var a = DateTime.Now.Year; for (int y = a - 5; y <= a + 1; y++) yield return y; }
+  
+  private static string NombreMes(int m) 
+  {
+    if (m < 1 || m > 12) return "Mes inválido";
+    return new[]{"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"}[m-1];
+  }
+}

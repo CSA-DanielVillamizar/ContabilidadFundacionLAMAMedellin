@@ -1,0 +1,336 @@
+@page "/gerencia-negocios/inventario"
+@using Server.DTOs.Inventario
+@using Server.DTOs.Productos
+@using Server.Services.Inventario
+@using Server.Services.Productos
+@attribute [Authorize(Policy = "TesoreroJunta")]
+@inject IInventarioService InventarioService
+@inject IProductosService ProductosService
+@inject ISnackbar Snackbar
+
+<PageTitle>Inventario - Movimientos</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
+    <MudPaper Class="glass-card pa-6 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Large" Class="me-2" />Movimientos de Inventario</h2>
+            </div>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Default" 
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="CargarMovimientos">
+                    Refrescar
+                </MudButton>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AbrirModalAjuste">
+                    Ajuste Manual
+                </MudButton>
+            </div>
+        </div>
+    </MudPaper>
+
+    <MudPaper Class="glass-card pa-4 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <MudSelect T="string" 
+                           @bind-Value="filtroProductoId" 
+                           Label="Producto" 
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">Todos</MudSelectItem>
+                    @foreach (var p in productosActivos)
+                    {
+                        <MudSelectItem Value="@p.Id.ToString()">[@p.Codigo] @p.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <div class="col-md-3">
+                <MudSelect T="int" 
+                           @bind-Value="filtroTipo" 
+                           Label="Tipo" 
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="0">Todos</MudSelectItem>
+                    <MudSelectItem Value="1">Entrada por compra</MudSelectItem>
+                    <MudSelectItem Value="2">Salida por venta</MudSelectItem>
+                    <MudSelectItem Value="3">Ajuste positivo</MudSelectItem>
+                    <MudSelectItem Value="4">Ajuste negativo</MudSelectItem>
+                    <MudSelectItem Value="5">Devolución cliente</MudSelectItem>
+                    <MudSelectItem Value="6">Devolución proveedor</MudSelectItem>
+                    <MudSelectItem Value="7">Merma</MudSelectItem>
+                    <MudSelectItem Value="8">Donación</MudSelectItem>
+                </MudSelect>
+            </div>
+            <div class="col-md-2">
+                <MudDatePicker Label="Desde" 
+                               @bind-Date="filtroDesdePicker" 
+                               Variant="Variant.Outlined" 
+                               DateFormat="yyyy-MM-dd" />
+            </div>
+            <div class="col-md-2">
+                <MudDatePicker Label="Hasta" 
+                               @bind-Date="filtroHastaPicker" 
+                               Variant="Variant.Outlined" 
+                               DateFormat="yyyy-MM-dd" />
+            </div>
+            <div class="col-md-1">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           FullWidth="true"
+                           OnClick="Filtrar">
+                    Filtrar
+                </MudButton>
+            </div>
+        </div>
+    </MudPaper>
+
+    <MudPaper Class="glass-card pa-4">
+        @if (cargando)
+        {
+            <div class="skeleton skeleton-card mb-4" style="height: 400px;"></div>
+        }
+        else if (!movimientos.Any())
+        {
+            <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                No hay movimientos para los filtros seleccionados.
+            </MudAlert>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Producto</th>
+                            <th class="text-end">Cantidad</th>
+                            <th class="text-center">Stock</th>
+                            <th>Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in movimientos)
+                        {
+                            <tr>
+                                <td>@m.NumeroMovimiento</td>
+                                <td>@m.FechaMovimiento.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@TipoBadgeModern(m.Tipo)</td>
+                                <td>[@m.CodigoProducto] @m.NombreProducto</td>
+                                <td class="text-end">
+                                    <span class="@(EsEntrada(m.Tipo) ? "text-success" : "text-danger")">
+                                        @(EsEntrada(m.Tipo) ? "+" : "-")@m.Cantidad
+                                    </span>
+                                </td>
+                                <td class="text-center">@m.StockAnterior → @m.StockNuevo</td>
+                                <td>@m.Motivo</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </MudPaper>
+</MudContainer>
+
+@* Modal Ajuste Manual *@
+<MudDialog @bind-IsVisible="mostrarModalAjuste">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Nuevo Ajuste de Inventario</MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="mb-3">
+            <MudSelect T="int" 
+                       @bind-Value="ajuste.Tipo" 
+                       Label="Tipo *" 
+                       Variant="Variant.Outlined">
+                <MudSelectItem Value="3">Ajuste positivo</MudSelectItem>
+                <MudSelectItem Value="4">Ajuste negativo</MudSelectItem>
+                <MudSelectItem Value="5">Devolución cliente</MudSelectItem>
+                <MudSelectItem Value="6">Devolución proveedor</MudSelectItem>
+                <MudSelectItem Value="7">Merma</MudSelectItem>
+                <MudSelectItem Value="8">Donación</MudSelectItem>
+            </MudSelect>
+        </div>
+        <div class="mb-3">
+            <MudSelect T="Guid" 
+                       @bind-Value="ajuste.ProductoId" 
+                       Label="Producto *" 
+                       Variant="Variant.Outlined">
+                <MudSelectItem Value="Guid.Empty">Seleccione...</MudSelectItem>
+                @foreach (var p in productosActivos)
+                {
+                    <MudSelectItem Value="@p.Id">[@p.Codigo] @p.Nombre (Stock: @p.StockActual)</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div class="mb-3">
+            <MudNumericField T="int" 
+                             @bind-Value="ajuste.Cantidad" 
+                             Label="Cantidad *" 
+                             Variant="Variant.Outlined" 
+                             Min="1" />
+        </div>
+        <div class="mb-3">
+            <MudTextField @bind-Value="ajuste.Motivo" 
+                          Label="Motivo *" 
+                          Variant="Variant.Outlined" />
+        </div>
+        <div class="mb-3">
+            <MudTextField @bind-Value="ajuste.Observaciones" 
+                          Label="Observaciones" 
+                          Variant="Variant.Outlined" 
+                          Lines="2" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CerrarModalAjuste">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   OnClick="GuardarAjuste" 
+                   Disabled="@guardando">
+            @if (guardando)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+            }
+            Guardar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // Estado UI
+    private bool cargando = true;
+    private bool guardando = false;
+
+    // Filtros
+    private string filtroProductoId = string.Empty;
+    private int filtroTipo = 0;
+        private DateTime filtroDesde = DateTime.Today.AddDays(-30);
+        private DateTime filtroHasta = DateTime.Today;
+        private DateTime? filtroDesdePicker { get => filtroDesde; set => filtroDesde = value ?? DateTime.Today.AddDays(-30); }
+        private DateTime? filtroHastaPicker { get => filtroHasta; set => filtroHasta = value ?? DateTime.Today; }
+
+    private List<MovimientoInventarioDto> movimientos = new();
+    private List<ProductoDto> productosActivos = new();
+
+    // Ajuste manual
+    private bool mostrarModalAjuste = false;
+    private MovimientoInventarioCreateDto ajuste = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        productosActivos = await ProductosService.GetActivosAsync();
+        await CargarMovimientos();
+        // Si llega querystring producto, preseleccionar
+        var uri = new Uri(NavigationManager.Uri);
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    private async Task CargarMovimientos()
+    {
+        cargando = true;
+        try
+        {
+            movimientos = await InventarioService.GetAllMovimientosAsync();
+        }
+        catch (Exception ex)
+        {
+                Snackbar.Add($"Error al cargar movimientos: {ex.Message}", Severity.Error);
+        }
+        finally { cargando = false; }
+    }
+
+    private bool EsEntrada(string tipo)
+    {
+        return tipo is "EntradaCompra" or "AjustePositivo" or "DevolucionCliente";
+    }
+
+        private MarkupString TipoBadgeModern(string tipo)
+    {
+        var (cls, label) = tipo switch
+        {
+                "EntradaCompra" => ("badge-success", "Entrada por compra"),
+                "SalidaVenta" => ("badge-error", "Salida por venta"),
+                "AjustePositivo" => ("badge-info", "Ajuste positivo"),
+                "AjusteNegativo" => ("badge-warning", "Ajuste negativo"),
+                "DevolucionCliente" => ("badge-info", "Devolución cliente"),
+                "DevolucionProveedor" => ("badge-secondary", "Devolución proveedor"),
+                "Merma" => ("badge-secondary", "Merma"),
+                "Donacion" => ("badge-secondary", "Donación"),
+                _ => ("badge-secondary", tipo)
+        };
+            return new MarkupString($"<span class='badge-modern {cls}'>{label}</span>");
+        }
+
+    private async Task Filtrar()
+    {
+        cargando = true;
+        try
+        {
+            List<MovimientoInventarioDto> result;
+            if (!string.IsNullOrWhiteSpace(filtroProductoId) && Guid.TryParse(filtroProductoId, out var pid))
+            {
+                result = await InventarioService.GetMovimientosByProductoAsync(pid);
+            }
+            else if (filtroTipo != 0)
+            {
+                result = await InventarioService.GetMovimientosByTipoAsync(filtroTipo);
+            }
+            else if (filtroDesde != DateTime.MinValue && filtroHasta != DateTime.MinValue)
+            {
+                result = await InventarioService.GetMovimientosByFechaAsync(filtroDesde, filtroHasta.AddDays(1).AddTicks(-1));
+            }
+            else
+            {
+                result = await InventarioService.GetAllMovimientosAsync();
+            }
+
+            // Filtrado adicional por fechas si se usó por producto o tipo
+            result = result
+                .Where(m => m.FechaMovimiento.Date >= filtroDesde.Date && m.FechaMovimiento.Date <= filtroHasta.Date)
+                .ToList();
+
+            movimientos = result;
+        }
+        catch (Exception ex)
+        {
+              Snackbar.Add($"Error al filtrar: {ex.Message}", Severity.Error);
+        }
+        finally { cargando = false; }
+    }
+
+    private void AbrirModalAjuste()
+    {
+        ajuste = new MovimientoInventarioCreateDto();
+        mostrarModalAjuste = true;
+    }
+
+    private void CerrarModalAjuste() => mostrarModalAjuste = false;
+
+    private async Task GuardarAjuste()
+    {
+        if (ajuste.ProductoId == Guid.Empty || ajuste.Cantidad <= 0 || string.IsNullOrWhiteSpace(ajuste.Motivo))
+        {
+                Snackbar.Add("Complete los campos obligatorios", Severity.Warning);
+            return;
+        }
+        guardando = true;
+        try
+        {
+            await InventarioService.CreateMovimientoManualAsync(ajuste);
+                Snackbar.Add("Ajuste creado", Severity.Success);
+            mostrarModalAjuste = false;
+            await Filtrar();
+        }
+        catch (Exception ex)
+        {
+                Snackbar.Add($"Error al crear ajuste: {ex.Message}", Severity.Error);
+        }
+        finally { guardando = false; }
+    }
+}

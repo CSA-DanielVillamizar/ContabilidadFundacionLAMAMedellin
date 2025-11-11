@@ -1,0 +1,194 @@
+@typeparam TItem
+@*
+    Componente reutilizable para tablas de datos con MudBlazor
+    Incluye búsqueda, paginación y acciones personalizables
+*@
+
+<MudPaper Elevation="@Elevation" Class="@($"pa-4 {Class}")">
+    @if (ShowHeader)
+    {
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudText Typo="Typo.h6">@Title</MudText>
+            <div class="d-flex align-center gap-3">
+                @if (ShowSearch)
+                {
+                    <MudTextField @bind-Value="SearchText" 
+                                  Placeholder="Buscar..." 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start" 
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                }
+                @if (HeaderActions != null)
+                {
+                    @HeaderActions
+                }
+            </div>
+        </div>
+    }
+
+    <MudTable T="TItem" 
+              Items="@FilteredItems" 
+              Hover="@Hover" 
+              Dense="@Dense" 
+              Loading="@Loading" 
+              Elevation="0"
+              @ref="mudTable">
+        <HeaderContent>
+            @TableHeader
+        </HeaderContent>
+        <RowTemplate Context="item">
+            @TableRow(item)
+        </RowTemplate>
+    </MudTable>
+
+    @if (ShowPagination && TotalItems > PageSize)
+    {
+        <div class="d-flex justify-center mt-4">
+            <MudPagination Count="@TotalPages" 
+                          SelectedChanged="@OnPageChanged" 
+                          Color="Color.Primary" />
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private MudTable<TItem>? mudTable;
+    private string searchText = string.Empty;
+
+    /// <summary>
+    /// Título de la tabla
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Items a mostrar en la tabla
+    /// </summary>
+    [Parameter]
+    public IEnumerable<TItem> Items { get; set; } = Enumerable.Empty<TItem>();
+
+    /// <summary>
+    /// Función para buscar en los items
+    /// </summary>
+    [Parameter]
+    public Func<TItem, string, bool>? SearchFunction { get; set; }
+
+    /// <summary>
+    /// Template para el encabezado de la tabla (MudTh)
+    /// </summary>
+    [Parameter]
+    public RenderFragment TableHeader { get; set; } = default!;
+
+    /// <summary>
+    /// Template para cada fila de la tabla (MudTd)
+    /// </summary>
+    [Parameter]
+    public RenderFragment<TItem> TableRow { get; set; } = default!;
+
+    /// <summary>
+    /// Acciones adicionales en el encabezado
+    /// </summary>
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    /// <summary>
+    /// Mostrar encabezado con título y búsqueda
+    /// </summary>
+    [Parameter]
+    public bool ShowHeader { get; set; } = true;
+
+    /// <summary>
+    /// Mostrar campo de búsqueda
+    /// </summary>
+    [Parameter]
+    public bool ShowSearch { get; set; } = true;
+
+    /// <summary>
+    /// Mostrar paginación
+    /// </summary>
+    [Parameter]
+    public bool ShowPagination { get; set; } = true;
+
+    /// <summary>
+    /// Efecto hover en las filas
+    /// </summary>
+    [Parameter]
+    public bool Hover { get; set; } = true;
+
+    /// <summary>
+    /// Tabla compacta (dense)
+    /// </summary>
+    [Parameter]
+    public bool Dense { get; set; } = true;
+
+    /// <summary>
+    /// Indicador de carga
+    /// </summary>
+    [Parameter]
+    public bool Loading { get; set; } = false;
+
+    /// <summary>
+    /// Tamaño de página
+    /// </summary>
+    [Parameter]
+    public int PageSize { get; set; } = 10;
+
+    /// <summary>
+    /// Nivel de elevación del papel
+    /// </summary>
+    [Parameter]
+    public int Elevation { get; set; } = 2;
+
+    /// <summary>
+    /// Clases CSS adicionales
+    /// </summary>
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    private int CurrentPage { get; set; } = 1;
+
+    private string SearchText
+    {
+        get => searchText;
+        set
+        {
+            searchText = value;
+            CurrentPage = 1; // Reset a primera página al buscar
+        }
+    }
+
+    private IEnumerable<TItem> FilteredItems
+    {
+        get
+        {
+            var filtered = Items;
+
+            if (!string.IsNullOrWhiteSpace(SearchText) && SearchFunction != null)
+            {
+                filtered = filtered.Where(item => SearchFunction(item, SearchText));
+            }
+
+            if (ShowPagination)
+            {
+                filtered = filtered
+                    .Skip((CurrentPage - 1) * PageSize)
+                    .Take(PageSize);
+            }
+
+            return filtered;
+        }
+    }
+
+    private int TotalItems => 
+        string.IsNullOrWhiteSpace(SearchText) || SearchFunction == null
+            ? Items.Count()
+            : Items.Count(item => SearchFunction(item, SearchText));
+
+    private int TotalPages => (int)Math.Ceiling(TotalItems / (double)PageSize);
+
+    private void OnPageChanged(int page)
+    {
+        CurrentPage = page;
+    }
+}

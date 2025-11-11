@@ -1,0 +1,87 @@
+@*
+    Componente reutilizable para tarjetas KPI (Key Performance Indicator)
+    Muestra un valor principal con título, badge de cambio y color personalizable
+*@
+
+<MudPaper Elevation="@Elevation" Class="@GetCssClasses()">
+    <MudText Typo="Typo.subtitle2" Color="@(UseGradient ? Color.Default : TitleColor)" Class="mb-2" Style="@(UseGradient ? "color: white !important;" : "")">@Title</MudText>
+    <MudText Typo="Typo.h3" Class="mb-2" Style="@(UseGradient ? "color: white !important; font-weight: 700 !important;" : "font-weight: 700 !important;")">@Value</MudText>
+    @if (!string.IsNullOrEmpty(Badge))
+    {
+        <MudChip T="string" Size="Size.Small" Color="@BadgeColor" Style="@(UseGradient ? "background-color: rgba(255,255,255,0.2) !important; color: white !important;" : "")">@Badge</MudChip>
+    }
+</MudPaper>
+
+@code {
+    /// <summary>
+    /// Título del KPI
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Valor principal a mostrar (puede ser texto o número formateado)
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Texto del badge de cambio (ej: "+5%", "10 nuevos")
+    /// </summary>
+    [Parameter]
+    public string? Badge { get; set; }
+
+    /// <summary>
+    /// Color del título (Primary, Success, Warning, Error, Info)
+    /// </summary>
+    [Parameter]
+    public Color TitleColor { get; set; } = Color.Primary;
+
+    /// <summary>
+    /// Color del badge de cambio
+    /// </summary>
+    [Parameter]
+    public Color BadgeColor { get; set; } = Color.Info;
+
+    /// <summary>
+    /// Nivel de elevación del papel (0-25)
+    /// </summary>
+    [Parameter]
+    public int Elevation { get; set; } = 3;
+
+    /// <summary>
+    /// Clases CSS adicionales
+    /// </summary>
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Aplicar gradiente de fondo según TitleColor
+    /// </summary>
+    [Parameter]
+    public bool UseGradient { get; set; } = true;
+
+    private string GetCssClasses()
+    {
+        var classes = $"pa-4 {Class}";
+        
+        if (UseGradient)
+        {
+            var gradientClass = TitleColor switch
+            {
+                Color.Primary => "kpi-card-primary",
+                Color.Success => "kpi-card-success",
+                Color.Warning => "kpi-card-warning",
+                Color.Info => "kpi-card-info",
+                _ => ""
+            };
+            
+            if (!string.IsNullOrEmpty(gradientClass))
+            {
+                classes += $" {gradientClass}";
+            }
+        }
+        
+        return classes;
+    }
+}

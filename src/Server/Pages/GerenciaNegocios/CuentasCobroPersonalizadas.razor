@@ -1,0 +1,230 @@
+@page "/gerencia-negocios/cuentas-cobro-personalizadas"
+@using Server.DTOs.CuentasCobro
+@using Server.Services.Miembros
+@attribute [Authorize(Policy = "TesoreroJunta")]
+@inject IMiembrosService MiembrosService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject HttpClient HttpClient
+
+<PageTitle>Cuentas de Cobro Personalizadas</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
+    <MudPaper Class="glass-card pa-6 mb-6">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large" Class="me-2" />Cuentas de Cobro Personalizadas</h2>
+        </div>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="me-2" />
+            <b>Instrucciones:</b> Genere cuentas de cobro con conceptos personalizados para cualquier miembro. Agregue los items (productos, servicios, cuotas especiales, etc.) y descargue el PDF.
+        </MudAlert>
+        <EditForm Model="request" OnValidSubmit="GenerarCuentaCobro">
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid" @bind-Value="request.MiembroId" Label="Miembro *" Required="true" Variant="Variant.Outlined" OnChange="OnMiembroChanged">
+                        <MudSelectItem Value="Guid.Empty">Seleccione un miembro...</MudSelectItem>
+                        @foreach (var miembro in miembros)
+                        {
+                            <MudSelectItem Value="@miembro.Id">@miembro.NombreCompleto - #@miembro.NumeroSocio</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="request.Consecutivo" Label="Consecutivo (Opcional)" Variant="Variant.Outlined" Placeholder="Ej: CC-2025-001" />
+                </MudItem>
+            </MudGrid>
+            @if (miembroSeleccionado != null)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+                    <b>Miembro seleccionado:</b> @miembroSeleccionado.NombreCompleto<br />
+                    <b>Email:</b> @(miembroSeleccionado.Email ?? "No especificado")
+                </MudAlert>
+            }
+            <MudText Typo="Typo.h6" Class="mb-3">Items de la Cuenta de Cobro</MudText>
+            <MudGrid Class="mb-3">
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="nuevaDescripcion" Label="Descripción *" Variant="Variant.Outlined" Placeholder="Ej: Parche oficial LAMA" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudNumericField T="int" @bind-Value="nuevaCantidad" Label="Cantidad *" Variant="Variant.Outlined" Min="1" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudNumericField T="decimal" @bind-Value="nuevoPrecio" Label="Precio Unitario COP *" Variant="Variant.Outlined" Min="0" Step="100" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarItem" FullWidth="true">Agregar</MudButton>
+                </MudItem>
+            </MudGrid>
+            @if (request.Items.Any())
+            {
+                <MudTable Items="@request.Items" Class="modern-table mb-3" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Descripción</MudTh>
+                        <MudTh class="text-center" Width="100">Cantidad</MudTh>
+                        <MudTh class="text-end" Width="150">Precio Unit.</MudTh>
+                        <MudTh class="text-end" Width="150">Subtotal</MudTh>
+                        <MudTh class="text-center" Width="80">Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.Descripcion</MudTd>
+                        <MudTd Class="text-center">@item.Cantidad</MudTd>
+                        <MudTd Class="text-end">$@item.PrecioUnitarioCop.ToString("N0")</MudTd>
+                        <MudTd Class="text-end"><b>$@(item.Cantidad * item.PrecioUnitarioCop).ToString("N0")</b></MudTd>
+                        <MudTd Class="text-center">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarItem(item))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <FooterContent Context="item">
+                        <MudTd ColSpan="3" Class="text-end"><b>TOTAL A COBRAR:</b></MudTd>
+                        <MudTd ColSpan="1" Class="text-end"><b class="text-primary" style="font-size:1.2rem">$@CalcularTotal().ToString("N0")</b></MudTd>
+                        <MudTd></MudTd>
+                    </FooterContent>
+                </MudTable>
+            }
+            <MudTextField @bind-Value="request.Observaciones" Label="Observaciones" Variant="Variant.Outlined" Lines="3" Class="mb-3" Placeholder="Notas adicionales (opcional)" />
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Restore" OnClick="LimpiarFormulario">Limpiar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="@(generando || request.MiembroId == Guid.Empty || !request.Items.Any())" ButtonType="ButtonType.Submit">
+                    @if (generando)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+                    }
+                    Generar Cuenta de Cobro (PDF)
+                </MudButton>
+            </div>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private CuentaCobroCustomRequestDto request = new();
+    private List<Server.DTOs.Miembros.MiembroListItem> miembros = new();
+    private Server.DTOs.Miembros.MiembroListItem? miembroSeleccionado = null;
+    private bool generando = false;
+    private bool cargando = true;
+    private string nuevaDescripcion = "";
+    private int nuevaCantidad = 1;
+    private decimal nuevoPrecio = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMiembros();
+        cargando = false;
+    }
+
+    private async Task CargarMiembros()
+    {
+        try
+        {
+            var resultado = await MiembrosService.GetPagedAsync(null, null, 1, 1000);
+            miembros = resultado.Items.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar miembros: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void OnMiembroChanged(Guid value)
+    {
+        if (value != Guid.Empty)
+        {
+            miembroSeleccionado = miembros.FirstOrDefault(m => m.Id == value);
+        }
+        else
+        {
+            miembroSeleccionado = null;
+        }
+    }
+
+    private void AgregarItem()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaDescripcion))
+        {
+            Snackbar.Add("Ingrese una descripción para el ítem", Severity.Warning);
+            return;
+        }
+        if (nuevaCantidad <= 0)
+        {
+            Snackbar.Add("La cantidad debe ser mayor a 0", Severity.Warning);
+            return;
+        }
+        if (nuevoPrecio <= 0)
+        {
+            Snackbar.Add("El precio debe ser mayor a 0", Severity.Warning);
+            return;
+        }
+        request.Items.Add(new CuentaCobroCustomItem
+        {
+            Descripcion = nuevaDescripcion,
+            Cantidad = nuevaCantidad,
+            PrecioUnitarioCop = nuevoPrecio
+        });
+        nuevaDescripcion = "";
+        nuevaCantidad = 1;
+        nuevoPrecio = 0;
+        Snackbar.Add("Ítem agregado", Severity.Success);
+    }
+
+    private void EliminarItem(CuentaCobroCustomItem item)
+    {
+        request.Items.Remove(item);
+        Snackbar.Add("Ítem eliminado", Severity.Info);
+    }
+
+    private decimal CalcularTotal()
+    {
+        return request.Items.Sum(i => i.Cantidad * i.PrecioUnitarioCop);
+    }
+
+    private async Task GenerarCuentaCobro()
+    {
+        if (request.MiembroId == Guid.Empty)
+        {
+            Snackbar.Add("Seleccione un miembro", Severity.Warning);
+            return;
+        }
+        if (!request.Items.Any())
+        {
+            Snackbar.Add("Agregue al menos un ítem", Severity.Warning);
+            return;
+        }
+        generando = true;
+        try
+        {
+            Snackbar.Add("Generando cuenta de cobro...", Severity.Info);
+            var response = await HttpClient.PostAsJsonAsync("/api/cuentas-cobro/custom", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var base64 = Convert.ToBase64String(bytes);
+                var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? "CuentaCobro.pdf";
+                await JSRuntime.InvokeVoidAsync("downloadFileFromBase64", base64, fileName);
+                Snackbar.Add("Cuenta de cobro generada y descargada exitosamente", Severity.Success);
+                LimpiarFormulario();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al generar PDF: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            generando = false;
+        }
+    }
+
+    private void LimpiarFormulario()
+    {
+        request = new CuentaCobroCustomRequestDto();
+        miembroSeleccionado = null;
+        nuevaDescripcion = "";
+        nuevaCantidad = 1;
+        nuevoPrecio = 0;
+    }
+}

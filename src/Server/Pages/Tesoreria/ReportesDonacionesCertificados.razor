@@ -1,0 +1,186 @@
+@page "/tesoreria/reportes/donaciones-certificados"
+@using Microsoft.EntityFrameworkCore
+@using Server.Models
+@inject Server.Data.AppDbContext Db
+
+<PageTitle>Reporte Donaciones vs Certificados</PageTitle>
+
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
+            <span class="text-2xl font-semibold">Donaciones vs Certificados</span>
+        </div>
+        <div class="text-slate-500">Cruce de recibos con conceptos DONACION vs certificados emitidos</div>
+    </Header>
+    <ChildContent>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Desde</label>
+                <InputDate @bind-Value="desde" class="w-full rounded-xl border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Hasta</label>
+                <InputDate @bind-Value="hasta" class="w-full rounded-xl border-slate-300" />
+            </div>
+            <div class="flex items-end">
+                <UIButton Variant="primary" OnClick="@CargarAsync">Filtrar</UIButton>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <UICard>
+                <Header>
+                    <span class="font-semibold">Donaciones SIN certificado</span>
+                    <span class="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-danger text-white text-xs">@sinCertificados.Count</span>
+                </Header>
+                <ChildContent>
+                    @if (sinCertificados.Count == 0)
+                    {
+                        <div class="text-sm text-slate-500">No hay resultados.</div>
+                    }
+                    else
+                    {
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-slate-500">
+                                    <th class="px-2 py-1">Recibo</th>
+                                    <th class="px-2 py-1">Fecha</th>
+                                    <th class="px-2 py-1">Donante</th>
+                                    <th class="px-2 py-1 text-right">Total COP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in sinCertificados)
+                                {
+                                    <tr class="border-t border-slate-200">
+                                        <td class="px-2 py-1">@r.Numero</td>
+                                        <td class="px-2 py-1">@r.Fecha.ToString("dd/MM/yyyy")</td>
+                                        <td class="px-2 py-1">@r.Donante</td>
+                                        <td class="px-2 py-1 text-right">@r.TotalCop.ToString("N0")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </ChildContent>
+            </UICard>
+            <UICard>
+                <Header>
+                    <span class="font-semibold">Donaciones CON certificado</span>
+                    <span class="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-success text-white text-xs">@conCertificados.Count</span>
+                </Header>
+                <ChildContent>
+                    @if (conCertificados.Count == 0)
+                    {
+                        <div class="text-sm text-slate-500">No hay resultados.</div>
+                    }
+                    else
+                    {
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-slate-500">
+                                    <th class="px-2 py-1">Certificado</th>
+                                    <th class="px-2 py-1">Fecha</th>
+                                    <th class="px-2 py-1">Donante</th>
+                                    <th class="px-2 py-1 text-right">Valor COP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in conCertificados)
+                                {
+                                    <tr class="border-t border-slate-200">
+                                        <td class="px-2 py-1">CD-@c.Ano-@c.Consecutivo.ToString("D5")</td>
+                                        <td class="px-2 py-1">@c.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                        <td class="px-2 py-1">@c.Donante</td>
+                                        <td class="px-2 py-1 text-right">@c.ValorCop.ToString("N0")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </ChildContent>
+            </UICard>
+        </div>
+    </ChildContent>
+</UICard>
+
+@code {
+    private DateTime desde = DateTime.Today.AddMonths(-6);
+    private DateTime hasta = DateTime.Today;
+
+    private List<RowRecibo> sinCertificados = new();
+    private List<RowCert> conCertificados = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        // Recibos con items cuyo concepto contiene DONACION
+        var recibosDonacion = await Db.Recibos
+            .Where(r => r.FechaEmision >= desde && r.FechaEmision <= hasta)
+            .Select(r => new
+            {
+                Recibo = r,
+                TieneItemDonacion = Db.ReciboItems
+                    .Any(ri => ri.ReciboId == r.Id && Db.Conceptos.Any(cc => cc.Id == ri.ConceptoId && cc.Codigo.Contains("DONACION")))
+            })
+            .Where(x => x.TieneItemDonacion)
+            .Select(x => x.Recibo)
+            .ToListAsync();
+
+        // Certificados por recibo
+        var certs = await Db.CertificadosDonacion
+            .Where(c => c.FechaEmision >= desde && c.FechaEmision <= hasta)
+            .ToListAsync();
+
+        var certPorRecibo = certs
+            .Where(c => c.ReciboId.HasValue)
+            .GroupBy(c => c.ReciboId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        sinCertificados = recibosDonacion
+            .Where(r => !certPorRecibo.ContainsKey(r.Id))
+            .OrderByDescending(r => r.FechaEmision)
+            .Select(r => new RowRecibo
+            {
+                Numero = $"{r.Serie}-{r.Ano}-{r.Consecutivo:D6}",
+                Fecha = r.FechaEmision,
+                Donante = r.MiembroId.HasValue ? (Db.Miembros.Where(m => m.Id == r.MiembroId.Value).Select(m => m.NombreCompleto).FirstOrDefault() ?? r.TerceroLibre) : r.TerceroLibre,
+                TotalCop = r.TotalCop
+            })
+            .ToList();
+
+        conCertificados = certs
+            .OrderByDescending(c => c.FechaEmision)
+            .Select(c => new RowCert
+            {
+                Ano = c.Ano,
+                Consecutivo = c.Consecutivo,
+                FechaEmision = c.FechaEmision,
+                Donante = c.NombreDonante,
+                ValorCop = c.ValorDonacionCOP
+            })
+            .ToList();
+    }
+
+    private class RowRecibo
+    {
+        public string Numero { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Donante { get; set; } = string.Empty;
+        public decimal TotalCop { get; set; }
+    }
+
+    private class RowCert
+    {
+        public int Ano { get; set; }
+        public int Consecutivo { get; set; }
+        public DateTime FechaEmision { get; set; }
+        public string Donante { get; set; } = string.Empty;
+        public decimal ValorCop { get; set; }
+    }
+}

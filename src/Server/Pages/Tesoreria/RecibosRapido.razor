@@ -1,0 +1,189 @@
+@page "/tesoreria/recibos/rapido"
+@using Server.DTOs.Recibos
+@using Server.Models
+@inject Server.Services.Miembros.IMiembrosService MiembrosService
+@inject Server.Services.Recibos.IRecibosService RecibosService
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject HttpClient Http
+
+<PageTitle>Recibos Rápidos - Tesorería</PageTitle>
+
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 17v-6a2 2 0 012-2h6a2 2 0 012 2v6"/><path d="M9 17h6"/></svg>
+            <span class="text-2xl font-semibold">Recibo Rápido</span>
+        </div>
+        <span class="text-slate-500 dark:text-slate-400">Enfocado en mensualidades y conceptos frecuentes</span>
+    </Header>
+    <ChildContent>
+        <EditForm Model="form" OnValidSubmit="GuardarEImprimirAsync" class="space-y-6">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="mb-4 text-red-500" />
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Miembro</label>
+                    <select class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary"
+                            value="@(form.MiembroId?.ToString() ?? "")"
+                            @onchange="(e => OnMiembroChanged(e.Value?.ToString()))">
+                        <option value="">-- Seleccione --</option>
+                        @foreach (var m in miembros)
+                        {
+                            <option value="@m.Id.ToString()">@m.NombreCompleto (@m.NumeroSocio)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Tercero Libre (opcional)</label>
+                    <InputText class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="form.TerceroLibre" maxlength="200" />
+                    <div class="text-xs text-slate-400 mt-1">Usar solo si no seleccionas un miembro.</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Fecha Emisión</label>
+                    <InputDate class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="form.FechaEmision" />
+                </div>
+            </div>
+
+            <UICard Class="mt-6">
+                <Header>
+                    <span class="font-semibold">Conceptos rápidos</span>
+                </Header>
+                <ChildContent>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        @foreach (var c in conceptos)
+                        {
+                            <div class="flex items-center gap-3 border rounded-xl px-3 py-2">
+                                <input type="checkbox" @bind="c.Seleccionado" />
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium">@c.Nombre <span class="text-slate-400">(@c.Codigo)</span></div>
+                                </div>
+                                <div class="w-28">
+                                    <input type="number" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" min="1" max="999" @bind="c.Cantidad" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="mt-4 text-xs text-slate-500">Los precios se toman del concepto. Si la moneda es USD, se aplica TRM del día.</div>
+                </ChildContent>
+            </UICard>
+
+            <div class="flex gap-2 mt-6">
+                <UIButton Variant="success" Size="md" Type="submit" Disabled="@(!PuedeGuardar)">Guardar e Imprimir</UIButton>
+                <UIButton Variant="ghost" Size="md" Type="button" OnClick="@Limpiar">Limpiar</UIButton>
+            </div>
+        </EditForm>
+    </ChildContent>
+</UICard>
+
+@code {
+    private CreateReciboDto form = new() { FechaEmision = DateTime.Today };
+    private List<Server.DTOs.Miembros.MiembroListItem> miembros = new();
+    private List<ConceptoQuick> conceptos = new();
+
+    private bool PuedeGuardar => (form.MiembroId.HasValue || !string.IsNullOrWhiteSpace(form.TerceroLibre))
+                                 && conceptos.Any(x => x.Seleccionado && x.Cantidad > 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        try
+        {
+            var paged = await MiembrosService.GetPagedAsync("", EstadoMiembro.Activo, 1, 1000);
+            miembros = paged?.Items ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando miembros: {ex.Message}");
+            miembros = new();
+        }
+
+        try
+        {
+            var list = await RecibosService.GetConceptosAsync() ?? new();
+            // Mostrar primero los más usados (heurística: MENSUALIDAD, INSCRIPCION, DONACION, VENTA_PARCHES)
+            var prioridad = new[] { "MENSUALIDAD", "INSCRIPCION", "DONACION", "VENTA_PARCHES" };
+            conceptos = list
+                .OrderBy(c => Array.IndexOf(prioridad, c.Codigo) is var idx and >= 0 ? idx : int.MaxValue)
+                .ThenBy(c => c.Nombre)
+                .Select(c => new ConceptoQuick { Id = c.Id, Codigo = c.Codigo, Nombre = c.Nombre, Cantidad = 1 })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando conceptos: {ex.Message}");
+            conceptos = new();
+        }
+    }
+
+    private void OnMiembroChanged(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) form.MiembroId = null; else if (Guid.TryParse(value, out var g)) form.MiembroId = g;
+        StateHasChanged();
+    }
+
+    private void Limpiar()
+    {
+        form = new() { FechaEmision = DateTime.Today };
+        foreach (var c in conceptos) { c.Seleccionado = false; c.Cantidad = 1; }
+    }
+
+    private async Task GuardarEImprimirAsync()
+    {
+        try
+        {
+            // Llamar a API simplificada POST /api/recibos con { MiembroId, TerceroLibre, Items: [{ CodigoConcepto, Cantidad }] }
+            var payload = new
+            {
+                MiembroId = form.MiembroId,
+                TerceroLibre = form.TerceroLibre,
+                Items = conceptos.Where(x => x.Seleccionado && x.Cantidad > 0).Select(x => new { CodigoConcepto = x.Codigo, Cantidad = x.Cantidad }).ToList()
+            };
+            var resp = await Http.PostAsJsonAsync("/api/recibos", payload);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var msg = await resp.Content.ReadAsStringAsync();
+                Toasts.Show($"Error creando recibo: {msg}", "danger");
+                return;
+            }
+            var data = await resp.Content.ReadFromJsonAsync<CreateResponse>();
+            if (data is null)
+            {
+                Toasts.Show("No se recibió respuesta válida del servidor", "danger");
+                return;
+            }
+
+            // Abrir PDF en nueva pestaña
+            Navigation.NavigateTo($"/api/recibos/{data.Id}/pdf", true);
+            Toasts.Show("Recibo creado y emitido", "success");
+            Limpiar();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error guardando recibo rápido: {ex.Message}");
+            Toasts.Show($"Error guardando: {ex.Message}", "danger");
+        }
+    }
+
+    private class ConceptoQuick
+    {
+        public int Id { get; set; }
+        public string Codigo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public bool Seleccionado { get; set; }
+        public int Cantidad { get; set; } = 1;
+    }
+
+    private class CreateResponse
+    {
+        public Guid Id { get; set; }
+        public string Serie { get; set; } = string.Empty;
+        public int Ano { get; set; }
+        public int Consecutivo { get; set; }
+    }
+}

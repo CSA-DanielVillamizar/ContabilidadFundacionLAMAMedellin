@@ -1,0 +1,70 @@
+@using Microsoft.AspNetCore.Identity
+@using Server.Models
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    var isSignedIn = SignInManager.IsSignedIn(User);
+    ApplicationUser? currentUser = null;
+    IList<string> roles = new List<string>();
+    var isTesorero = false; var isJunta = false; var isConsulta = false;
+    if (isSignedIn)
+    {
+        currentUser = await UserManager.GetUserAsync(User);
+        if (currentUser != null)
+        {
+            roles = await UserManager.GetRolesAsync(currentUser);
+            isTesorero = roles.Contains("Tesorero");
+            isJunta = roles.Contains("Junta");
+            isConsulta = roles.Contains("Consulta");
+        }
+    }
+}
+
+<ul class="navbar-nav">
+@if (isSignedIn && currentUser != null)
+{
+    <li class="nav-item">
+        <span class="nav-link text-dark">@currentUser.Email</span>
+    </li>
+
+    @* Enlaces de navegación según roles *@
+    @if (isTesorero || isJunta)
+    {
+        <li class="nav-item">
+            <a class="nav-link text-dark" asp-page="/Tesoreria/Deudores">Tesorería</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-dark" asp-page="/Miembros/Importar">Miembros</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-dark" href="/reportes/tesoreria">Reportes</a>
+        </li>
+    }
+    else if (isConsulta)
+    {
+        <li class="nav-item">
+            <a class="nav-link text-dark" href="/reportes/tesoreria">Reportes</a>
+        </li>
+    }
+
+    <li class="nav-item">
+        <a id="manage" class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Cuenta</a>
+    </li>
+    <li class="nav-item">
+        <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })">
+            <button id="logout" type="submit" class="nav-link btn btn-link text-dark border-0">Logout</button>
+        </form>
+    </li>
+}
+else
+{
+    <li class="nav-item">
+        <a class="nav-link text-dark" id="register" asp-area="Identity" asp-page="/Account/Register">Register</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-dark" id="login" asp-area="Identity" asp-page="/Account/Login">Login</a>
+    </li>
+}
+</ul>

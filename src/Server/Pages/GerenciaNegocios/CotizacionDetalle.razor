@@ -1,0 +1,382 @@
+@page "/gerencia-negocios/cotizaciones/{id:guid}"
+@using Server.DTOs.Cotizaciones
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ToastService Toast
+
+<PageTitle>Detalle Cotización - LAMA Medellín</PageTitle>
+
+<div class="container-fluid py-4">
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <p class="text-muted mt-3">Cargando detalle...</p>
+        </div>
+    }
+    else if (cotizacion == null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>Cotización no encontrada
+        </div>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-2">
+                                <li class="breadcrumb-item"><a href="/gerencia-negocios/cotizaciones" class="text-decoration-none">Cotizaciones</a></li>
+                                <li class="breadcrumb-item active">@cotizacion.NumeroCotizacion</li>
+                            </ol>
+                        </nav>
+                        <h2 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>@cotizacion.NumeroCotizacion</h2>
+                    </div>
+                    <div>
+                        <AuthorizeView Roles="Admin,Gerente">
+                            <Authorized>
+                                @if (cotizacion.Estado != "Convertida" && cotizacion.Estado != "Rechazada")
+                                {
+                                    <button class="btn btn-outline-primary me-2" @onclick="@(() => Nav.NavigateTo($"/gerencia-negocios/cotizaciones/{Id}/editar"))">
+                                        <i class="bi bi-pencil me-2"></i>Editar
+                                    </button>
+                                }
+                                @if (cotizacion.Estado == "Pendiente")
+                                {
+                                    <button class="btn btn-success me-2" @onclick="@(() => CambiarEstado("Aprobada"))">
+                                        <i class="bi bi-check-circle me-2"></i>Aprobar
+                                    </button>
+                                    <button class="btn btn-danger me-2" @onclick="@(() => CambiarEstado("Rechazada"))">
+                                        <i class="bi bi-x-circle me-2"></i>Rechazar
+                                    </button>
+                                }
+                                @if (cotizacion.Estado == "Aprobada" && !cotizacion.VentaId.HasValue)
+                                {
+                                    <button class="btn btn-primary me-2" @onclick="ConvertirAVenta">
+                                        <i class="bi bi-arrow-right-circle me-2"></i>Convertir a Venta
+                                    </button>
+                                }
+                            </Authorized>
+                        </AuthorizeView>
+                        <button class="btn btn-secondary" @onclick="@(() => Nav.NavigateTo("/gerencia-negocios/cotizaciones"))">
+                            <i class="bi bi-arrow-left me-2"></i>Volver
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Información General</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="text-muted small">Fecha Cotización</label>
+                                <p class="mb-0"><strong>@cotizacion.FechaCotizacion.ToString("dd/MM/yyyy HH:mm")</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="text-muted small">Válida Hasta</label>
+                                <p class="mb-0">
+                                    <strong>@cotizacion.FechaValidez.ToString("dd/MM/yyyy")</strong>
+                                    @if (cotizacion.FechaValidez < DateTime.Now && cotizacion.Estado == "Pendiente")
+                                    {
+                                        <span class="badge bg-danger ms-2">Vencida</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="text-muted small">Estado</label>
+                                <p class="mb-0">
+                                    @switch (cotizacion.Estado)
+                                    {
+                                        case "Pendiente":
+                                            <span class="badge bg-warning fs-6">@cotizacion.Estado</span>
+                                            break;
+                                        case "Aprobada":
+                                            <span class="badge bg-success fs-6">@cotizacion.Estado</span>
+                                            break;
+                                        case "Rechazada":
+                                            <span class="badge bg-danger fs-6">@cotizacion.Estado</span>
+                                            break;
+                                        case "Convertida":
+                                            <span class="badge bg-primary fs-6">@cotizacion.Estado</span>
+                                            break;
+                                        case "Vencida":
+                                            <span class="badge bg-secondary fs-6">@cotizacion.Estado</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-light text-dark fs-6">@cotizacion.Estado</span>
+                                            break;
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="text-muted small">Tipo Cliente</label>
+                                <p class="mb-0">
+                                    @if (cotizacion.TipoCliente == "Externo")
+                                    {
+                                        <span class="badge bg-secondary">Cliente Externo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">Miembro</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-person me-2"></i>Datos del Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(cotizacion.ClienteNombre))
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Nombre</label>
+                                    <p class="mb-0"><strong>@cotizacion.ClienteNombre</strong></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Identificación</label>
+                                    <p class="mb-0">@(cotizacion.ClienteIdentificacion ?? "N/A")</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Email</label>
+                                    <p class="mb-0">@(cotizacion.ClienteEmail ?? "N/A")</p>
+                                </div>
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(cotizacion.MiembroNombre))
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Miembro</label>
+                                    <p class="mb-0"><strong>@cotizacion.MiembroNombre</strong></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Email</label>
+                                    <p class="mb-0">@(cotizacion.MiembroEmail ?? "N/A")</p>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">Sin información de cliente</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-cart me-2"></i>Productos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-end">Cant.</th>
+                                        <th class="text-end">Precio Unit.</th>
+                                        <th class="text-end">Desc.</th>
+                                        <th class="text-end">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var detalle in cotizacion.Detalles)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@detalle.ProductoNombre</strong>
+                                                <br />
+                                                <small class="text-muted">@detalle.ProductoCodigo</small>
+                                                @if (!string.IsNullOrEmpty(detalle.Notas))
+                                                {
+                                                    <br />
+                                                    <small class="text-muted"><i class="bi bi-chat-left-text me-1"></i>@detalle.Notas</small>
+                                                }
+                                            </td>
+                                            <td class="text-end">@detalle.Cantidad</td>
+                                            <td class="text-end">@detalle.PrecioUnitarioCOP.ToString("C0")</td>
+                                            <td class="text-end">@detalle.DescuentoCOP.ToString("C0")</td>
+                                            <td class="text-end"><strong>@detalle.SubtotalCOP.ToString("C0")</strong></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(cotizacion.Observaciones))
+                {
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white py-3">
+                            <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Observaciones</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0">@cotizacion.Observaciones</p>
+                        </div>
+                    </div>
+                }
+
+                @if (cotizacion.VentaId.HasValue)
+                {
+                    <div class="card border-0 shadow-sm border-primary">
+                        <div class="card-header bg-primary bg-opacity-10 py-3">
+                            <h5 class="mb-0 text-primary"><i class="bi bi-arrow-right-circle me-2"></i>Conversión a Venta</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Número de Venta</label>
+                                    <p class="mb-0"><strong>@cotizacion.NumeroVenta</strong></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="text-muted small">Fecha Conversión</label>
+                                    <p class="mb-0">@cotizacion.FechaConversion?.ToString("dd/MM/yyyy HH:mm")</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-primary mt-3" @onclick="@(() => Nav.NavigateTo($"/gerencia-negocios/ventas/{cotizacion.VentaId}"))">
+                                <i class="bi bi-eye me-2"></i>Ver Venta
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>Totales</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Subtotal:</span>
+                            <strong>@cotizacion.SubtotalCOP.ToString("C0")</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Descuentos:</span>
+                            <strong class="text-danger">-@cotizacion.DescuentoCOP.ToString("C0")</strong>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between">
+                            <span class="h5 mb-0">Total COP:</span>
+                            <span class="h4 mb-0 text-primary"><strong>@cotizacion.TotalCOP.ToString("C0")</strong></span>
+                        </div>
+                        @if (cotizacion.TotalUSD.HasValue && cotizacion.TotalUSD.Value > 0)
+                        {
+                            <div class="d-flex justify-content-between mt-2">
+                                <span class="text-muted">Total USD:</span>
+                                <strong>@cotizacion.TotalUSD.Value.ToString("C2", new System.Globalization.CultureInfo("en-US"))</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Auditoría</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="text-muted small">Creado</label>
+                            <p class="mb-0">@cotizacion.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                            @if (!string.IsNullOrEmpty(cotizacion.CreatedBy))
+                            {
+                                <small class="text-muted">Por: @cotizacion.CreatedBy</small>
+                            }
+                        </div>
+                        @if (cotizacion.UpdatedAt.HasValue)
+                        {
+                            <div>
+                                <label class="text-muted small">Última Modificación</label>
+                                <p class="mb-0">@cotizacion.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                                @if (!string.IsNullOrEmpty(cotizacion.UpdatedBy))
+                                {
+                                    <small class="text-muted">Por: @cotizacion.UpdatedBy</small>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private CotizacionDetalleDto? cotizacion;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDetalle();
+    }
+
+    private async Task CargarDetalle()
+    {
+        cargando = true;
+        try
+        {
+            var response = await Http.GetAsync($"api/cotizaciones/{Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                cotizacion = await response.Content.ReadFromJsonAsync<CotizacionDetalleDto>();
+            }
+            else
+            {
+                Toast.ShowError("Error al cargar la cotización");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CambiarEstado(string nuevoEstado)
+    {
+        try
+        {
+            var response = await Http.PatchAsJsonAsync($"api/cotizaciones/{Id}/estado", new { Estado = nuevoEstado });
+            if (response.IsSuccessStatusCode)
+            {
+                Toast.ShowSuccess($"Estado cambiado a {nuevoEstado}");
+                await CargarDetalle();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Toast.ShowError($"Error: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Error: {ex.Message}");
+        }
+    }
+
+    private async Task ConvertirAVenta()
+    {
+        // TODO: Implementar conversión a venta cuando el endpoint esté disponible
+        Toast.ShowInfo("Función de conversión a venta en desarrollo");
+    }
+}

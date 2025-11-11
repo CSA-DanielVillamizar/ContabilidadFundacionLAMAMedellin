@@ -1,0 +1,230 @@
+
+@page "/tesoreria/deudores"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Tesorero,Junta,Consulta")]
+@inject NavigationManager Nav
+@inject Server.Services.Deudores.IDeudoresService DeudoresService
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<MudPaper Class="glass-card pa-6 mb-6" Elevation="0">
+    <div class="d-flex align-items-center justify-space-between mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Large" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.h4">Deudores de Mensualidad</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Mensualidad vigente: <strong>@precioMensualCop.ToString("N0") COP</strong> por mes.
+                </MudText>
+            </div>
+        </div>
+    </div>
+    
+    <div class="d-flex gap-4 mb-6 align-items-end">
+        <MudTextField Label="Desde (yyyy-MM)" 
+                      @bind-Value="filtroDesde" 
+                      Variant="Variant.Outlined"
+                      Placeholder="2024-01"
+                      Class="flex-grow-1"
+                      aria-label="Filtrar desde" />
+        <MudTextField Label="Hasta (yyyy-MM)" 
+                      @bind-Value="filtroHasta" 
+                      Variant="Variant.Outlined"
+                      Placeholder="2025-12"
+                      Class="flex-grow-1"
+                      aria-label="Filtrar hasta" />
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   OnClick="@AplicarFiltros"
+                   StartIcon="@Icons.Material.Filled.FilterAlt"
+                   aria-label="Aplicar filtros">
+            Aplicar
+        </MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Success" 
+                   Href="@ExportExcelUrl"
+                   Target="_blank"
+                   StartIcon="@Icons.Material.Filled.GridOn"
+                   aria-label="Exportar a Excel">
+            Excel
+        </MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Error" 
+                   Href="@ExportPdfUrl"
+                   Target="_blank"
+                   StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                   aria-label="Exportar a PDF">
+            PDF
+        </MudButton>
+    </div>
+    
+    <MudText Typo="Typo.h6" Class="mb-4" Style="font-weight: 700;" aria-live="polite">
+        Total global: @totalGlobal.ToString("N0") COP
+    </MudText>
+    
+    @if (_rows is null)
+    {
+        <div class="skeleton skeleton-card mb-4" style="height: 300px;"></div>
+    }
+    else if (_rows.Count == 0)
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" Class="mb-4" Style="font-size: 64px;" />
+            <MudText Typo="Typo.h6" Class="mb-2">No hay deudas</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Todos los miembros están al día</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <div class="overflow-x-auto">
+            <table class="modern-table" aria-label="Tabla de deudores de mensualidad">
+                <thead>
+                    <tr>
+                        <th>Miembro</th>
+                        <th>Ingreso</th>
+                        <th>Meses Pendientes</th>
+                        <th style="text-align: right;">Total Estimado</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _rows)
+                    {
+                        <tr>
+                            <td style="font-weight: 600;">@row.Nombre</td>
+                            <td>@(row.Ingreso ?? "-")</td>
+                            <td>
+                                @foreach (var mes in row.MesesPendientes)
+                                {
+                                    <span class="badge-modern badge-warning mr-1 mb-1">@mes</span>
+                                }
+                            </td>
+                            <td style="text-align: right; font-weight: 600;">
+                                $@row.TotalEstimadoCop.ToString("N0")
+                            </td>
+                            <td style="text-align: center;">
+                                <div class="d-flex justify-content-center gap-2">
+                                    <MudButton Href="@($"/tesoreria/deudores/{row.MiembroId}{QuerySuffix}")"
+                                               Variant="Variant.Text" 
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Visibility">
+                                        Detalle
+                                    </MudButton>
+                                    <MudButton Href="@($"/api/cuentas-cobro/{row.MiembroId}{QuerySuffix}")"
+                                               Target="_blank"
+                                               Variant="Variant.Text" 
+                                               Color="Color.Success"
+                                               Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Description"
+                                               title="Descargar cuenta de cobro en PDF">
+                                        Cuenta Cobro
+                                    </MudButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</MudPaper>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<RowDeudor>? _rows;
+    private decimal precioMensualCop;
+    private decimal totalGlobal;
+    private string? filtroDesde = string.Empty; // yyyy-MM
+    private string? filtroHasta = string.Empty; // yyyy-MM
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Establecer filtros por defecto: año actual desde enero hasta ÚLTIMO MES CERRADO.
+        // Último mes cerrado: si hoy es día <=5 asumir mes anterior aún en cierre; después usar mes actual - 1.
+        var hoy = DateTime.UtcNow;
+        var ultimoMesCerrado = hoy.Month == 1 ? 1 : (hoy.Day <= 5 ? Math.Max(1, hoy.Month - 1) : hoy.Month - 1);
+        filtroDesde = $"{hoy.Year}-01";
+        filtroHasta = $"{hoy.Year}-{ultimoMesCerrado:D2}";
+        await CargarAsync();
+    }
+
+    private string ExportExcelUrl => $"/api/deudores/excel{QuerySuffixWithCb}";
+    private string ExportPdfUrl => $"/api/deudores/pdf{QuerySuffixWithCb}";
+    private string QuerySuffix => (string.IsNullOrWhiteSpace(filtroDesde) && string.IsNullOrWhiteSpace(filtroHasta))
+        ? string.Empty
+        : $"?desde={filtroDesde}&hasta={filtroHasta}";
+    private string QuerySuffixWithCb
+        => string.IsNullOrWhiteSpace(QuerySuffix)
+            ? $"?cb={DateTime.UtcNow.Ticks}"
+            : $"{QuerySuffix}&cb={DateTime.UtcNow.Ticks}";
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            DateOnly? d = null, h = null;
+            if (!string.IsNullOrWhiteSpace(filtroDesde) && DateOnly.TryParse(filtroDesde + "-01", out var d1)) d = d1;
+            if (!string.IsNullOrWhiteSpace(filtroHasta) && DateOnly.TryParse(filtroHasta + "-01", out var h1)) h = h1;
+
+            var rows = await DeudoresService.CalcularAsync(d, h);
+            _rows = rows.Select(r => new RowDeudor
+            {
+                MiembroId = r.MiembroId,
+                Nombre = r.Nombre,
+                Ingreso = r.Ingreso?.ToString(),
+                MesesPendientes = r.MesesPendientes.Select(m => m.ToString("yyyy-MM")).ToList(),
+                TotalEstimadoCop = 0 // se calcula abajo
+            }).ToList();
+
+            // Obtener precio vigente desde el servicio (evita concurrencia de DbContext)
+            var refDate = h ?? DateOnly.FromDateTime(new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1));
+            precioMensualCop = await DeudoresService.ObtenerPrecioMensualidadCopAsync(refDate);
+
+            decimal total = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                decimal tot = rows[i].MesesPendientes.Count * precioMensualCop;
+                _rows![i].TotalEstimadoCop = tot;
+                total += tot;
+            }
+            totalGlobal = total;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando deudores: {ex.Message}");
+            _rows = new();
+            precioMensualCop = 0;
+            totalGlobal = 0;
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        await CargarAsync();
+    }
+
+    private Task GenerarReciboMensualidad(RowDeudor r)
+    {
+        // Mantener esta acción vía API para reutilizar flujo de numeración/seguridad del controlador
+        Nav.NavigateTo($"/api/deudores/generar-recibo?MiembroId={r.MiembroId}&CantidadMeses={r.MesesPendientes.Count}", true);
+        return Task.CompletedTask;
+    }
+
+    private class RowDeudor
+    {
+        public Guid MiembroId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string? Ingreso { get; set; }
+        public List<string> MesesPendientes { get; set; } = new();
+        public decimal TotalEstimadoCop { get; set; }
+    }
+
+    // Eliminados tipos RawRow/GeneradoResp (no se usan con servicios directos)
+}

@@ -1,0 +1,415 @@
+@page "/gerencia-negocios/proveedores"
+@using Server.DTOs.Proveedores
+@using Server.Controllers
+@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+
+<PageTitle>Proveedores - LAMA Medellín</PageTitle>
+
+<MudPaper Class="glass-card pa-6 mb-6" Elevation="0">
+    <!-- Header -->
+    <div class="d-flex justify-content-space-between align-items-center mb-6">
+        <div>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4">Proveedores</MudText>
+            </div>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Gestión de proveedores y términos comerciales</MudText>
+        </div>
+        <AuthorizeView Roles="Admin,Gerente">
+            <Authorized>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           OnClick="AbrirModalNuevo"
+                           StartIcon="@Icons.Material.Filled.Add">
+                    Nuevo Proveedor
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+
+    <!-- Estadísticas Resumen -->
+    @if (estadisticasCargadas)
+    {
+        <div class="d-flex gap-4 mb-6">
+            <ModernStatCard Title="Total Proveedores" 
+                            Value="@totalProveedores.ToString()" 
+                            Icon="@Icons.Material.Filled.LocalShipping" 
+                            IconColor="primary" />
+            <ModernStatCard Title="Activos" 
+                            Value="@proveedoresActivos.ToString()" 
+                            Icon="@Icons.Material.Filled.CheckCircle" 
+                            IconColor="success" />
+            <ModernStatCard Title="Inactivos" 
+                            Value="@proveedoresInactivos.ToString()" 
+                            Icon="@Icons.Material.Filled.PauseCircle" 
+                            IconColor="warning" />
+            <ModernStatCard Title="Con Compras" 
+                            Value="@proveedoresConCompras.ToString()" 
+                            Icon="@Icons.Material.Filled.ShoppingCart" 
+                            IconColor="info" />
+        </div>
+    }
+
+    <!-- Filtros y Búsqueda -->
+    <div class="d-flex gap-4 mb-6">
+        <ModernSearch Placeholder="🔍 Buscar por nombre, NIT, email o contacto..." 
+                      Value="@busqueda" 
+                      ValueChanged="@((value) => { busqueda = value; BuscarConDelay(); })"
+                      Class="flex-grow-1" />
+        
+        <MudSelect T="string" 
+                   Label="Estado" 
+                   @bind-Value="filtroActivo"
+                   Variant="Variant.Outlined"
+                   Style="min-width: 200px;">
+            <MudSelectItem Value="@("")">Todos los estados</MudSelectItem>
+            <MudSelectItem Value="@("true")">Solo activos</MudSelectItem>
+            <MudSelectItem Value="@("false")">Solo inactivos</MudSelectItem>
+        </MudSelect>
+        
+        <MudButton Variant="Variant.Outlined" 
+                   Color="Color.Default" 
+                   OnClick="LimpiarFiltros"
+                   StartIcon="@Icons.Material.Filled.Clear">
+            Limpiar Filtros
+        </MudButton>
+    </div>
+
+    <!-- Tabla de Proveedores -->
+    @if (cargando)
+    {
+        <div class="skeleton skeleton-card mb-4" style="height: 400px;"></div>
+    }
+    else if (!proveedores.Any())
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 64px;" />
+            <MudText Typo="Typo.h6" Class="mb-2">No se encontraron proveedores</MudText>
+            <AuthorizeView Roles="Admin,Gerente">
+                <Authorized>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               OnClick="AbrirModalNuevo"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Class="mt-3">
+                        Crear Primer Proveedor
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
+        </MudPaper>
+    }
+    else
+    {
+        <div class="overflow-x-auto">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>NIT</th>
+                        <th>Contacto</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th style="text-align: center;">Días Crédito</th>
+                        <th style="text-align: center;">Compras</th>
+                        <th style="text-align: center;">Calificación</th>
+                        <th style="text-align: center;">Estado</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var proveedor in proveedores)
+                    {
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" />
+                                    <div>
+                                        <div style="font-weight: 600;">@proveedor.Nombre</div>
+                                        @if (proveedor.UltimaCompra.HasValue)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Última compra: @proveedor.UltimaCompra.Value.ToString("dd/MM/yyyy")
+                                            </MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td>@proveedor.Nit</td>
+                            <td>@(proveedor.Contacto ?? "-")</td>
+                            <td>@(proveedor.Telefono ?? "-")</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(proveedor.Email))
+                                {
+                                    <a href="mailto:@proveedor.Email" style="text-decoration: none;">
+                                        @proveedor.Email
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-modern badge-info">@proveedor.DiasCredito días</span>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge-modern">@proveedor.TotalCompras</span>
+                            </td>
+                            <td style="text-align: center;">
+                                @if (proveedor.Calificacion.HasValue)
+                                {
+                                    <MudRating ReadOnly="true" 
+                                               SelectedValue="@((int)proveedor.Calificacion.Value)" 
+                                               MaxValue="5"
+                                               Size="Size.Small" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td style="text-align: center;">
+                                @if (proveedor.Activo)
+                                {
+                                    <span class="badge-modern badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-modern">Inactivo</span>
+                                }
+                            </td>
+                            <td style="text-align: right;">
+                                <div class="d-flex justify-content-end gap-1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
+                                                   Color="Color.Primary" 
+                                                   Size="Size.Small"
+                                                   OnClick="() => VerDetalle(proveedor.Id)"
+                                                   title="Ver detalle" />
+                                    <AuthorizeView Roles="Admin,Gerente">
+                                        <Authorized>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                           Color="Color.Default" 
+                                                           Size="Size.Small"
+                                                           OnClick="() => AbrirModalEditar(proveedor.Id)"
+                                                           title="Editar" />
+                                            <MudIconButton Icon="@(proveedor.Activo ? Icons.Material.Filled.Delete : Icons.Material.Filled.Restore)" 
+                                                           Color="@(proveedor.Activo ? Color.Error : Color.Success)" 
+                                                           Size="Size.Small"
+                                                           OnClick="() => ConfirmarEliminar(proveedor)"
+                                                           title="@(proveedor.Activo ? "Desactivar" : "Activar")" />
+                                        </Authorized>
+                                    </AuthorizeView>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        @if (totalPaginas > 1)
+        {
+            <div class="d-flex justify-content-center align-items-center gap-4 mt-6">
+                <MudPagination Count="@totalPaginas" 
+                               Selected="@paginaActual" 
+                               SelectedChanged="@((int page) => CambiarPagina(page))"
+                               ShowFirstButton="true" 
+                               ShowLastButton="true" />
+                
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Mostrando @((paginaActual - 1) * registrosPorPagina + 1) 
+                    - @Math.Min(paginaActual * registrosPorPagina, totalProveedores) 
+                    de @totalProveedores proveedores
+                </MudText>
+            </div>
+        }
+    }
+</MudPaper>
+
+@code {
+    [Inject] private HttpClient Http { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ToastService Toast { get; set; } = default!;
+
+    private List<ProveedorDto> proveedores = new();
+    private ProveedorDto? proveedorEliminar;
+
+    private bool cargando = true;
+    private bool eliminando = false;
+    private bool mostrarModalEliminar = false;
+    private bool estadisticasCargadas = false;
+
+    private string busqueda = string.Empty;
+    private string filtroActivo = string.Empty;
+    private int paginaActual = 1;
+    private int registrosPorPagina = 20;
+    private int totalProveedores = 0;
+    private int totalPaginas = 0;
+
+    // Estadísticas
+    private int proveedoresActivos = 0;
+    private int proveedoresInactivos = 0;
+    private int proveedoresConCompras = 0;
+
+    private System.Threading.Timer? _debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedores();
+        await CargarEstadisticas();
+    }
+
+    private async Task CargarProveedores()
+    {
+        cargando = true;
+        try
+        {
+            bool? activoFiltro = string.IsNullOrEmpty(filtroActivo) ? null : bool.Parse(filtroActivo);
+            var query = $"?pagina={paginaActual}&registrosPorPagina={registrosPorPagina}";
+            
+            if (!string.IsNullOrWhiteSpace(busqueda))
+                query += $"&busqueda={Uri.EscapeDataString(busqueda)}";
+            
+            if (activoFiltro.HasValue)
+                query += $"&activo={activoFiltro.Value}";
+
+            var response = await Http.GetFromJsonAsync<ProveedoresListResponse>($"/api/proveedores{query}");
+            
+            if (response != null)
+            {
+                proveedores = response.Proveedores;
+                totalProveedores = response.TotalCount;
+                totalPaginas = response.TotalPaginas;
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al cargar proveedores: {ex.Message}", "danger");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarEstadisticas()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<ProveedoresListResponse>("/api/proveedores?registrosPorPagina=10000");
+            if (response != null)
+            {
+                proveedoresActivos = response.Proveedores.Count(p => p.Activo);
+                proveedoresInactivos = response.Proveedores.Count(p => !p.Activo);
+                proveedoresConCompras = response.Proveedores.Count(p => p.TotalCompras > 0);
+                estadisticasCargadas = true;
+            }
+        }
+        catch
+        {
+            // Silencioso, las estadísticas son opcionales
+        }
+    }
+
+    private void BuscarConDelay()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                paginaActual = 1;
+                await CargarProveedores();
+                StateHasChanged();
+            });
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task Buscar()
+    {
+        paginaActual = 1;
+        await CargarProveedores();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        busqueda = string.Empty;
+        filtroActivo = string.Empty;
+        paginaActual = 1;
+        await CargarProveedores();
+    }
+
+    private async Task CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+            await CargarProveedores();
+        }
+    }
+
+    private void AbrirModalNuevo()
+    {
+        Navigation.NavigateTo("/gerencia-negocios/proveedores/nuevo");
+    }
+
+    private async Task AbrirModalEditar(Guid id)
+    {
+        Navigation.NavigateTo($"/gerencia-negocios/proveedores/editar/{id}");
+    }
+
+    private void ConfirmarEliminar(ProveedorDto proveedor)
+    {
+        proveedorEliminar = proveedor;
+        mostrarModalEliminar = true;
+    }
+
+    private async Task EliminarProveedor()
+    {
+        if (proveedorEliminar == null) return;
+
+        eliminando = true;
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/proveedores/{proveedorEliminar.Id}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Toast.Show(proveedorEliminar.Activo ? "Proveedor desactivado exitosamente" : "Proveedor activado exitosamente", "success");
+                CerrarModalEliminar();
+                await CargarProveedores();
+                await CargarEstadisticas();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Toast.Show($"Error: {error}", "danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast.Show($"Error al eliminar: {ex.Message}", "danger");
+        }
+        finally
+        {
+            eliminando = false;
+        }
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        proveedorEliminar = null;
+    }
+
+    private void VerDetalle(Guid id)
+    {
+        Navigation.NavigateTo($"/gerencia-negocios/proveedores/{id}");
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
+}

@@ -1,0 +1,537 @@
+@page "/tesoreria/recibos"
+
+@using System.Net
+@using System.Net.Http.Json
+@using Microsoft.EntityFrameworkCore
+@using Server.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IDbContextFactory<Server.Data.AppDbContext> DbFactory
+@inject Server.Services.Recibos.IRecibosService RecibosService
+@inject ToastService Toasts
+
+<PageTitle>Recibos de Caja - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+
+        <MudPaper Class="glass-card pa-6 mb-6" Elevation="0">
+            <div class="d-flex align-items-center gap-3 mb-6">
+                <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Class="flex-grow-1">Recibos de Caja</MudText>
+                <MudButton Href="/tesoreria/recibos/nuevo" 
+                           Variant="Variant.Filled" 
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add">
+                    Nuevo Recibo
+                </MudButton>
+            </div>
+            
+            @* Contenido principal *@
+            @* Filtros *@
+            <div class="d-flex gap-4 mb-6">
+                <MudSelect T="int" Label="Año" Variant="Variant.Outlined" Class="flex-grow-1">
+                    <MudSelectItem Value="2025">2025</MudSelectItem>
+                    <MudSelectItem Value="2024">2024</MudSelectItem>
+                </MudSelect>
+                <MudSelect T="string" Label="Mes" Variant="Variant.Outlined" Class="flex-grow-1">
+                    <MudSelectItem Value="@("")">Todos</MudSelectItem>
+                    <MudSelectItem Value="@("1")">Enero</MudSelectItem>
+                    <MudSelectItem Value="@("2")">Febrero</MudSelectItem>
+                    <MudSelectItem Value="@("3")">Marzo</MudSelectItem>
+                    <MudSelectItem Value="@("4")">Abril</MudSelectItem>
+                    <MudSelectItem Value="@("5")">Mayo</MudSelectItem>
+                    <MudSelectItem Value="@("6")">Junio</MudSelectItem>
+                    <MudSelectItem Value="@("7")">Julio</MudSelectItem>
+                    <MudSelectItem Value="@("8")">Agosto</MudSelectItem>
+                    <MudSelectItem Value="@("9")">Septiembre</MudSelectItem>
+                    <MudSelectItem Value="@("10")">Octubre</MudSelectItem>
+                    <MudSelectItem Value="@("11")">Noviembre</MudSelectItem>
+                    <MudSelectItem Value="@("12")">Diciembre</MudSelectItem>
+                </MudSelect>
+                <MudSelect T="string" Label="Estado" Variant="Variant.Outlined" Class="flex-grow-1">
+                    <MudSelectItem Value="@("")">Todos</MudSelectItem>
+                    <MudSelectItem Value="@("0")">Pendiente</MudSelectItem>
+                    <MudSelectItem Value="@("1")">Pagado</MudSelectItem>
+                    <MudSelectItem Value="@("2")">Anulado</MudSelectItem>
+                </MudSelect>
+            </div>
+
+                    @if (cargando)
+                    {
+                        <div class="skeleton skeleton-card mb-4" style="height: 400px;"></div>
+                    }
+                    else if (recibos == null || !recibos.Any())
+                    {
+                        <MudPaper Class="pa-8 text-center" Elevation="0">
+                            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 64px;" />
+                            <MudText Typo="Typo.h6" Class="mb-2">No hay recibos registrados</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Comienza creando un nuevo recibo</MudText>
+                        </MudPaper>
+                    }
+                    else
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="modern-table" role="table" aria-label="Lista de recibos de caja">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Recibo</th>
+                                        <th scope="col">Fecha</th>
+                                        <th scope="col">Total COP</th>
+                                        <th scope="col">Estado</th>
+                                        <th scope="col" style="text-align: right;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var recibo in recibos)
+                                    {
+                                        var reciboCode = $"{recibo.Serie}-{recibo.Ano}-{recibo.Consecutivo:D4}";
+                                        <tr tabindex="0" aria-label="@($"Recibo {reciboCode}")">
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span style="font-weight: 600;">@reciboCode</span>
+                                                    @if (recibo.TieneCertificado)
+                                                    {
+                                                        if (recibo.EstadoCertificado == EstadoCertificado.Emitido)
+                                                        {
+                                                            <span class="badge-modern badge-success" title="Certificado emitido">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" />
+                                                                Cert. Emitido
+                                                            </span>
+                                                        }
+                                                        else if (recibo.EstadoCertificado == EstadoCertificado.Anulado)
+                                                        {
+                                                            <span class="badge-modern badge-error" title="Certificado anulado">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" />
+                                                                Cert. Anulado
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge-modern badge-warning" title="Certificado en borrador">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" />
+                                                                Cert. Borrador
+                                                            </span>
+                                                        }
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @recibo.FechaEmision.ToString("dd/MM/yyyy")
+                                            </td>
+                                            <td style="font-weight: 600;">
+                                                @recibo.TotalCop.ToString("N0") COP
+                                            </td>
+                                            <td>
+                                                @if (recibo.Estado == EstadoRecibo.Emitido)
+                                                {
+                                                    <span class="badge-modern badge-success">Emitido</span>
+                                                }
+                                                else if (recibo.Estado == EstadoRecibo.Anulado)
+                                                {
+                                                    <span class="badge-modern badge-error">Anulado</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge-modern badge-warning">Borrador</span>
+                                                }
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    <MudButton Href="@($"/api/recibos/{recibo.Id}/pdf")" 
+                                                               Target="_blank"
+                                                               Variant="Variant.Text" 
+                                                               Color="Color.Primary"
+                                                               Size="Size.Small"
+                                                               StartIcon="@Icons.Material.Filled.PictureAsPdf">
+                                                        PDF
+                                                    </MudButton>
+                                                    @if (recibo.TieneCertificado && recibo.CertificadoId.HasValue)
+                                                    {
+                                                        <MudButton Href="@($"/tesoreria/donaciones/{recibo.CertificadoId}")"
+                                                                   Variant="Variant.Text" 
+                                                                   Color="Color.Warning"
+                                                                   Size="Size.Small"
+                                                                   StartIcon="@Icons.Material.Filled.CardGiftcard">
+                                                            Certificado
+                                                        </MudButton>
+                                                    }
+                                                    @if (recibo.Estado == EstadoRecibo.Borrador)
+                                                    {
+                                                        <MudButton Variant="Variant.Text" 
+                                                                   Color="Color.Success"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => EmitirDirectoAsync(recibo.Id))"
+                                                                   StartIcon="@Icons.Material.Filled.CheckCircle">
+                                                            Emitir
+                                                        </MudButton>
+                                                    }
+                                                    @if (recibo.Estado == EstadoRecibo.Emitido)
+                                                    {
+                                                        <MudButton Variant="Variant.Text" 
+                                                                   Color="Color.Error"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => AnularDirectoAsync(recibo.Id))"
+                                                                   StartIcon="@Icons.Material.Filled.Cancel">
+                                                            Anular
+                                                        </MudButton>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    <MudPaper Class="glass-card pa-4 mt-4" Elevation="0">
+                        <MudText Typo="Typo.h6" Class="mb-3">Características</MudText>
+                        <ul class="mud-typography-body2" style="color: var(--mud-palette-text-secondary); margin-bottom: 0;">
+                            <li>Generación automática de consecutivos por año</li>
+                            <li>Generación de PDF con código QR</li>
+                            <li>Soporte multi-moneda (COP/USD) con TRM</li>
+                            <li>Registro de pagos múltiples</li>
+                        </ul>
+                    </MudPaper>
+        </MudPaper>
+
+    </Authorized>
+</AuthorizeView>
+
+@if (mostrarModalEmitir)
+{
+    <MudDialog @bind-IsVisible="mostrarModalEmitir" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
+        <TitleContent>
+            <MudText Typo="Typo.h6" Color="Color.Success">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                Emitir recibo
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                ¿Estás seguro de que deseas emitir este recibo? Una vez emitido, podrá ser anulado pero no editado.
+            </MudText>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="@CerrarModalEmision">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="@ConfirmarEmisionAsync">Emitir</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@if (mostrarModalAnular)
+{
+    <MudDialog @bind-IsVisible="mostrarModalAnular" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
+        <TitleContent>
+            <MudText Typo="Typo.h6" Color="Color.Error">
+                <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="mr-2" />
+                Anular recibo
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                Esta acción marcará el recibo como Anulado. Ingresa el motivo:
+            </MudText>
+            <MudTextField @bind-Value="razonAnulacion" 
+                          Label="Motivo de anulación" 
+                          Variant="Variant.Outlined" 
+                          Lines="4"
+                          FullWidth="true" />
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="@CerrarModalAnulacion">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="@ConfirmarAnulacionAsync">Anular</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    // ----- Estado de UI -----
+    private List<ReciboListItem>? recibos;
+    private bool cargando = true;
+    private string? errorMsg;
+    private bool mostrarModalEmitir = false;
+    private Guid? emitirId = null;
+    private bool mostrarModalAnular = false;
+    private Guid? anularId = null;
+    private string razonAnulacion = string.Empty;
+
+    // ----- Carga inicial -----
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRecibosAsync();
+    }
+
+    private async Task CargarRecibosAsync()
+    {
+        try
+        {
+            // Usar DbContextFactory para evitar problemas de concurrencia en Blazor Server
+            await using var db = await DbFactory.CreateDbContextAsync();
+            
+            recibos = await db.Recibos
+                .OrderByDescending(r => r.FechaEmision)
+                .Take(50)
+                .Select(r => new ReciboListItem
+                {
+                    Id = r.Id,
+                    Serie = r.Serie,
+                    Ano = r.Ano,
+                    Consecutivo = r.Consecutivo,
+                    FechaEmision = r.FechaEmision,
+                    TotalCop = r.TotalCop,
+                    Estado = r.Estado,
+                    TieneCertificado = db.CertificadosDonacion.Any(cd => cd.ReciboId == r.Id),
+                    CertificadoId = db.CertificadosDonacion
+                        .Where(cd => cd.ReciboId == r.Id)
+                        .OrderByDescending(cd => cd.FechaEmision)
+                        .Select(cd => (Guid?)cd.Id)
+                        .FirstOrDefault(),
+                    EstadoCertificado = db.CertificadosDonacion
+                        .Where(cd => cd.ReciboId == r.Id)
+                        .OrderByDescending(cd => cd.FechaEmision)
+                        .Select(cd => (EstadoCertificado?)cd.Estado)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            Console.WriteLine($"✅ Recibos cargados: {recibos?.Count ?? 0}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando recibos: {ex.Message}");
+            Console.WriteLine($"Stack: {ex.StackTrace}");
+            await InvokeAsync(() =>
+            {
+                errorMsg = "No se pudieron cargar los recibos. Reintenta o contacta al administrador.";
+                recibos = new List<ReciboListItem>();
+                Toasts?.Show(errorMsg, "warning");
+            });
+        }
+        finally
+        {
+            await InvokeAsync(() =>
+            {
+                cargando = false;
+                StateHasChanged();
+            });
+        }
+    }
+
+    // ----- Modal emisión -----
+    private void AbrirModalEmision(Guid id)
+    {
+        Console.WriteLine($"[UI] AbrirModalEmision click => {id}");
+        emitirId = id;
+        mostrarModalEmitir = true;
+        // Telemetría rápida para verificar que el click funciona aunque el modal no sea visible
+        Toasts?.Show("Confirmar emisión del recibo", "info");
+        StateHasChanged();
+    }
+
+    private void CerrarModalEmision()
+    {
+        mostrarModalEmitir = false;
+        emitirId = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarEmisionAsync()
+    {
+        if (emitirId is null)
+        {
+            Console.WriteLine("⚠️ emitirId es null, abortando emisión");
+            return;
+        }
+
+        Console.WriteLine($"🚀 Iniciando emisión para recibo {emitirId}");
+
+        try
+        {
+            var auth = AuthenticationStateTask != null ? await AuthenticationStateTask : null;
+            var currentUser = auth?.User?.Identity?.Name ?? "ui";
+            
+            Console.WriteLine($"📝 Usuario actual: {currentUser}");
+            
+            var ok = await RecibosService.EmitirAsync(emitirId.Value, currentUser);
+            
+            if (!ok)
+            {
+                Console.WriteLine("❌ Servicio retornó false al emitir");
+                Toasts?.Show("No se pudo emitir el recibo.", "danger");
+                return;
+            }
+
+            Console.WriteLine("✅ Servicio confirmó emisión exitosa");
+            
+            // Cerrar modal primero
+            mostrarModalEmitir = false;
+            
+            // Recargar los datos para obtener el estado actualizado desde el servidor
+            Console.WriteLine("🔄 Recargando recibos desde el servidor...");
+            await CargarRecibosAsync();
+            Console.WriteLine($"✅ Recibos recargados. Total: {recibos?.Count ?? 0}");
+
+            Toasts?.Show("Recibo emitido exitosamente", "success");
+            
+            emitirId = null;
+            StateHasChanged();
+            
+            Console.WriteLine("✅ Emisión completada exitosamente");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error emitiendo recibo: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            Toasts?.Show($"Error emitiendo: {ex.Message}", "danger");
+        }
+    }
+
+    // ----- Acciones directas (fallback sin modal) -----
+    private async Task EmitirDirectoAsync(Guid id)
+    {
+        try
+        {
+            var auth = AuthenticationStateTask != null ? await AuthenticationStateTask : null;
+            var currentUser = auth?.User?.Identity?.Name ?? "ui";
+
+            Toasts?.Show("Procesando emisión…", "info");
+            var ok = await RecibosService.EmitirAsync(id, currentUser);
+            if (!ok)
+            {
+                Toasts?.Show("No se pudo emitir el recibo.", "danger");
+                return;
+            }
+            await CargarRecibosAsync();
+            Toasts?.Show("Recibo emitido", "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error emitiendo directo: {ex.Message}");
+            Toasts?.Show($"Error emitiendo: {ex.Message}", "danger");
+        }
+    }
+
+    private async Task AnularDirectoAsync(Guid id)
+    {
+        try
+        {
+            var auth = AuthenticationStateTask != null ? await AuthenticationStateTask : null;
+            var currentUser = auth?.User?.Identity?.Name ?? "ui";
+            var razon = string.IsNullOrWhiteSpace(razonAnulacion) ? "Anulación desde lista" : razonAnulacion;
+
+            Toasts?.Show("Procesando anulación…", "info");
+            var ok = await RecibosService.AnularAsync(id, razon, currentUser);
+            if (!ok)
+            {
+                Toasts?.Show("No se pudo anular el recibo.", "danger");
+                return;
+            }
+            await CargarRecibosAsync();
+            Toasts?.Show("Recibo anulado", "success");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error anulando directo: {ex.Message}");
+            Toasts?.Show($"Error anulando: {ex.Message}", "danger");
+        }
+    }
+
+    // ----- Modal anulación (se mantiene por si reactivamos) -----
+    private void AbrirModalAnulacion(Guid id)
+    {
+        Console.WriteLine($"[UI] AbrirModalAnulacion click => {id}");
+        anularId = id;
+        razonAnulacion = string.Empty;
+        mostrarModalAnular = true;
+        // Telemetría rápida para verificar que el click funciona aunque el modal no sea visible
+        Toasts?.Show("Confirmar anulación del recibo", "info");
+        StateHasChanged();
+    }
+
+    private void CerrarModalAnulacion()
+    {
+        mostrarModalAnular = false;
+        anularId = null;
+        razonAnulacion = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarAnulacionAsync()
+    {
+        if (anularId is null)
+        {
+            Console.WriteLine("⚠️ anularId es null, abortando anulación");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(razonAnulacion))
+        {
+            Console.WriteLine("⚠️ Razón de anulación vacía");
+            Toasts?.Show("Debes ingresar el motivo de anulación", "warning");
+            return;
+        }
+
+        Console.WriteLine($"🚀 Iniciando anulación para recibo {anularId}");
+
+        try
+        {
+            var auth = AuthenticationStateTask != null ? await AuthenticationStateTask : null;
+            var currentUser = auth?.User?.Identity?.Name ?? "ui";
+            
+            Console.WriteLine($"📝 Usuario actual: {currentUser}, Razón: {razonAnulacion}");
+            
+            var ok = await RecibosService.AnularAsync(anularId.Value, razonAnulacion, currentUser);
+            
+            if (!ok)
+            {
+                Console.WriteLine("❌ Servicio retornó false al anular");
+                Toasts?.Show("No se pudo anular el recibo.", "danger");
+                return;
+            }
+
+            Console.WriteLine("✅ Servicio confirmó anulación exitosa");
+            
+            // Cerrar modal primero
+            mostrarModalAnular = false;
+            
+            // Recargar para reflejar estado actualizado desde el servidor
+            Console.WriteLine("🔄 Recargando recibos desde el servidor...");
+            await CargarRecibosAsync();
+            Console.WriteLine($"✅ Recibos recargados. Total: {recibos?.Count ?? 0}");
+            
+            Toasts?.Show("Recibo anulado exitosamente", "success");
+            
+            anularId = null;
+            razonAnulacion = string.Empty;
+            StateHasChanged();
+            
+            Console.WriteLine("✅ Anulación completada exitosamente");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error anulando recibo: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            Toasts?.Show($"Error anulando: {ex.Message}", "danger");
+        }
+    }
+
+    // ----- DTO tabla -----
+    public class ReciboListItem
+    {
+        public Guid Id { get; set; }
+        public string Serie { get; set; } = string.Empty;
+        public int Ano { get; set; }
+        public int Consecutivo { get; set; }
+        public DateTime FechaEmision { get; set; }
+        public decimal TotalCop { get; set; }
+        public EstadoRecibo Estado { get; set; }
+        public bool TieneCertificado { get; set; }
+        public Guid? CertificadoId { get; set; }
+        public EstadoCertificado? EstadoCertificado { get; set; }
+    }
+}

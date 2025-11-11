@@ -1,0 +1,335 @@
+
+@page "/tesoreria/egresos"
+@using System.Net.Http.Headers
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@inject Server.Services.Egresos.IEgresosService EgresosService
+@inject NavigationManager Nav
+@inject ToastService _toastService
+@attribute [Authorize(Roles="Tesorero,Junta,Consulta")]
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized Context="outerAuthContext">
+<MudPaper Class="glass-card pa-6 mb-6" Elevation="0" aria-label="Gestión de Egresos">
+    <div class="d-flex align-items-center gap-3 mb-6">
+        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Large" Color="Color.Primary" />
+        <MudText Typo="Typo.h4" Class="flex-grow-1">Egresos</MudText>
+    </div>
+    
+    <EditForm Model="filtro" OnValidSubmit="Buscar" class="mb-6" aria-label="Filtrar egresos">
+        <div class="d-flex gap-4 mb-6">
+            <MudDatePicker Label="Desde" 
+                           @bind-Date="filtro.Desde" 
+                           Variant="Variant.Outlined" 
+                           Class="flex-grow-1"
+                           aria-label="Fecha desde" />
+            <MudDatePicker Label="Hasta" 
+                           @bind-Date="filtro.Hasta" 
+                           Variant="Variant.Outlined" 
+                           Class="flex-grow-1"
+                           aria-label="Fecha hasta" />
+            <MudTextField Label="Categoría" 
+                          @bind-Value="filtro.Categoria" 
+                          Variant="Variant.Outlined" 
+                          Class="flex-grow-1"
+                          aria-label="Filtrar por categoría" />
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           ButtonType="ButtonType.Submit"
+                           StartIcon="@Icons.Material.Filled.Search"
+                           aria-label="Buscar egresos">
+                    Buscar
+                </MudButton>
+                <AuthorizeView Roles="Tesorero,Junta" Context="innerAuthContext">
+                    <Authorized>
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Success" 
+                                   OnClick="Nueva"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   aria-label="Crear nuevo egreso">
+                            Nuevo egreso
+                        </MudButton>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </EditForm>
+    @if (isLoading)
+    {
+        <div class="skeleton skeleton-card mb-4" style="height: 400px;"></div>
+    }
+    else if (egresos == null || !egresos.Any())
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 64px;" />
+            <MudText Typo="Typo.h6" Class="mb-2">No hay egresos registrados</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Utiliza los filtros o crea un nuevo egreso</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <div class="overflow-x-auto">
+            <table class="modern-table" aria-label="Tabla de egresos">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Categoría</th>
+                        <th>Proveedor</th>
+                        <th style="text-align: right;">Valor</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var egreso in egresos)
+                    {
+                        <tr>
+                            <td>@egreso.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <span class="badge-modern badge-info">@egreso.Categoria</span>
+                            </td>
+                            <td>@egreso.Proveedor</td>
+                            <td style="text-align: right; font-weight: 600;">
+                                $@egreso.ValorCop.ToString("N0")
+                            </td>
+                            <td style="text-align: center;">
+                                <MudButton Variant="Variant.Text" 
+                                           Color="Color.Primary" 
+                                           Size="Size.Small"
+                                           OnClick="@(() => Editar(egreso))"
+                                           StartIcon="@Icons.Material.Filled.Edit">
+                                    Editar
+                                </MudButton>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <div class="mt-6 text-end" style="font-weight: 700; font-size: 1.25rem;">
+        Total: @egresos?.Sum(x => x.ValorCop).ToString("C0", new CultureInfo("es-CO"))
+    </div>
+</MudPaper>
+
+<MudDialog @bind-IsVisible="mostrarModal" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium })" aria-label="Modal de egreso">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(editando ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
+            @tituloModal
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="form" OnValidSubmit="Guardar" aria-label="Formulario de egreso">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="d-flex flex-column gap-4">
+                <MudDatePicker Label="Fecha" 
+                               @bind-Date="form.FechaAsNullable" 
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               aria-label="Fecha del egreso" />
+                
+                <MudTextField Label="Categoría" 
+                              @bind-Value="form.Categoria" 
+                              Variant="Variant.Outlined"
+                              aria-label="Categoría del egreso" />
+                
+                <MudTextField Label="Proveedor" 
+                              @bind-Value="form.Proveedor" 
+                              Variant="Variant.Outlined"
+                              aria-label="Proveedor del egreso" />
+                
+                <MudTextField Label="Descripción" 
+                              @bind-Value="form.Descripcion" 
+                              Variant="Variant.Outlined"
+                              Lines="3"
+                              aria-label="Descripción del egreso" />
+                
+                <MudNumericField Label="Valor COP" 
+                                 @bind-Value="form.ValorCop" 
+                                 Variant="Variant.Outlined"
+                                 Format="N0"
+                                 aria-label="Valor en COP" />
+                
+                <div>
+                    <MudText Typo="Typo.body2" Class="mb-2">Soporte (opcional)</MudText>
+                    <InputFile OnChange="HandleFileSelected" aria-label="Archivo de soporte" />
+                </div>
+            </div>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cerrar">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Guardar">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<UIToastStack />
+
+@code {
+    private List<Server.Models.Egreso>? egresos;
+    private bool isLoading = false;
+    private Filtro filtro = new();
+    private bool mostrarModal;
+    private bool editando;
+    private EgresoDTO form = new();
+    private IBrowserFile? file;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Buscar();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en OnInitializedAsync Egresos: {ex.Message}");
+            egresos = new List<Server.Models.Egreso>();
+        }
+    }
+
+    private async Task Buscar()
+    {
+        isLoading = true;
+        try
+        {
+            egresos = await EgresosService.ListarAsync(filtro.Desde, filtro.Hasta, filtro.Categoria);
+        }
+        catch (Exception ex)
+        {
+            _toastService.Show($"Error buscando egresos: {ex.Message}", "danger");
+            egresos = new List<Server.Models.Egreso>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Nueva()
+    {
+        form = new();
+        form.Fecha = DateTime.UtcNow.Date;
+        editando = false;
+        mostrarModal = true;
+        file = null;
+    }
+
+    private void Editar(Server.Models.Egreso e)
+    {
+        form = new EgresoDTO
+        {
+            Id = e.Id,
+            Fecha = e.Fecha,
+            Categoria = e.Categoria,
+            Proveedor = e.Proveedor,
+            Descripcion = e.Descripcion,
+            ValorCop = e.ValorCop
+        };
+        editando = true;
+        mostrarModal = true;
+        file = null;
+    }
+
+    private void Cerrar() => mostrarModal = false;
+
+    private string tituloModal => $"{(editando ? "Editar" : "Nuevo")} egreso";
+
+    private async Task Guardar()
+    {
+        var entity = new Egreso
+        {
+            Fecha = form.Fecha,
+            Categoria = form.Categoria ?? string.Empty,
+            Proveedor = form.Proveedor ?? string.Empty,
+            Descripcion = form.Descripcion ?? string.Empty,
+            ValorCop = form.ValorCop
+        };
+        try
+        {
+            if (!editando)
+            {
+                if (file is not null)
+                {
+                    await using var stream = file.OpenReadStream(20 * 1024 * 1024);
+                    await EgresosService.CrearAsync(entity, stream, file.Name, "ui");
+                }
+                else
+                {
+                    await EgresosService.CrearAsync(entity, (Stream?)null, null, "ui");
+                }
+                _toastService.Show("Egreso creado correctamente.", "success");
+            }
+            else
+            {
+                if (file is not null)
+                {
+                    await using var stream = file.OpenReadStream(20 * 1024 * 1024);
+                    await EgresosService.ActualizarAsync(form.Id, entity, stream, file.Name, "ui");
+                }
+                else
+                {
+                    await EgresosService.ActualizarAsync(form.Id, entity, null, null, "ui");
+                }
+                _toastService.Show("Egreso actualizado correctamente.", "success");
+            }
+            mostrarModal = false;
+            await Buscar();
+        }
+        catch (Exception ex)
+        {
+            _toastService.Show($"Error al guardar egreso: {ex.Message}", "danger");
+        }
+    }
+
+    private async Task Eliminar(Server.Models.Egreso e)
+    {
+        // Podríamos exponer este método desde el servicio si se desea evitar uso de controlador
+        // Por ahora reutilizamos el servicio registrando un método directo si fuera necesario.
+        // Para mantener el alcance de cambios, hacemos una llamada directa al servicio del repositorio.
+        await EgresosService.EliminarAsync(e.Id);
+        await Buscar();
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        file = e.File;
+    }
+
+    public class Filtro
+    {
+        public DateTime? Desde { get; set; }
+        public DateTime? Hasta { get; set; }
+        public string? Categoria { get; set; }
+    }
+
+    public class EgresoDTO
+    {
+        public Guid Id { get; set; }
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La fecha es obligatoria")]
+        public DateTime Fecha { get; set; }
+        
+        // Propiedad auxiliar para MudDatePicker
+        public DateTime? FechaAsNullable
+        {
+            get => Fecha;
+            set => Fecha = value ?? DateTime.UtcNow.Date;
+        }
+        
+        public string? Categoria { get; set; }
+        public string? Proveedor { get; set; }
+        public string? Descripcion { get; set; }
+        [System.ComponentModel.DataAnnotations.Range(1, double.MaxValue, ErrorMessage = "El valor debe ser mayor a 0")]
+        public decimal ValorCop { get; set; }
+    }
+
+    // Se usa Server.Models.Egreso; no se requiere clase local duplicada
+}
+    </Authorized>
+</AuthorizeView>

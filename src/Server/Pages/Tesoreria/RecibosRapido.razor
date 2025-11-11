@@ -4,81 +4,75 @@
 @inject Server.Services.Miembros.IMiembrosService MiembrosService
 @inject Server.Services.Recibos.IRecibosService RecibosService
 @inject NavigationManager Navigation
-@inject ToastService Toasts
+@inject ISnackbar Snackbar
 @inject HttpClient Http
 
 <PageTitle>Recibos Rápidos - Tesorería</PageTitle>
 
-<UICard Class="mb-6">
-    <Header>
-        <div class="flex items-center gap-3">
-            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 17v-6a2 2 0 012-2h6a2 2 0 012 2v6"/><path d="M9 17h6"/></svg>
-            <span class="text-2xl font-semibold">Recibo Rápido</span>
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
+    <MudPaper Class="glass-card pa-6">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div>
+                <h2><MudIcon Icon="@Icons.Material.Filled.Bolt" Size="Size.Large" Class="me-2" />Recibo Rápido</h2>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Enfocado en mensualidades y conceptos frecuentes</MudText>
+            </div>
         </div>
-        <span class="text-slate-500 dark:text-slate-400">Enfocado en mensualidades y conceptos frecuentes</span>
-    </Header>
-    <ChildContent>
-        <EditForm Model="form" OnValidSubmit="GuardarEImprimirAsync" class="space-y-6">
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="me-2" />
+            Seleccione un miembro (o ingrese tercero libre) y marque los conceptos a facturar. Los precios se aplican automáticamente.
+        </MudAlert>
+        <EditForm Model="form" OnValidSubmit="GuardarEImprimirAsync">
             <DataAnnotationsValidator />
-            <ValidationSummary class="mb-4 text-red-500" />
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Miembro</label>
-                    <select class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary"
-                            value="@(form.MiembroId?.ToString() ?? "")"
-                            @onchange="(e => OnMiembroChanged(e.Value?.ToString()))">
-                        <option value="">-- Seleccione --</option>
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid?" @bind-Value="form.MiembroId" Label="Miembro" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@((Guid?)null)">-- Seleccione --</MudSelectItem>
                         @foreach (var m in miembros)
                         {
-                            <option value="@m.Id.ToString()">@m.NombreCompleto (@m.NumeroSocio)</option>
+                            <MudSelectItem Value="@((Guid?)m.Id)">@m.NombreCompleto (@m.NumeroSocio)</MudSelectItem>
                         }
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Tercero Libre (opcional)</label>
-                    <InputText class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="form.TerceroLibre" maxlength="200" />
-                    <div class="text-xs text-slate-400 mt-1">Usar solo si no seleccionas un miembro.</div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Fecha Emisión</label>
-                    <InputDate class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" @bind-Value="form.FechaEmision" />
-                </div>
-            </div>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="form.TerceroLibre" Label="Tercero Libre (opcional)" Variant="Variant.Outlined" MaxLength="200" HelperText="Usar solo si no seleccionas un miembro" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField @bind-Value="form.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" InputType="InputType.Date" Format="yyyy-MM-dd" />
+                </MudItem>
+            </MudGrid>
 
-            <UICard Class="mt-6">
-                <Header>
-                    <span class="font-semibold">Conceptos rápidos</span>
-                </Header>
-                <ChildContent>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        @foreach (var c in conceptos)
-                        {
-                            <div class="flex items-center gap-3 border rounded-xl px-3 py-2">
-                                <input type="checkbox" @bind="c.Seleccionado" />
-                                <div class="flex-1">
-                                    <div class="text-sm font-medium">@c.Nombre <span class="text-slate-400">(@c.Codigo)</span></div>
+            <MudPaper Class="glass-card pa-4 mb-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Conceptos Rápidos</MudText>
+                <MudGrid>
+                    @foreach (var c in conceptos)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-3 d-flex align-center gap-3" Style="border: 1px solid var(--mud-palette-divider);">
+                                <MudCheckBox T="bool" @bind-Checked="c.Seleccionado" Color="Color.Primary" />
+                                <div class="flex-grow-1">
+                                    <MudText Typo="Typo.body1"><b>@c.Nombre</b> <span style="color: var(--mud-palette-text-secondary);">(@c.Codigo)</span></MudText>
                                 </div>
-                                <div class="w-28">
-                                    <input type="number" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" min="1" max="999" @bind="c.Cantidad" />
+                                <div style="width: 120px;">
+                                    <MudNumericField T="int" @bind-Value="c.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="999" HideSpinButtons="true" />
                                 </div>
-                            </div>
-                        }
-                    </div>
-                    <div class="mt-4 text-xs text-slate-500">Los precios se toman del concepto. Si la moneda es USD, se aplica TRM del día.</div>
-                </ChildContent>
-            </UICard>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Los precios se toman del concepto. Si la moneda es USD, se aplica TRM del día.</MudText>
+            </MudPaper>
 
-            <div class="flex gap-2 mt-6">
-                <UIButton Variant="success" Size="md" Type="submit" Disabled="@(!PuedeGuardar)">Guardar e Imprimir</UIButton>
-                <UIButton Variant="ghost" Size="md" Type="button" OnClick="@Limpiar">Limpiar</UIButton>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Print" ButtonType="ButtonType.Submit" Disabled="@(!PuedeGuardar)">Guardar e Imprimir</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Clear" OnClick="Limpiar">Limpiar</MudButton>
             </div>
         </EditForm>
-    </ChildContent>
-</UICard>
+    </MudPaper>
+</MudContainer>
 
 @code {
     private CreateReciboDto form = new() { FechaEmision = DateTime.Today };
+    private DateTime? fechaEmision = DateTime.Today;
     private List<Server.DTOs.Miembros.MiembroListItem> miembros = new();
     private List<ConceptoQuick> conceptos = new();
 
@@ -121,20 +115,18 @@
         }
     }
 
-    private void OnMiembroChanged(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) form.MiembroId = null; else if (Guid.TryParse(value, out var g)) form.MiembroId = g;
-        StateHasChanged();
-    }
-
     private void Limpiar()
     {
         form = new() { FechaEmision = DateTime.Today };
+        fechaEmision = DateTime.Today;
         foreach (var c in conceptos) { c.Seleccionado = false; c.Cantidad = 1; }
     }
 
     private async Task GuardarEImprimirAsync()
     {
+        // Sincronizar fecha
+        form.FechaEmision = fechaEmision ?? DateTime.Today;
+        
         try
         {
             // Llamar a API simplificada POST /api/recibos con { MiembroId, TerceroLibre, Items: [{ CodigoConcepto, Cantidad }] }
@@ -148,25 +140,25 @@
             if (!resp.IsSuccessStatusCode)
             {
                 var msg = await resp.Content.ReadAsStringAsync();
-                Toasts.Show($"Error creando recibo: {msg}", "danger");
+                Snackbar.Add($"Error creando recibo: {msg}", Severity.Error);
                 return;
             }
             var data = await resp.Content.ReadFromJsonAsync<CreateResponse>();
             if (data is null)
             {
-                Toasts.Show("No se recibió respuesta válida del servidor", "danger");
+                Snackbar.Add("No se recibió respuesta válida del servidor", Severity.Error);
                 return;
             }
 
             // Abrir PDF en nueva pestaña
             Navigation.NavigateTo($"/api/recibos/{data.Id}/pdf", true);
-            Toasts.Show("Recibo creado y emitido", "success");
+            Snackbar.Add("Recibo creado y emitido", Severity.Success);
             Limpiar();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error guardando recibo rápido: {ex.Message}");
-            Toasts.Show($"Error guardando: {ex.Message}", "danger");
+            Snackbar.Add($"Error guardando: {ex.Message}", Severity.Error);
         }
     }
 

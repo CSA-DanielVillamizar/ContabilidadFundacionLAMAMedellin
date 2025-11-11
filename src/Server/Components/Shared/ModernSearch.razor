@@ -4,7 +4,7 @@
     Estilo inspirado en dashboards modernos
 *@
 
-<div class="modern-search">
+    <div class="modern-search @Class">
     <MudIcon Icon="@Icons.Material.Filled.Search" Class="search-icon" />
     <input 
         type="text" 
@@ -22,6 +22,12 @@
 
 @code {
     /// <summary>
+        /// Clases CSS adicionales para el contenedor
+        /// </summary>
+        [Parameter]
+        public string Class { get; set; } = string.Empty;
+
+        /// <summary>
     /// Placeholder del campo de búsqueda
     /// </summary>
     [Parameter]

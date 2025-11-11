@@ -37,7 +37,7 @@
                     <MudTextField @bind-Value="formData.TerceroLibre" Label="Tercero Libre" Variant="Variant.Outlined" MaxLength="200" />
                 </MudItem>
                 <MudItem xs="12" md="4">
-                    <MudDatePicker @bind-Date="formData.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" Editable="true" DateFormat="dd/MM/yyyy" />
+                    <MudTextField @bind-Value="formData.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" InputType="InputType.Date" Format="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
 
@@ -71,7 +71,7 @@
                             <MudNumericField T="int" @bind-Value="item.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="999" HideSpinButtons="true" />
                         </MudTd>
                         <MudTd DataLabel="Moneda">
-                            <MudSelect T="Moneda" @bind-Value="item.MonedaOrigen" Variant="Variant.Outlined" Margin="Margin.Dense" ValueChanged="@(async (Moneda m) => await OnMonedaChangedAsync(item, m))" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelect T="Moneda" Value="item.MonedaOrigen" Variant="Variant.Outlined" Margin="Margin.Dense" ValueChanged="@(async (Moneda m) => await OnMonedaChangedAsync(item, m))" AnchorOrigin="Origin.BottomCenter">
                                 <MudSelectItem Value="Moneda.COP">COP</MudSelectItem>
                                 <MudSelectItem Value="Moneda.USD">USD</MudSelectItem>
                             </MudSelect>
@@ -241,7 +241,7 @@
         AgregarItem();
     }
 
-    private decimal CalcularSubtotalCop(CreateReciboItemDto item)
+    private async Task OnMonedaChangedAsync(CreateReciboItemDto item, Moneda moneda)
     {
         item.MonedaOrigen = moneda;
         

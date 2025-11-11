@@ -78,8 +78,8 @@
         <div class="row g-3">
             <div class="col-md-4">
                 <ModernSearch Placeholder="Buscar por nombre, identificación o email..." 
-                              @bind-Value="busqueda" 
-                              OnSearchChanged="BuscarConDelay" />
+                                 Value="@busqueda" 
+                                 ValueChanged="@((value) => { busqueda = value; BuscarConDelay(); })" />
             </div>
             <div class="col-md-2">
                 <MudSelect T="string" 

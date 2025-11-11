@@ -74,7 +74,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarItem(item))" />
                         </MudTd>
                     </RowTemplate>
-                    <FooterContent Context="item">
+                    <FooterContent>
                         <MudTd ColSpan="3" Class="text-end"><b>TOTAL A COBRAR:</b></MudTd>
                         <MudTd ColSpan="1" Class="text-end"><b class="text-primary" style="font-size:1.2rem">$@CalcularTotal().ToString("N0")</b></MudTd>
                         <MudTd></MudTd>

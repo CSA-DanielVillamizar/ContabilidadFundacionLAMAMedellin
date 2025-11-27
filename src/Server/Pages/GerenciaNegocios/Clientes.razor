@@ -166,19 +166,19 @@
                                                        Color="Color.Primary" 
                                                        Size="Size.Small"
                                                        OnClick="@(() => Nav.NavigateTo($"/gerencia-negocios/clientes/{cliente.Id}"))"
-                                                       Title="Ver detalle" />
+                                                       />
                                         <AuthorizeView Policy="GerenciaNegocios">
                                             <Authorized>
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                                Color="Color.Default" 
                                                                Size="Size.Small"
                                                                OnClick="@(() => Nav.NavigateTo($"/gerencia-negocios/clientes/editar/{cliente.Id}"))"
-                                                               Title="Editar" />
+                                                               />
                                                 <MudIconButton Icon="@(cliente.Activo ? Icons.Material.Filled.Delete : Icons.Material.Filled.Restore)" 
                                                                Color="@(cliente.Activo ? Color.Error : Color.Success)" 
                                                                Size="Size.Small"
                                                                OnClick="@(() => ConfirmarEliminar(cliente))"
-                                                               Title="@(cliente.Activo ? "Desactivar" : "Activar")" />
+                                                               />
                                             </Authorized>
                                         </AuthorizeView>
                                     </MudButtonGroup>
@@ -209,7 +209,7 @@
     </MudPaper>
 </MudContainer>
 
-<MudDialog Open="mostrarModalEliminar">
+<MudDialog @bind-Visible="mostrarModalEliminar">
     <TitleContent>
         <MudText Typo="Typo.h6">Confirmar @(clienteEliminar?.Activo == true ? "Desactivación" : "Activación")</MudText>
     </TitleContent>

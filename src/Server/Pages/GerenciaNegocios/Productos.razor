@@ -142,7 +142,7 @@
 </MudContainer>
 
 @* Modal Formulario con MudDialog *@
-<MudDialog @bind-IsVisible="mostrarModal" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+<MudDialog @bind-Visible="mostrarModal" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="me-2" />

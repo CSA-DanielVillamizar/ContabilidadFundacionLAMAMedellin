@@ -379,3 +379,4 @@ C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\ContabilidadLAMAMedelli
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\ContabilidadLAMAMedellin.Tests\obj\Debug\net8.0\ContabilidadLAMAMedellin.Tests.pdb
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\ContabilidadLAMAMedellin.Tests\obj\Debug\net8.0\ContabilidadLAMAMedellin.Tests.genruntimeconfig.cache
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\ContabilidadLAMAMedellin.Tests\obj\Debug\net8.0\ref\ContabilidadLAMAMedellin.Tests.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\ContabilidadLAMAMedellin.Tests\bin\Debug\net8.0\CoverletSourceRootsMapping_ContabilidadLAMAMedellin.Tests

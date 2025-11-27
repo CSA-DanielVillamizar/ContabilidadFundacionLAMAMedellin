@@ -117,7 +117,7 @@
     </div>
 </MudPaper>
 
-<MudDialog Open="mostrarModal" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium })" aria-label="Modal de egreso">
+<MudDialog @bind-Visible="mostrarModal" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium })" aria-label="Modal de egreso">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@(editando ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />

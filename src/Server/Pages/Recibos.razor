@@ -203,7 +203,7 @@
 
 @if (mostrarModalEmitir)
 {
-    <MudDialog Open="mostrarModalEmitir" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
+    <MudDialog @bind-Visible="mostrarModalEmitir" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
         <TitleContent>
             <MudText Typo="Typo.h6" Color="Color.Success">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
@@ -224,7 +224,7 @@
 
 @if (mostrarModalAnular)
 {
-    <MudDialog Open="mostrarModalAnular" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
+    <MudDialog @bind-Visible="mostrarModalAnular" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
         <TitleContent>
             <MudText Typo="Typo.h6" Color="Color.Error">
                 <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="mr-2" />
@@ -299,7 +299,7 @@
                 })
                 .ToListAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await InvokeAsync(() =>
             {

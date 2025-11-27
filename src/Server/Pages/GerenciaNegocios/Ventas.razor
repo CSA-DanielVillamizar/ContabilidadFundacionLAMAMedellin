@@ -98,7 +98,7 @@
 </div>
 
 @* Modal Nueva Venta *@
-<MudDialog @bind-IsVisible="mostrarModalVenta" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
+<MudDialog @bind-Visible="mostrarModalVenta" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
     <TitleContent>
         <div class="d-flex align-items-center gap-2">
             <div class="icon-bubble text-primary bg-primary-subtle">
@@ -211,8 +211,8 @@
                     </RowTemplate>
                     <FooterContent>
                         <MudTr>
-                            <MudTd ColSpan="4" Class="text-end"><strong>TOTAL:</strong></MudTd>
-                            <MudTd ColSpan="2"><strong>$@CalcularTotal().ToString("N0")</strong></MudTd>
+                            <MudTd colspan="4" Class="text-end"><strong>TOTAL:</strong></MudTd>
+                            <MudTd colspan="2"><strong>$@CalcularTotal().ToString("N0")</strong></MudTd>
                         </MudTr>
                     </FooterContent>
                 </MudTable>

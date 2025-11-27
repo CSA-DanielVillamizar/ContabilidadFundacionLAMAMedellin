@@ -32,8 +32,8 @@ public class ClientesService : IClientesService
         {
               busqueda = busqueda?.ToLower() ?? string.Empty;
             query = query.Where(c =>
-                c.Nombre.ToLower().Contains(busqueda) ||
-                c.Identificacion.ToLower().Contains(busqueda) ||
+                (c.Nombre ?? string.Empty).ToLower().Contains(busqueda) ||
+                (c.Identificacion ?? string.Empty).ToLower().Contains(busqueda) ||
                 (c.Email != null && c.Email.ToLower().Contains(busqueda)) ||
                 (c.Telefono != null && c.Telefono.ToLower().Contains(busqueda)));
         }

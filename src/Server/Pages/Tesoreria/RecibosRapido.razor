@@ -95,7 +95,7 @@
             var paged = await MiembrosService.GetPagedAsync("", EstadoMiembro.Activo, 1, 1000);
             miembros = paged?.Items ?? new();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
 miembros = new();
         }
@@ -111,7 +111,7 @@ miembros = new();
                 .Select(c => new ConceptoQuick { Id = c.Id, Codigo = c.Codigo, Nombre = c.Nombre, Cantidad = 1 })
                 .ToList();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
 conceptos = new();
         }

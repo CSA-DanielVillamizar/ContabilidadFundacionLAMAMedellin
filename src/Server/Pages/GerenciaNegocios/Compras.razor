@@ -86,7 +86,7 @@
 </DataTableWrapper>
 
 <!-- Dialog Nueva Compra -->
-<MudDialog @bind-IsVisible="mostrarModalNueva" Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, CloseOnEscapeKey = false })">
+<MudDialog @bind-Visible="mostrarModalNueva" Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">Nueva Compra</MudText>
     </TitleContent>
@@ -176,7 +176,7 @@
 </MudDialog>
 
 <!-- Dialog Registrar Pago -->
-<MudDialog @bind-IsVisible="mostrarModalPago" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
+<MudDialog @bind-Visible="mostrarModalPago" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">Registrar Pago - @compraSeleccionada?.NumeroCompra</MudText>
     </TitleContent>
@@ -190,7 +190,7 @@
 </MudDialog>
 
 <!-- Dialog Registrar Recepción -->
-<MudDialog @bind-IsVisible="mostrarModalRecepcion" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
+<MudDialog @bind-Visible="mostrarModalRecepcion" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">Registrar Recepción - @compraSeleccionada?.NumeroCompra</MudText>
     </TitleContent>

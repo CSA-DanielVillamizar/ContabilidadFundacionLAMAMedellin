@@ -23,7 +23,7 @@
             <FormSection Title="Datos del Miembro" Icon="@Icons.Material.Filled.Person">
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid" Value="request.MiembroId" ValueChanged="@((Guid v) => { request.MiembroId = v; OnMiembroChanged(v); })" ValueExpression="@(() => request.MiembroId)" Label="Miembro *" Required="true" Variant="Variant.Outlined">
+                        <MudSelect T="Guid" Value="request.MiembroId" ValueChanged="@((Guid v) => { request.MiembroId = v; OnMiembroChanged(v); })" Label="Miembro *" Required="true" Variant="Variant.Outlined">
                             <MudSelectItem Value="Guid.Empty">Seleccione un miembro...</MudSelectItem>
                             @foreach (var miembro in miembros)
                             {
@@ -82,8 +82,8 @@
                         </MudTd>
                     </RowTemplate>
                     <FooterContent>
-                        <MudTd ColSpan="3" Class="text-end"><b>TOTAL A COBRAR:</b></MudTd>
-                        <MudTd ColSpan="1" Class="text-end"><b class="text-primary" style="font-size:1.2rem">$@CalcularTotal().ToString("N0")</b></MudTd>
+                        <MudTd colspan="3" Class="text-end"><b>TOTAL A COBRAR:</b></MudTd>
+                        <MudTd colspan="1" Class="text-end"><b class="text-primary" style="font-size:1.2rem">$@CalcularTotal().ToString("N0")</b></MudTd>
                         <MudTd></MudTd>
                     </FooterContent>
                 </MudTable>

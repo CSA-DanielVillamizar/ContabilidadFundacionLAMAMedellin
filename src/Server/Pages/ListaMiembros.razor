@@ -73,7 +73,7 @@
 </AuthorizeView>
 
 <!-- Dialog Crear/Editar Miembro -->
-<MudDialog @bind-IsVisible="mostrarModalForm" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = false })">
+<MudDialog @bind-Visible="mostrarModalForm" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">@(esEdicion ? "Editar Miembro" : "Nuevo Miembro")</MudText>
     </TitleContent>
@@ -139,7 +139,7 @@
 </MudDialog>
 
 <!-- Dialog Confirmar Eliminar -->
-<MudDialog @bind-IsVisible="mostrarModalEliminar" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small })">
+<MudDialog @bind-Visible="mostrarModalEliminar" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small })">
     <TitleContent>
         <MudText Typo="Typo.h6">Confirmar Eliminación</MudText>
     </TitleContent>

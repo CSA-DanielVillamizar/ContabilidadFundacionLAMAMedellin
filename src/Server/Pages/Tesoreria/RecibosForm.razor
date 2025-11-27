@@ -127,7 +127,7 @@
 </MudContainer>
 
 
-<MudDialog Open="mostrarModalCertificado" Options="new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small }">
+<MudDialog @bind-Visible="mostrarModalCertificado" Options="new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small }">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Class="me-2" />
@@ -191,7 +191,7 @@
                 var paged = await MiembrosService.GetPagedAsync("", EstadoMiembro.Activo, 1, 1000);
                 _cachedMiembros = paged?.Items ?? new();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 _cachedMiembros = new();
             }
@@ -200,7 +200,7 @@ _cachedMiembros = new();
             {
                 _cachedConceptos = await RecibosService.GetConceptosAsync() ?? new();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 _cachedConceptos = new();
             }

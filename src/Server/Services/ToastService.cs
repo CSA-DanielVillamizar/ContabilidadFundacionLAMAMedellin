@@ -58,5 +58,5 @@ public class ToastService
         _ => 3000
     };
 
-    public event Action StateHasChanged;
+    public event Action? StateHasChanged;
 }

@@ -11,7 +11,7 @@ namespace Server.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Gerente,Tesorero")]
+[Authorize(Policy = "AdminGerenteTesorero")]
 public class ConciliacionBancariaController : ControllerBase
 {
     private readonly IConciliacionBancariaService _service;
@@ -120,7 +120,7 @@ public class ConciliacionBancariaController : ControllerBase
     /// Crea una nueva conciliación
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Admin,Gerente,Tesorero")]
+    [Authorize(Policy = "AdminGerenteTesorero")]
     public async Task<IActionResult> Crear([FromBody] ConciliacionBancariaFormDto dto)
     {
         try
@@ -145,7 +145,7 @@ public class ConciliacionBancariaController : ControllerBase
     /// Actualiza una conciliación existente
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Gerente,Tesorero")]
+    [Authorize(Policy = "AdminGerenteTesorero")]
     public async Task<IActionResult> Actualizar(Guid id, [FromBody] ConciliacionBancariaFormDto dto)
     {
         try
@@ -170,7 +170,7 @@ public class ConciliacionBancariaController : ControllerBase
     /// Elimina una conciliación (solo si está en Pendiente)
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Gerente")]
+    [Authorize(Policy = "AdminGerente")]
     public async Task<IActionResult> Eliminar(Guid id)
     {
         try
@@ -281,7 +281,7 @@ public class ConciliacionBancariaController : ControllerBase
     /// Cambia el estado de una conciliación
     /// </summary>
     [HttpPost("{id}/cambiar-estado")]
-    [Authorize(Roles = "Admin,Gerente,Tesorero")]
+    [Authorize(Policy = "AdminGerenteTesorero")]
     public async Task<IActionResult> CambiarEstado(Guid id, [FromBody] string nuevoEstado)
     {
         try

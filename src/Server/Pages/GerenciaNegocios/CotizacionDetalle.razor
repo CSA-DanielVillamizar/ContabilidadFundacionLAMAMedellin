@@ -1,6 +1,6 @@
 @page "/gerencia-negocios/cotizaciones/{id:guid}"
 @using Server.DTOs.Cotizaciones
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "GerenciaNegocios")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ToastService Toast
@@ -36,7 +36,7 @@
                         <h2 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>@cotizacion.NumeroCotizacion</h2>
                     </div>
                     <div>
-                        <AuthorizeView Roles="Admin,Gerente">
+                        <AuthorizeView Policy="GerenciaNegocios">
                             <Authorized>
                                 @if (cotizacion.Estado != "Convertida" && cotizacion.Estado != "Rechazada")
                                 {

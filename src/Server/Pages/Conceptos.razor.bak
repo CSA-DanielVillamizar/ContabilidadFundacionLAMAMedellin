@@ -1,0 +1,443 @@
+@page "/config/conceptos"
+@attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
+@inject IHttpClientFactory HttpClientFactory
+@inject ToastService Toast
+@inject ISnackbar Snackbar
+
+<PageTitle>Conceptos - LAMA Medellín</PageTitle>
+
+<AuthorizeView Context="authContext">
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+<Breadcrumb Items="@breadcrumbs" />
+
+<UICard Class="mb-6">
+    <Header>
+        <div class="flex items-center justify-between w-full">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span class="text-2xl font-semibold">Gestión de Conceptos</span>
+            </div>
+            <UIButton Variant="primary" Size="sm" OnClick="@AbrirModalNuevo">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Nuevo Concepto
+            </UIButton>
+        </div>
+    </Header>
+    <ChildContent>
+        <!-- Filtros (MudBlazor + glass) -->
+        <div class="glass-card p-4 rounded-2xl mb-6 backdrop-blur-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-700/50">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Tipo</label>
+                    <MudSelect T="string" @bind-Value="filtroTipo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="rounded-xl" @bind-Value:after="OnFiltroChanged">
+                        <MudSelectItem T="string" Value="@string.Empty">Todos</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("true")">Ingresos</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("false")">Egresos</MudSelectItem>
+                    </MudSelect>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Recurrencia</label>
+                    <MudSelect T="string" @bind-Value="filtroRecurrencia" Variant="Variant.Outlined" Margin="Margin.Dense" Class="rounded-xl" @bind-Value:after="OnFiltroChanged">
+                        <MudSelectItem T="string" Value="@string.Empty">Todos</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("true")">Recurrentes</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("false")">No recurrentes</MudSelectItem>
+                    </MudSelect>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Moneda</label>
+                    <MudSelect T="string" @bind-Value="filtroMoneda" Variant="Variant.Outlined" Margin="Margin.Dense" Class="rounded-xl" @bind-Value:after="OnFiltroChanged">
+                        <MudSelectItem T="string" Value="@string.Empty">Todas</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("0")">COP</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("1")">USD</MudSelectItem>
+                    </MudSelect>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <UITable TItem="ConceptoDto" Items="@conceptos" Loading="@isLoading" Columns="@ConceptosColumns" />
+
+        <!-- Info Card -->
+        <UICard Class="mt-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <Header>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="font-semibold text-blue-900 dark:text-blue-100">Tipos de Conceptos</span>
+                </div>
+            </Header>
+            <ChildContent>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h6 class="font-semibold mb-2 text-slate-900 dark:text-slate-100">Conceptos de Ingreso</h6>
+                        <ul class="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                            <li>• Mensualidades (Aprendiz, Compañero, Maestro)</li>
+                            <li>• Cuotas de afiliación e iniciación</li>
+                            <li>• Eventos y tenidas especiales</li>
+                            <li>• Donaciones y aportes</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h6 class="font-semibold mb-2 text-slate-900 dark:text-slate-100">Conceptos Recurrentes</h6>
+                        <ul class="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                            <li><strong>Mensual:</strong> Se cobra cada mes automáticamente</li>
+                            <li><strong>Trimestral:</strong> Se cobra cada 3 meses</li>
+                            <li><strong>Anual:</strong> Se cobra una vez al año</li>
+                            <li><strong>Única:</strong> Cargo por única vez</li>
+                        </ul>
+                    </div>
+                </div>
+            </ChildContent>
+        </UICard>
+    </ChildContent>
+</UICard>
+    </Authorized>
+</AuthorizeView>
+
+<!-- Modal MudBlazor para Crear/Editar (fuera del AuthorizeView) -->
+<MudDialog @bind-IsVisible="mostrarModal" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(esEdicion ? "Editar Concepto" : "Nuevo Concepto")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="@formulario">
+            <div class="mb-3">
+                <MudTextField Label="Código" @bind-Value="formulario.Codigo" Variant="Variant.Outlined" Required="true" />
+            </div>
+            <div class="mb-3">
+                <MudTextField Label="Nombre" @bind-Value="formulario.Nombre" Variant="Variant.Outlined" Required="true" />
+            </div>
+            <div class="mb-3">
+                <MudTextField Label="Descripción" @bind-Value="formulario.Descripcion" Variant="Variant.Outlined" Lines="3" />
+            </div>
+            <div class="mb-3">
+                <MudSelect Label="Tipo" @bind-Value="formulario.EsIngreso" Variant="Variant.Outlined" Required="true">
+                    <MudSelectItem Value="true">Ingreso</MudSelectItem>
+                    <MudSelectItem Value="false">Egreso</MudSelectItem>
+                </MudSelect>
+            </div>
+            <div class="mb-3">
+                <MudSelect Label="Moneda" @bind-Value="formulario.Moneda" Variant="Variant.Outlined" Required="true">
+                    <MudSelectItem Value="@("COP")">COP</MudSelectItem>
+                    <MudSelectItem Value="@("USD")">USD</MudSelectItem>
+                </MudSelect>
+            </div>
+            <div class="mb-3">
+                <MudNumericField Label="Precio Base" @bind-Value="formulario.PrecioBase" Variant="Variant.Outlined" Min="0" Required="true" />
+            </div>
+            <div class="mb-3">
+                <MudCheckBox T="bool" @bind-Value="formulario.EsRecurrente" Label="Es Recurrente" Color="Color.Primary" />
+            </div>
+            @if (formulario.EsRecurrente)
+            {
+                <div class="mb-3">
+                    <MudTextField Label="Periodicidad (ej: Mensual, Trimestral)" @bind-Value="formulario.Periodicidad" Variant="Variant.Outlined" />
+                </div>
+            }
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CerrarModal" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="GuardarConcepto" Variant="Variant.Filled" Color="Color.Primary" Disabled="@guardando">
+            @(guardando ? "Guardando..." : "Guardar")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // Lista de conceptos para la grilla. Debe ser no nula para evitar excepciones en UITable
+    private List<ConceptoDto> conceptos = new();
+    private bool isLoading = false;
+    // Filtros UI (pendiente conectar con API/tabla)
+    private string filtroTipo = string.Empty;
+    private string filtroRecurrencia = string.Empty;
+    private string filtroMoneda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarConceptos();
+    }
+
+    private async Task CargarConceptos()
+    {
+        isLoading = true;
+        try
+        {
+            // Construir query string con filtros
+            var queryParams = new List<string>();
+            if (!string.IsNullOrEmpty(filtroTipo))
+                queryParams.Add($"esIngreso={filtroTipo}");
+            if (!string.IsNullOrEmpty(filtroRecurrencia))
+                queryParams.Add($"esRecurrente={filtroRecurrencia}");
+            if (!string.IsNullOrEmpty(filtroMoneda))
+                queryParams.Add($"moneda={filtroMoneda}");
+            var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+
+            var http = HttpClientFactory.CreateClient("AuthenticatedClient");
+            var request = new HttpRequestMessage(HttpMethod.Get, $"api/conceptos{queryString}");
+            var response = await http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                var conceptosList = await response.Content.ReadFromJsonAsync<List<ConceptoDto>>();
+                conceptos = conceptosList ?? new();
+            }
+            else
+            {
+                var errorMsg = $"Código: {response.StatusCode}";
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    Snackbar.Add($"No tienes permisos para ver los conceptos. {errorMsg}", Severity.Error);
+                }
+                else
+                {
+                    var details = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Error al cargar conceptos: {errorMsg}. Detalles: {details}", Severity.Error);
+                }
+                conceptos = new();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Registrar detalles para depuración
+            Console.Error.WriteLine($"[Conceptos] Excepción: {ex}");
+            Snackbar.Add($"Error inesperado al cargar conceptos: {ex.Message}", Severity.Error);
+            conceptos = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFiltroChanged()
+    {
+        await CargarConceptos();
+    }
+
+    // --- Modal CRUD ---
+    private bool mostrarModal = false;
+    private bool guardando = false;
+    private ConceptoForm formulario = new();
+    private bool esEdicion = false;
+
+    private void AbrirModalNuevo()
+    {
+        esEdicion = false;
+        formulario = new ConceptoForm { EsIngreso = true, Moneda = "COP" };
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEditar(ConceptoDto concepto)
+    {
+        esEdicion = true;
+        formulario = new ConceptoForm
+        {
+            Id = concepto.Id,
+            Codigo = concepto.Codigo,
+            Nombre = concepto.Nombre,
+            Descripcion = concepto.Descripcion ?? string.Empty,
+            EsIngreso = concepto.EsIngreso,
+            EsRecurrente = concepto.EsRecurrente,
+            Moneda = concepto.Moneda,
+            PrecioBase = concepto.PrecioBase,
+            Periodicidad = concepto.Periodicidad ?? string.Empty
+        };
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        formulario = new();
+    }
+
+    private async Task GuardarConcepto()
+    {
+        guardando = true;
+        try
+        {
+            var http = HttpClientFactory.CreateClient("AuthenticatedClient");
+            HttpResponseMessage response;
+            
+            if (esEdicion)
+            {
+                response = await http.PutAsJsonAsync($"api/conceptos/{formulario.Id}", formulario);
+            }
+            else
+            {
+                response = await http.PostAsJsonAsync("api/conceptos", formulario);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(esEdicion ? "Concepto actualizado correctamente" : "Concepto creado correctamente", Severity.Success);
+                CerrarModal();
+                await CargarConceptos();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al guardar: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Conceptos.GuardarConcepto] {ex}");
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task EliminarConcepto(ConceptoDto concepto)
+    {
+        // TODO: agregar confirmación con MudDialog
+        var confirmar = true; // Por ahora asumimos confirmación directa
+        if (!confirmar) return;
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("AuthenticatedClient");
+            var response = await http.DeleteAsync($"api/conceptos/{concepto.Id}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Concepto eliminado correctamente", Severity.Success);
+                await CargarConceptos();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al eliminar: {error}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Conceptos.EliminarConcepto] {ex}");
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Configuración", Url = "/config" },
+        new() { Label = "Conceptos", IsActive = true }
+    };
+
+    private List<TableColumn<ConceptoDto>> ConceptosColumns => new()
+    {
+        new() { Header = "Código", Cell = c => c.Codigo },
+        new() { Header = "Nombre", Cell = c => c.Nombre },
+        new() { 
+            Header = "Tipo", 
+            Cell = c => (RenderFragment)(builder => {
+                var tipo = c.EsIngreso ? "Ingreso" : "Egreso";
+                var badgeClass = c.EsIngreso ? "bg-success" : "bg-danger";
+                builder.OpenElement(0, "span");
+                builder.AddAttribute(1, "class", $"badge {badgeClass}");
+                builder.AddContent(2, tipo);
+                builder.CloseElement();
+            })
+        },
+        new() { 
+            Header = "Moneda", 
+            Cell = c => (RenderFragment)(builder => {
+                builder.OpenElement(0, "span");
+                builder.AddAttribute(1, "class", "badge bg-secondary");
+                builder.AddContent(2, c.Moneda);
+                builder.CloseElement();
+            })
+        },
+        new() { 
+            Header = "Precio Base", 
+            Cell = c => (RenderFragment)(builder => {
+                builder.OpenElement(0, "span");
+                builder.AddAttribute(1, "class", "fw-semibold");
+                builder.AddContent(2, c.PrecioBase.ToString("C0"));
+                builder.CloseElement();
+            })
+        },
+        new() { 
+            Header = "Recurrente", 
+            Cell = c => (RenderFragment)(builder => {
+                if (c.EsRecurrente)
+                {
+                    builder.OpenElement(0, "span");
+                    builder.AddAttribute(1, "class", "badge bg-info");
+                    builder.AddContent(2, c.Periodicidad ?? "Sí");
+                    builder.CloseElement();
+                }
+                else
+                {
+                    builder.AddContent(0, "—");
+                }
+            })
+        },
+        new() { 
+            Header = "Acciones", 
+            Cell = c => (RenderFragment)(builder => {
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "class", "flex gap-2");
+                
+                // Botón editar
+                builder.OpenElement(2, "button");
+                builder.AddAttribute(3, "class", "p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition");
+                builder.AddAttribute(4, "title", "Editar");
+                builder.AddAttribute(5, "onclick", EventCallback.Factory.Create(this, () => AbrirModalEditar(c)));
+                builder.AddMarkupContent(6, @"<svg class='w-4 h-4 text-slate-600 dark:text-slate-400' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'>
+                            <path stroke-linecap='round' stroke-linejoin='round' d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'/>
+                        </svg>");
+                builder.CloseElement();
+                
+                // Botón eliminar
+                builder.OpenElement(7, "button");
+                builder.AddAttribute(8, "class", "p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition");
+                builder.AddAttribute(9, "title", "Eliminar");
+                builder.AddAttribute(10, "onclick", EventCallback.Factory.Create(this, () => EliminarConcepto(c)));
+                builder.AddMarkupContent(11, @"<svg class='w-4 h-4 text-red-600 dark:text-red-400' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'>
+                            <path stroke-linecap='round' stroke-linejoin='round' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'/>
+                        </svg>");
+                builder.CloseElement();
+                
+                builder.CloseElement();
+            })
+        }
+    };
+
+    // DTO local para tipado (duplicado del controller para evitar referencias circulares)
+    public class ConceptoDto
+    {
+        public int Id { get; set; }
+        public string Codigo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string? Descripcion { get; set; }
+        public bool EsIngreso { get; set; }
+        public bool EsRecurrente { get; set; }
+        public string Moneda { get; set; } = string.Empty;
+        public decimal PrecioBase { get; set; }
+        public string? Periodicidad { get; set; }
+    }
+
+    public class ConceptoForm
+    {
+        public int Id { get; set; }
+        public string Codigo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public bool EsIngreso { get; set; }
+        public bool EsRecurrente { get; set; }
+        public string Moneda { get; set; } = "COP";
+        public decimal PrecioBase { get; set; }
+        public string Periodicidad { get; set; } = string.Empty;
+    }
+}

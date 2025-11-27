@@ -1,13 +1,18 @@
 @page "/config/usuarios"
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Server.Data
 @using Server.Models
 @attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
+@inject IDbContextFactory<AppDbContext> DbFactory
 @inject UserManager<ApplicationUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
 @inject NavigationManager Nav
 @inject Server.Services.Audit.IAuditService Audit
 
 <PageTitle>Usuarios y Roles</PageTitle>
+
+<Breadcrumb Items="@breadcrumbs" />
 
 <UICard Class="mb-6">
     <Header>
@@ -20,28 +25,42 @@
             <span class="text-2xl font-semibold">Gestión de Usuarios</span>
         </div>
         <div class="flex gap-2">
-            <UIButton Variant="primary" Size="sm" OnClick="@(() => MostrarModalNuevo = true)">Nuevo Usuario</UIButton>
+            <UIButton Variant="primary" Size="sm" OnClick="@AbrirModalNuevoUsuario">Nuevo Usuario</UIButton>
             <UIButton Variant="ghost" Size="sm" OnClick="@LoadAsync" IsLoading="@IsLoading">Refrescar</UIButton>
         </div>
     </Header>
     <ChildContent>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Buscar</label>
-                <input class="w-full rounded-xl border-slate-300" @bind="Filtro" placeholder="correo o nombre" />
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Rol</label>
-                <select class="w-full rounded-xl border-slate-300" @bind="FiltroRol">
-                    <option value="">Todos</option>
-                    @foreach (var r in RolesDisponibles)
-                    {
-                        <option value="@r">@r</option>
-                    }
-                </select>
-            </div>
-            <div class="flex items-end">
-                <UIButton Variant="primary" OnClick="@Filtrar">Aplicar Filtros</UIButton>
+        <div class="glass-card p-4 rounded-2xl mb-4 backdrop-blur-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-700/50">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Buscar</label>
+                    <MudTextField T="string"
+                                  Value="@Filtro"
+                                  ValueChanged="@OnFiltroChanged"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Placeholder="correo o nombre"
+                                  Class="rounded-xl"
+                                  Immediate="true" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Rol</label>
+                    <MudSelect T="string"
+                               Value="@FiltroRol"
+                               ValueChanged="@(v => { FiltroRol = v ?? string.Empty; StateHasChanged(); })"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Class="rounded-xl">
+                        <MudSelectItem Value="@string.Empty">Todos</MudSelectItem>
+                        @foreach (var r in RolesDisponibles)
+                        {
+                            <MudSelectItem Value="@r">@r</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+                <div class="flex items-end">
+                    <UIButton Variant="primary" OnClick="@Filtrar">Aplicar Filtros</UIButton>
+                </div>
             </div>
         </div>
 
@@ -119,7 +138,7 @@
 
 @if (MostrarModalNuevo)
 {
-    <UIModal Show="@MostrarModalNuevo" OnClose="@(() => MostrarModalNuevo = false)">
+    <UIModal IsOpen="@MostrarModalNuevo" IsOpenChanged="@(open => MostrarModalNuevo = open)" Class="max-w-lg">
         <Header>
             <h3 class="text-lg font-semibold">Crear Nuevo Usuario</h3>
         </Header>
@@ -127,16 +146,21 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Correo institucional</label>
-                    <input class="w-full rounded-xl border-slate-300" @bind="NuevoEmail" placeholder="usuario@fundacionlamamedellin.org" />
+                    <MudTextField T="string"
+                                  @bind-Value="NuevoEmail"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Placeholder="usuario@fundacionlamamedellin.org"
+                                  Class="rounded-xl" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Rol</label>
-                    <select class="w-full rounded-xl border-slate-300" @bind="NuevoRol">
+                    <MudSelect T="string" @bind-Value="NuevoRol" Variant="Variant.Outlined" Margin="Margin.Dense" Class="rounded-xl">
                         @foreach (var r in RolesDisponibles)
                         {
-                            <option value="@r">@r</option>
+                            <MudSelectItem Value="@r">@r</MudSelectItem>
                         }
-                    </select>
+                    </MudSelect>
                 </div>
             </div>
         </ChildContent>
@@ -154,39 +178,59 @@
     private bool IsLoading = false;
     private string Filtro = string.Empty;
     private string FiltroRol = string.Empty;
+    private CancellationTokenSource? _debounceCts;
 
     private bool MostrarModalNuevo = false;
     private string NuevoEmail = string.Empty;
     private string NuevoRol = "Tesorero";
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Configuración", Url = "/config" },
+        new() { Label = "Usuarios", IsActive = true }
+    };
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
     }
 
+    /// <summary>
+    /// Carga la lista de usuarios y roles usando DbContextFactory para evitar conflictos de concurrencia.
+    /// Usa una instancia dedicada de DbContext para evitar colisiones con otros componentes (ej. TwoFactorWarningBanner)
+    /// que pueden estar accediendo al mismo DbContext simultáneamente durante OnInitializedAsync.
+    /// </summary>
     private async Task LoadAsync()
     {
         IsLoading = true;
         try
         {
-            // Cargar roles primero
-            RolesDisponibles = await Task.Run(() => RoleManager.Roles.Select(r => r.Name!).OrderBy(n => n).ToList());
+            // Crear instancia dedicada de DbContext usando factory para evitar conflictos de concurrencia
+            await using var db = await DbFactory.CreateDbContextAsync();
             
-            // Cargar usuarios
-            var users = await Task.Run(() => UserManager.Users.ToList());
-            UsuariosLista = new List<UsuarioVM>();
+            // Cargar roles directamente desde DbContext dedicado
+            RolesDisponibles = await db.Roles
+                .Select(r => r.Name!)
+                .OrderBy(n => n)
+                .ToListAsync();
             
-            foreach (var u in users)
-            {
-                var roles = await UserManager.GetRolesAsync(u);
-                UsuariosLista.Add(new UsuarioVM
+                // Cargar usuarios y roles sin usar UserManager para evitar concurrencia
+                var users = await db.Users.ToListAsync();
+                var userRoles = await db.UserRoles.ToListAsync();
+                var rolesDict = await db.Roles.ToDictionaryAsync(r => r.Id, r => r.Name ?? string.Empty);
+
+                UsuariosLista = users.Select(u => new UsuarioVM
                 {
                     Id = u.Id,
                     Email = u.Email ?? u.UserName ?? string.Empty,
                     LockoutEnd = u.LockoutEnd,
-                    Roles = roles.ToList()
-                });
-            }
+                    Roles = userRoles.Where(ur => ur.UserId == u.Id)
+                                       .Select(ur => rolesDict.TryGetValue(ur.RoleId, out var rn) ? rn : string.Empty)
+                                       .Where(n => !string.IsNullOrWhiteSpace(n))
+                                       .Distinct()
+                                       .OrderBy(n => n)
+                                       .ToList()
+                }).ToList();
         }
         finally { IsLoading = false; }
     }
@@ -207,6 +251,32 @@
     }
 
     private void Filtrar() { /* filtros aplican con binding; este botón sirve de ancla UX */ }
+
+    private async void OnFiltroChanged(string? value)
+    {
+        _debounceCts?.Cancel();
+        _debounceCts = new CancellationTokenSource();
+        var token = _debounceCts.Token;
+        
+        Filtro = value ?? string.Empty;
+        
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void AbrirModalNuevoUsuario()
+    {
+        NuevoEmail = string.Empty;
+        NuevoRol = "Tesorero";
+        MostrarModalNuevo = true;
+    }
 
     private async Task CambiarRolAsync(UsuarioVM u, string? nuevoRol)
     {

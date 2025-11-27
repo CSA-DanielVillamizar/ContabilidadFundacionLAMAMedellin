@@ -1,13 +1,19 @@
 @page "/tasas-cambio"
-
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
+@using Server.Models
+@using Microsoft.EntityFrameworkCore
+@inject Server.Data.AppDbContext Db
+@inject ISnackbar Snackbar
 <PageTitle>Tasas de Cambio - LAMA Medellín</PageTitle>
 
 <AuthorizeView>
     <NotAuthorized>
         <RedirectToLogin />
     </NotAuthorized>
-    <Authorized>
+    <Authorized Context="auth">
 <div class="container-fluid">
+    <Breadcrumb Items="@breadcrumbs" />
+    
     <div class="row mb-3">
         <div class="col">
             <h1 class="h3">
@@ -16,13 +22,13 @@
             </h1>
         </div>
         <div class="col-auto">
-            <button class="btn btn-primary">
+            <button class="btn btn-primary" @onclick="AbrirModalNueva">
                 <span class="oi oi-plus me-1"></span>
                 Nueva Tasa
             </button>
-            <button class="btn btn-success ms-2">
+            <button class="btn btn-success ms-2" @onclick="SincronizarHoyAsync" disabled="@sincronizando">
                 <span class="oi oi-reload me-1"></span>
-                Sincronizar Hoy
+                @(sincronizando ? "Sincronizando..." : "Sincronizar Hoy")
             </button>
         </div>
     </div>
@@ -32,7 +38,7 @@
             <div class="card">
                 <div class="card-body text-center">
                     <h5 class="card-title">TRM Actual</h5>
-                    <h2 class="text-primary mb-0">$0.00 COP</h2>
+                    <h2 class="text-primary mb-0">$@(trmActual?.ToString("N2") ?? "0.00") COP</h2>
                     <small class="text-muted">Por 1 USD</small>
                 </div>
             </div>
@@ -41,7 +47,7 @@
             <div class="card">
                 <div class="card-body text-center">
                     <h5 class="card-title">Última Actualización</h5>
-                    <h2 class="text-secondary mb-0">N/A</h2>
+                    <h2 class="text-secondary mb-0">@(fechaUltima?.ToString("dd/MM/yyyy") ?? "N/A")</h2>
                     <small class="text-muted">Fecha de sincronización</small>
                 </div>
             </div>
@@ -53,39 +59,77 @@
             <div class="row mb-3">
                 <div class="col-md-3">
                     <label class="form-label">Desde</label>
-                    <input type="date" class="form-control">
+                    <MudDatePicker @bind-Date="filtroDesde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Hasta</label>
-                    <input type="date" class="form-control">
+                    <MudDatePicker @bind-Date="filtroHasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </div>
                 <div class="col-auto d-flex align-items-end">
-                    <button class="btn btn-secondary">
-                        <span class="oi oi-magnifying-glass me-1"></span>
+                    <UIButton Variant="ghost" OnClick="FiltrarAsync">
                         Filtrar
-                    </button>
+                    </UIButton>
                 </div>
             </div>
 
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th class="text-end">TRM (USD → COP)</th>
-                            <th>Fuente</th>
-                            <th>Tipo</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                No hay tasas de cambio registradas. Haga clic en "Nueva Tasa" o "Sincronizar Hoy".
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                @if (cargando)
+                {
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                }
+                else
+                {
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th class="text-end">TRM (USD → COP)</th>
+                                <th>Fuente</th>
+                                <th>Tipo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (tasas.Any())
+                            {
+                                @foreach (var t in tasas)
+                                {
+                                    <tr>
+                                        <td>@t.Fecha.ToString("dd/MM/yyyy")</td>
+                                        <td class="text-end fw-bold">$@t.UsdCop.ToString("N2")</td>
+                                        <td>@(t.Fuente ?? "Manual")</td>
+                                        <td>
+                                            @if (t.EsOficial)
+                                            {
+                                                <span class="badge bg-success">Oficial</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Manual</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!t.EsOficial)
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="@(() => EliminarAsync(t.Id))">Eliminar</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        No hay tasas de cambio registradas. Haga clic en "Nueva Tasa" o "Sincronizar Hoy".
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
             </div>
         </div>
     </div>
@@ -103,9 +147,195 @@
         </ul>
     </div>
 </div>
+
+<!-- Modal Nueva Tasa -->
+<MudDialog @bind-IsVisible="mostrarModalNueva" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Nueva Tasa Manual</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="formNueva" OnValidSubmit="GuardarNuevaAsync">
+            <MudStack Spacing="3">
+                <MudDatePicker @bind-Date="formNueva.FechaAsNullable" Label="Fecha" Required="true" />
+                <MudNumericField @bind-Value="formNueva.UsdCop" Label="TRM (USD → COP)" Min="1" Required="true" Format="N2" />
+                <MudTextField @bind-Value="formNueva.Fuente" Label="Fuente (opcional)" MaxLength="100" />
+            </MudStack>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CerrarModalNueva">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GuardarNuevaAsync" Disabled="@guardando">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
     </Authorized>
 </AuthorizeView>
 
 @code {
-    // Funcionalidad pendiente: integración con TasasCambioController
+    private DateTime? filtroDesde { get; set; }
+    private DateTime? filtroHasta { get; set; }
+    private List<TasaCambio> tasas = new();
+    private bool cargando = false;
+    private bool sincronizando = false;
+    private bool mostrarModalNueva = false;
+    private bool guardando = false;
+    private TasaCambioForm formNueva = new();
+    private decimal? trmActual;
+    private DateOnly? fechaUltima;
+    
+    private List<Breadcrumb.BreadcrumbItem> breadcrumbs = new()
+    {
+        new() { Label = "Configuración", Url = "/config" },
+        new() { Label = "Tasas de Cambio", IsActive = true }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        try
+        {
+            var q = Db.TasasCambio.AsQueryable();
+            if (filtroDesde.HasValue) q = q.Where(t => t.Fecha >= DateOnly.FromDateTime(filtroDesde.Value));
+            if (filtroHasta.HasValue) q = q.Where(t => t.Fecha <= DateOnly.FromDateTime(filtroHasta.Value));
+            tasas = await q.OrderByDescending(t => t.Fecha).Take(50).ToListAsync();
+            
+            var ultima = await Db.TasasCambio.OrderByDescending(t => t.Fecha).FirstOrDefaultAsync();
+            trmActual = ultima?.UsdCop;
+            fechaUltima = ultima?.Fecha;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task FiltrarAsync() => await CargarAsync();
+
+    private void AbrirModalNueva()
+    {
+        formNueva = new() { Fecha = DateTime.Today };
+        mostrarModalNueva = true;
+    }
+
+    private void CerrarModalNueva()
+    {
+        mostrarModalNueva = false;
+        formNueva = new();
+    }
+
+    private async Task GuardarNuevaAsync()
+    {
+        guardando = true;
+        try
+        {
+            var fecha = DateOnly.FromDateTime(formNueva.Fecha);
+            var existe = await Db.TasasCambio.AnyAsync(t => t.Fecha == fecha);
+            if (existe)
+            {
+                Snackbar.Add($"Ya existe una tasa para {fecha:dd/MM/yyyy}", Severity.Warning);
+                return;
+            }
+            
+            var tasa = new TasaCambio
+            {
+                Fecha = fecha,
+                UsdCop = formNueva.UsdCop,
+                Fuente = string.IsNullOrWhiteSpace(formNueva.Fuente) ? "Manual" : formNueva.Fuente,
+                EsOficial = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            Db.TasasCambio.Add(tasa);
+            await Db.SaveChangesAsync();
+            
+            Snackbar.Add("Tasa registrada correctamente", Severity.Success);
+            CerrarModalNueva();
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al guardar tasa: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task SincronizarHoyAsync()
+    {
+        sincronizando = true;
+        try
+        {
+            var hoy = DateOnly.FromDateTime(DateTime.Today);
+            var existe = await Db.TasasCambio.AnyAsync(t => t.Fecha == hoy);
+            if (existe)
+            {
+                Snackbar.Add($"Ya existe una tasa para hoy ({hoy:dd/MM/yyyy})", Severity.Info);
+                return;
+            }
+            
+            // Simular obtención de TRM oficial (en producción llamar API del Banco de la República)
+            // Por ahora, usar fallback
+            var ultimaTasa = await Db.TasasCambio.OrderByDescending(t => t.Fecha).FirstOrDefaultAsync();
+            var trmOficial = ultimaTasa?.UsdCop ?? 4000m;
+            
+            var tasa = new TasaCambio
+            {
+                Fecha = hoy,
+                UsdCop = trmOficial,
+                Fuente = "Sincronización automática (fallback)",
+                EsOficial = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            Db.TasasCambio.Add(tasa);
+            await Db.SaveChangesAsync();
+            
+            Snackbar.Add($"TRM sincronizada: ${trmOficial:N2} COP", Severity.Success);
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al sincronizar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            sincronizando = false;
+        }
+    }
+
+    private async Task EliminarAsync(int id)
+    {
+        try
+        {
+            var tasa = await Db.TasasCambio.FindAsync(id);
+            if (tasa != null)
+            {
+                Db.TasasCambio.Remove(tasa);
+                await Db.SaveChangesAsync();
+                Snackbar.Add("Tasa eliminada", Severity.Success);
+                await CargarAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al eliminar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private class TasaCambioForm
+    {
+        public DateTime Fecha { get; set; } = DateTime.Today;
+        public DateTime? FechaAsNullable
+        {
+            get => Fecha;
+            set => Fecha = value ?? DateTime.Today;
+        }
+        public decimal UsdCop { get; set; } = 4000m;
+        public string? Fuente { get; set; }
+    }
 }

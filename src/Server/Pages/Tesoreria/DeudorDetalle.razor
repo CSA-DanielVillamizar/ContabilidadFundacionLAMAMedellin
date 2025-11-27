@@ -4,9 +4,8 @@
 @using Server.Components.UI
 @using Server.Components.Auth
 @using Microsoft.AspNetCore.Components
-@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
-@attribute [Authorize(Roles = "Tesorero,Junta,Consulta")]
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @inject NavigationManager Nav
 @inject Server.Services.Deudores.IDeudoresService DeudoresService
 @inject Server.Data.AppDbContext Db
@@ -17,6 +16,14 @@
         <RedirectToLogin />
     </NotAuthorized>
     <Authorized>
+<Breadcrumb Items="@breadcrumbs" />
+
+<div class="mb-3">
+    <button type="button" class="btn btn-outline-secondary" @onclick="VolverADeudores">
+        ← Volver a Deudores
+    </button>
+</div>
+
 <UICard Class="mb-6">
     <Header>
         <div class="flex items-center gap-3">
@@ -174,8 +181,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando detalle de deudor: {ex.Message}");
-            _detalle = null;
+_detalle = null;
             totalAdeudadoCop = 0;
             filas = new();
         }
@@ -192,6 +198,23 @@
         if (cantidad <= 0) return;
         Nav.NavigateTo($"/api/deudores/generar-recibo?MiembroId={_detalle.MiembroId}&CantidadMeses={cantidad}", true);
     }
+
+    private void VolverADeudores()
+    {
+        // Preservar filtros de fecha si existen
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(desde)) query.Add($"desde={desde}");
+        if (!string.IsNullOrWhiteSpace(hasta)) query.Add($"hasta={hasta}");
+        var url = query.Any() ? $"/tesoreria/deudores?{string.Join("&", query)}" : "/tesoreria/deudores";
+        Nav.NavigateTo(url);
+    }
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Tesorería", Url = "/tesoreria" },
+        new() { Label = "Deudores", Url = "/tesoreria/deudores" },
+        new() { Label = _detalle?.Nombre ?? "Cargando...", IsActive = true }
+    };
 
     private class FilaMes
     {

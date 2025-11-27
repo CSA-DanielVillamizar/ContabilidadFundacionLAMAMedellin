@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
-@attribute [Authorize(Roles = "Tesorero,Junta,Consulta")]
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @inject NavigationManager Nav
 @inject Server.Services.Deudores.IDeudoresService DeudoresService
 
@@ -12,6 +12,8 @@
         <RedirectToLogin />
     </NotAuthorized>
     <Authorized>
+<Breadcrumb Items="@breadcrumbs" />
+
 <MudPaper Class="glass-card pa-6 mb-6" Elevation="0">
     <div class="d-flex align-items-center justify-space-between mb-4">
         <div class="d-flex align-items-center gap-3">
@@ -196,10 +198,9 @@
             }
             totalGlobal = total;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Error cargando deudores: {ex.Message}");
-            _rows = new();
+_rows = new();
             precioMensualCop = 0;
             totalGlobal = 0;
         }
@@ -216,6 +217,12 @@
         Nav.NavigateTo($"/api/deudores/generar-recibo?MiembroId={r.MiembroId}&CantidadMeses={r.MesesPendientes.Count}", true);
         return Task.CompletedTask;
     }
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Tesorería", Url = "/tesoreria" },
+        new() { Label = "Deudores", IsActive = true }
+    };
 
     private class RowDeudor
     {

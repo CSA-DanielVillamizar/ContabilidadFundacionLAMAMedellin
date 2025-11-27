@@ -25,7 +25,7 @@ public class EgresosController : ControllerBase
     /// Accesible a Tesorero, Junta y Consulta.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<ActionResult<List<Egreso>>> Listar([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] string? categoria, CancellationToken ct)
     {
         var res = await _egresos.ListarAsync(desde, hasta, categoria, ct);
@@ -37,7 +37,7 @@ public class EgresosController : ControllerBase
     /// Accesible a Tesorero, Junta y Consulta.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<ActionResult<Egreso>> Obtener([FromRoute] Guid id, CancellationToken ct)
     {
         var eg = await _egresos.ObtenerAsync(id, ct);

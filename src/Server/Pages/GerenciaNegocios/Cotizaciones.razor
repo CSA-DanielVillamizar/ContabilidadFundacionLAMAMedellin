@@ -2,7 +2,7 @@
 @using Server.DTOs.Cotizaciones
 @using Server.Services.Cotizaciones
 @using MudBlazor
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "GerenciaNegocios")]
 @inject ICotizacionesService CotizacionesService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
@@ -17,7 +17,7 @@
                     <h2 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>Cotizaciones</h2>
                     <p class="text-muted mb-0">Gestión de cotizaciones y propuestas</p>
                 </div>
-                <AuthorizeView Roles="Admin,Gerente">
+                <AuthorizeView Policy="GerenciaNegocios">
                     <Authorized>
                         <button class="btn btn-primary" @onclick="@(() => Nav.NavigateTo("/gerencia-negocios/cotizaciones/nueva"))">
                             <i class="bi bi-plus-circle me-2"></i>Nueva Cotización
@@ -156,7 +156,7 @@
                     <MudTd align="right">
                         <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
                             <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" OnClick="@(()=> Nav.NavigateTo($"/gerencia-negocios/cotizaciones/{context.Id}"))" />
-                            <AuthorizeView Roles="Admin,Gerente" Context="authContext">
+                            <AuthorizeView Policy="GerenciaNegocios" Context="authContext">
                                 <Authorized>
                                     @if (context.Estado != "Convertida" && context.Estado != "Rechazada")
                                     {
@@ -266,8 +266,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar estadísticas: {ex.Message}");
-            Snackbar.Add($"Error al cargar estadísticas: {ex.Message}", Severity.Error);
+Snackbar.Add($"Error al cargar estadísticas: {ex.Message}", Severity.Error);
         }
     }
 
@@ -293,8 +292,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al buscar cotizaciones: {ex.Message}");
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -353,8 +351,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cambiar estado: {ex.Message}");
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
 
@@ -392,8 +389,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al eliminar cotización: {ex.Message}");
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
         finally
         {

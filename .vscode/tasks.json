@@ -95,7 +95,7 @@
 			"group": "build"
 		},
 		{
-			"label": "Run Blazor Server (5179)",
+			"label": "Run Blazor Server (5000)",
 			"type": "shell",
 			"command": "dotnet",
 			"args": [
@@ -103,7 +103,7 @@
 				"--project",
 				"src\\Server\\Server.csproj",
 				"--urls",
-				"http://localhost:5179"
+				"http://localhost:5000"
 			],
 			"isBackground": true,
 			"problemMatcher": [],

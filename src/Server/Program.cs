@@ -13,10 +13,20 @@ using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Server.Security;
 using MudBlazor.Services;
+using Microsoft.AspNetCore.OutputCaching;
 
 var builder = WebApplication.CreateBuilder(args);
 // Habilitar Static Web Assets (necesario para servir _content/* de paquetes como MudBlazor en cualquier entorno)
 builder.WebHost.UseStaticWebAssets();
+
+// Configuración de logging mejorada
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Logging.AddDebug();
+}
+
 // Permitir deshabilitar servicios hospedados para escenarios de diagnóstico/local
 var disableHostedServices =
     builder.Configuration.GetValue<bool>("DisableHostedServices") ||
@@ -39,12 +49,49 @@ builder.Services.AddDbContextFactory<AppDbContext>(opt =>
 builder.Services.AddScoped<AppDbContext>(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddServerSideBlazor().AddCircuitOptions(options =>
+{
+    // Errores detallados configurables vía appsettings (DetailedErrors=true) o modo Development
+    var detailedErrors = builder.Configuration.GetValue<bool?>("DetailedErrors") ?? builder.Environment.IsDevelopment();
+    options.DetailedErrors = detailedErrors;
+});
 builder.Services.AddControllers();
+// Compresión de respuestas HTTP (mejora tiempos de transferencia)
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true;
+});
+// Output Caching para respuestas que cambian poco
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(b => b.Expire(TimeSpan.FromMinutes(5)));
+});
 // MudBlazor servicios (dialog, snackbar, resize, etc.)
 builder.Services.AddMudServices();
-builder.Services.AddHttpClient();
-// Configurar HttpClient con BaseAddress para llamadas internas de la API
+builder.Services.AddHttpContextAccessor();
+
+// Registrar el handler de cookies
+builder.Services.AddTransient<Server.Infrastructure.CookieForwardingHandler>();
+
+// HttpClient con cookie forwarding para llamadas autenticadas
+builder.Services.AddHttpClient("AuthenticatedClient", (sp, client) =>
+{
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+    var httpContext = httpContextAccessor.HttpContext;
+    
+    if (httpContext != null)
+    {
+        var request = httpContext.Request;
+        client.BaseAddress = new Uri($"{request.Scheme}://{request.Host}");
+    }
+    else
+    {
+        client.BaseAddress = new Uri("http://localhost:5000");
+    }
+})
+.AddHttpMessageHandler<Server.Infrastructure.CookieForwardingHandler>();
+
+// HttpClient predeterminado (sin autenticación, para compatibilidad)
 builder.Services.AddScoped(sp =>
 {
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
@@ -65,7 +112,6 @@ builder.Services.AddScoped(sp =>
     
     return client;
 });
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Server.Services.Reportes.IReportesService, Server.Services.Reportes.ReportesService>();
 builder.Services.AddScoped<Server.Services.Reportes.IVerificacionTesoreriaService, Server.Services.Reportes.VerificacionTesoreriaService>();
 builder.Services.AddScoped<Server.Services.Donaciones.ICertificadosDonacionService, Server.Services.Donaciones.CertificadosDonacionService>();
@@ -79,24 +125,20 @@ if (!builder.Environment.IsEnvironment("Testing") && !disableHostedServices)
     builder.Services.AddHostedService<Server.Services.Exchange.ExchangeRateHostedService>();
 }
 
-// Identity
-if (!builder.Environment.IsEnvironment("Testing"))
+// Identity (habilitable en Testing mediante EnableIdentityInTesting=true en appsettings.Test.json)
+var enableIdentityInTesting = builder.Configuration.GetValue<bool>("EnableIdentityInTesting");
+if (!builder.Environment.IsEnvironment("Testing") || enableIdentityInTesting)
 {
     builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
-        // Inicio de sesión y confirmaciones
         options.SignIn.RequireConfirmedAccount = true;
-        options.SignIn.RequireConfirmedEmail = false; // Cambiar a true si se habilita confirmación por correo
-
-        // Políticas de contraseña (reforzadas pero razonables)
+        options.SignIn.RequireConfirmedEmail = false;
         options.Password.RequiredLength = 8;
         options.Password.RequireDigit = true;
         options.Password.RequireLowercase = true;
         options.Password.RequireUppercase = false;
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequiredUniqueChars = 4;
-
-        // Lockout para mitigar fuerza bruta
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.AllowedForNewUsers = true;
@@ -107,7 +149,6 @@ if (!builder.Environment.IsEnvironment("Testing"))
 }
 else
 {
-    // Registrar esquema de autenticación de pruebas para permitir Forbid/Challenge sin Identity
     builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = "Testing";
@@ -118,13 +159,29 @@ else
 
 builder.Services.AddAuthorization(options =>
 {
+    // Políticas básicas por rol
     options.AddPolicy("TesoreroJunta", policy => policy.RequireRole("Tesorero", "Junta"));
+    options.AddPolicy("TesoreroJuntaConsulta", policy => policy.RequireRole("Tesorero", "Junta", "Consulta"));
+    options.AddPolicy("AdminTesorero", policy => policy.RequireRole("Admin", "Tesorero"));
+    options.AddPolicy("AdminGerente", policy => policy.RequireRole("Admin", "Gerente"));
+    options.AddPolicy("AdminGerenteTesorero", policy => policy.RequireRole("Admin", "Gerente", "Tesorero"));
+    
+    // Policy unificada para Gerencia de Negocios: admite el rol histórico "Gerente" y el rol actual "gerentenegocios"; Admin también tiene acceso
+    options.AddPolicy("GerenciaNegocios", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        // Permitir también al rol Tesorero consultar entidades de Gerencia de Negocios
+        // (acciones de creación/edición siguen controladas por AuthorizeView en UI y/o endpoints específicos)
+        policy.RequireRole("Admin", "Gerente", "gerentenegocios", "Tesorero");
+    });
+    
     // Política para exigir que el usuario tenga 2FA habilitado
     options.AddPolicy("Require2FA", policy =>
     {
         policy.RequireAuthenticatedUser();
         policy.Requirements.Add(new TwoFactorEnabledRequirement());
     });
+    
     // Política combinada para Admin/Tesorero con 2FA obligatorio
     options.AddPolicy("AdminOrTesoreroWith2FA", policy =>
     {
@@ -199,11 +256,18 @@ if (!app.Environment.IsEnvironment("Testing"))
             await HistoricoTesoreria2025Seed.SeedAsync(db);  // ✅ HABILITADO - Saldo inicial octubre + movimientos producción
             await ProductosSeed.SeedAsync(db);  // ✅ Productos de ejemplo
             await ProductosSeed.SeedVentaEjemploAsync(db);  // ✅ Venta de ejemplo para cuenta de cobro
+            await GerenciaNegociosSeed.SeedClienteEjemploAsync(db);  // ✅ Cliente demo para E2E
+            await GerenciaNegociosSeed.SeedCompraEjemploAsync(db);  // ✅ Compra demo para E2E
+            await CertificadosDonacionSeed.SeedAsync(db);  // ✅ Certificados de donación de ejemplo
             MembersSeed.CopyLogo();
             var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
             var roleManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
-            await IdentitySeed.SeedAsync(userManager, roleManager);
-            Console.WriteLine("✓ Seed completado exitosamente (producción: octubre 2025)");
+            // Deshabilitar 2FA para cuentas semilla en Development salvo que se defina la variable DISABLE_2FA_SEED=false
+            var enable2FAForSeed = !app.Environment.IsDevelopment() &&
+                                   !string.Equals(Environment.GetEnvironmentVariable("DISABLE_2FA_SEED"), "true", StringComparison.OrdinalIgnoreCase) &&
+                                   !string.Equals(Environment.GetEnvironmentVariable("DISABLE_2FA_SEED"), "1", StringComparison.OrdinalIgnoreCase);
+            await IdentitySeed.SeedAsync(userManager, roleManager, enable2FAForSeed);
+            Console.WriteLine($"✓ Seed completado exitosamente (producción: octubre 2025) - 2FASeed={(enable2FAForSeed ? "ON" : "OFF")}");
         }
     }
     catch (Exception ex)
@@ -219,6 +283,8 @@ if (!app.Environment.IsEnvironment("Testing"))
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
+    // HSTS: HTTP Strict Transport Security (requiere HTTPS en producción)
+    app.UseHsts();
 }
 
 // Enable developer exception page during tests to aid debugging
@@ -227,8 +293,18 @@ if (app.Environment.IsEnvironment("Testing"))
     app.UseDeveloperExceptionPage();
 }
 
+// Redirección HTTPS en producción
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+// Middleware de compresión (debe ir antes de StaticFiles)
+app.UseResponseCompression();
 app.UseStaticFiles();
 app.UseRouting();
+// Output cache (antes de mapear endpoints)
+app.UseOutputCache();
 // Asegurar carpeta para logs de import
 var importLogsPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "data", "import_logs");
 Directory.CreateDirectory(importLogsPath);
@@ -328,7 +404,149 @@ app.MapGet("/certificado/{id:guid}/verificacion", async (Guid id, Server.Data.Ap
     return Results.Content(html, "text/html");
 });
 
+// Endpoint público de salud/performance (solo lectura) para validación de tiempos sin autenticación
+// Ejecuta consultas típicas de lectura con AsNoTracking y retorna conteos y tiempo total.
+app.MapGet("/api/health/perf", async (IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    using var db = await dbFactory.CreateDbContextAsync();
+
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+
+    var conceptosCount = await db.Conceptos.AsNoTracking().CountAsync();
+    var productosCount = await db.Productos.AsNoTracking().CountAsync();
+    var activosCount = await db.Productos.AsNoTracking().Where(p => p.Activo).CountAsync();
+    var bajoStockCount = await db.Productos.AsNoTracking().Where(p => p.StockActual < p.StockMinimo).CountAsync();
+
+    sw.Stop();
+
+    return Results.Ok(new
+    {
+        conceptosCount,
+        productosCount,
+        activosCount,
+        bajoStockCount,
+        elapsedMs = sw.ElapsedMilliseconds
+    });
+}).AllowAnonymous();
+
 app.MapFallbackToPage("/_Host");
+
+// Endpoints espejo (solo Development) para validar performance sin autenticación
+if (app.Environment.IsDevelopment())
+{
+    // Conceptos - listado completo (con caché de salida base)
+    app.MapGet("/dev/api/conceptos", async (IDbContextFactory<AppDbContext> dbFactory) =>
+    {
+        using var db = await dbFactory.CreateDbContextAsync();
+        var conceptos = await db.Conceptos
+            .AsNoTracking()
+            .OrderBy(c => c.EsIngreso ? 0 : 1)
+            .ThenBy(c => c.Nombre)
+            .Select(c => new
+            {
+                c.Id,
+                c.Codigo,
+                c.Nombre,
+                c.Descripcion,
+                c.EsIngreso,
+                c.EsRecurrente,
+                Moneda = c.Moneda.ToString(),
+                c.PrecioBase,
+                Periodicidad = c.Periodicidad.ToString()
+            })
+            .ToListAsync();
+        return Results.Ok(conceptos);
+    }).AllowAnonymous();
+
+    // Conceptos - simples
+    app.MapGet("/dev/api/conceptos/simples", async (IDbContextFactory<AppDbContext> dbFactory) =>
+    {
+        using var db = await dbFactory.CreateDbContextAsync();
+        var conceptos = await db.Conceptos
+            .AsNoTracking()
+            .OrderBy(c => c.Nombre)
+            .Select(c => new
+            {
+                c.Id,
+                c.Codigo,
+                c.Nombre,
+                c.EsIngreso
+            })
+            .ToListAsync();
+        return Results.Ok(conceptos);
+    }).AllowAnonymous();
+
+    // Productos - todos
+    app.MapGet("/dev/api/productos", async (IDbContextFactory<AppDbContext> dbFactory) =>
+    {
+        using var db = await dbFactory.CreateDbContextAsync();
+        var productos = await db.Productos
+            .AsNoTracking()
+            .OrderBy(p => p.Nombre)
+            .Select(p => new
+            {
+                p.Id,
+                p.Codigo,
+                p.Nombre,
+                p.Tipo,
+                p.PrecioVentaCOP,
+                p.PrecioVentaUSD,
+                p.StockActual,
+                p.StockMinimo,
+                p.Activo
+            })
+            .ToListAsync();
+        return Results.Ok(productos);
+    }).AllowAnonymous();
+
+    // Productos - activos
+    app.MapGet("/dev/api/productos/activos", async (IDbContextFactory<AppDbContext> dbFactory) =>
+    {
+        using var db = await dbFactory.CreateDbContextAsync();
+        var productos = await db.Productos
+            .AsNoTracking()
+            .Where(p => p.Activo)
+            .OrderBy(p => p.Nombre)
+            .Select(p => new
+            {
+                p.Id,
+                p.Codigo,
+                p.Nombre,
+                p.Tipo,
+                p.PrecioVentaCOP,
+                p.PrecioVentaUSD,
+                p.StockActual,
+                p.StockMinimo,
+                p.Activo
+            })
+            .ToListAsync();
+        return Results.Ok(productos);
+    }).AllowAnonymous();
+
+    // Productos - bajo stock
+    app.MapGet("/dev/api/productos/bajo-stock", async (IDbContextFactory<AppDbContext> dbFactory) =>
+    {
+        using var db = await dbFactory.CreateDbContextAsync();
+        var productos = await db.Productos
+            .AsNoTracking()
+            .Where(p => p.StockActual < p.StockMinimo)
+            .OrderBy(p => p.Nombre)
+            .Select(p => new
+            {
+                p.Id,
+                p.Codigo,
+                p.Nombre,
+                p.Tipo,
+                p.PrecioVentaCOP,
+                p.PrecioVentaUSD,
+                p.StockActual,
+                p.StockMinimo,
+                p.Activo
+            })
+            .ToListAsync();
+        return Results.Ok(productos);
+    }).AllowAnonymous();
+}
 
 app.Run();
 

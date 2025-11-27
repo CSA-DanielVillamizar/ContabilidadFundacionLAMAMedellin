@@ -60,15 +60,15 @@
 </div>
 
 @code {
-    [Parameter] public List<TableColumn<TItem>> Columns { get; set; }
-    [Parameter] public List<TItem> Items { get; set; }
+    [Parameter] public List<TableColumn<TItem>> Columns { get; set; } = new();
+    [Parameter] public List<TItem> Items { get; set; } = new();
     [Parameter] public bool Loading { get; set; }
     [Parameter] public bool ShowPagination { get; set; }
     [Parameter] public int Page { get; set; } = 1;
     [Parameter] public int TotalPages { get; set; } = 1;
     [Parameter] public EventCallback PrevPage { get; set; }
     [Parameter] public EventCallback NextPage { get; set; }
-    [Parameter] public string Class { get; set; }
+    [Parameter] public string? Class { get; set; }
         [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     private bool IsFirstPage => Page <= 1;
     private bool IsLastPage => Page >= TotalPages;

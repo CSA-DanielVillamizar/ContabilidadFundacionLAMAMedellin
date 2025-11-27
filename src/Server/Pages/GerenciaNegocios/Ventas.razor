@@ -14,6 +14,8 @@
 
 <PageTitle>Ventas - Gerencia de Negocios</PageTitle>
 
+<Breadcrumb Items="@breadcrumbs" />
+
 <div class="container-fluid py-4">
     <PageHeader Icon="@Icons.Material.Filled.PointOfSale" Title="Ventas de Productos" Subtitle="Registro y gestión de ventas">
         <Actions>
@@ -96,61 +98,73 @@
 </div>
 
 @* Modal Nueva Venta *@
-<MudDialog @bind-Visible="mostrarModalVenta" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
+<MudDialog @bind-IsVisible="mostrarModalVenta" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
     <TitleContent>
-        <MudText Typo="Typo.h6">Nueva Venta</MudText>
+        <div class="d-flex align-items-center gap-2">
+            <div class="icon-bubble text-primary bg-primary-subtle">
+                <i class="bi bi-cart-plus"></i>
+            </div>
+            <MudText Typo="Typo.h6">Nueva Venta</MudText>
+        </div>
     </TitleContent>
     <DialogContent>
         <EditForm Model="formularioVenta" OnValidSubmit="GuardarVenta">
-            <MudGrid Class="g-3 mb-2">
-                <MudItem xs="12" md="6">
-                    <MudSelect T="int" Label="Tipo de Cliente" @bind-Value="formularioVenta.TipoCliente" Required="true">
-                        <MudSelectItem Value="1">Miembro Local</MudSelectItem>
-                        <MudSelectItem Value="2">Otro Capítulo LAMA</MudSelectItem>
-                        <MudSelectItem Value="3">Cliente Externo</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSelect T="int" Label="Método de Pago" @bind-Value="formularioVenta.MetodoPago" Required="true">
-                        <MudSelectItem Value="1">Efectivo</MudSelectItem>
-                        <MudSelectItem Value="2">Transferencia</MudSelectItem>
-                        <MudSelectItem Value="3">Tarjeta</MudSelectItem>
-                        <MudSelectItem Value="4">Nequi</MudSelectItem>
-                        <MudSelectItem Value="5">DaviPlata</MudSelectItem>
-                        <MudSelectItem Value="6">Otro</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-
-                @if (formularioVenta.TipoCliente == 1)
-                {
-                    <MudItem xs="12">
-                        <MudSelect T="Guid" Label="Miembro" @onchange="SeleccionarMiembro">
-                            <MudSelectItem Value="@Guid.Empty">Seleccione un miembro...</MudSelectItem>
-                            @foreach (var miembro in miembros)
-                            {
-                                <MudSelectItem Value="@miembro.Id">@miembro.NombreCompleto</MudSelectItem>
-                            }
+            <FormSection Title="Información del Cliente"
+                        Description="Selecciona el tipo de cliente y completa los datos"
+                        Icon="bi-person-badge"
+                        IconColor="primary">
+                <MudGrid Class="g-3">
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int" Label="Tipo de Cliente" @bind-Value="formularioVenta.TipoCliente" Required="true">
+                            <MudSelectItem Value="1">Miembro Local</MudSelectItem>
+                            <MudSelectItem Value="2">Otro Capítulo LAMA</MudSelectItem>
+                            <MudSelectItem Value="3">Cliente Externo</MudSelectItem>
                         </MudSelect>
                     </MudItem>
-                }
-                else
-                {
                     <MudItem xs="12" md="6">
-                        <MudTextField Label="Nombre Cliente" @bind-Value="formularioVenta.NombreCliente" Required="true" />
+                        <MudSelect T="int" Label="Método de Pago" @bind-Value="formularioVenta.MetodoPago" Required="true">
+                            <MudSelectItem Value="1">Efectivo</MudSelectItem>
+                            <MudSelectItem Value="2">Transferencia</MudSelectItem>
+                            <MudSelectItem Value="3">Tarjeta</MudSelectItem>
+                            <MudSelectItem Value="4">Nequi</MudSelectItem>
+                            <MudSelectItem Value="5">DaviPlata</MudSelectItem>
+                            <MudSelectItem Value="6">Otro</MudSelectItem>
+                        </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudTextField Label="Identificación" @bind-Value="formularioVenta.IdentificacionCliente" />
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudTextField Label="Email" @bind-Value="formularioVenta.EmailCliente" Type="InputType.Email" />
-                    </MudItem>
-                }
-            </MudGrid>
 
-            <MudDivider Class="my-2" />
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Productos</MudText>
+                    @if (formularioVenta.TipoCliente == 1)
+                    {
+                        <MudItem xs="12">
+                            <MudSelect T="Guid" Label="Miembro" @onchange="SeleccionarMiembro">
+                                <MudSelectItem Value="@Guid.Empty">Seleccione un miembro...</MudSelectItem>
+                                @foreach (var miembro in miembros)
+                                {
+                                    <MudSelectItem Value="@miembro.Id">@miembro.NombreCompleto</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Nombre Cliente" @bind-Value="formularioVenta.NombreCliente" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Identificación" @bind-Value="formularioVenta.IdentificacionCliente" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Email" @bind-Value="formularioVenta.EmailCliente" InputType="InputType.Email" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </FormSection>
 
-            <MudGrid Class="g-3 mb-2">
+            <FormSection Title="Productos"
+                        Description="Agrega los productos de la venta"
+                        Icon="bi-box-seam"
+                        IconColor="success"
+                        Class="mt-4">
+                <MudGrid Class="g-3 mb-2">
                 <MudItem xs="12" md="5">
                     <MudSelect T="string" Label="Producto" @bind-Value="productoSeleccionadoId">
                         <MudSelectItem T="string" Value="@("")">Seleccione...</MudSelectItem>
@@ -204,7 +218,8 @@
                 </MudTable>
             }
 
-            <MudTextField Label="Observaciones" @bind-Value="formularioVenta.Observaciones" Lines="2" Class="mt-2" />
+            <MudTextField Label="Observaciones" @bind-Value="formularioVenta.Observaciones" Lines="2" Class="mt-3" Variant="Variant.Outlined" />
+            </FormSection>
         </EditForm>
     </DialogContent>
     <DialogActions>
@@ -313,6 +328,12 @@
     private string productoSeleccionadoId = "";
     private int cantidadAgregar = 1;
     private decimal descuentoAgregar = 0;
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Gerencia de Negocios", Url = "/gerencia-negocios" },
+        new() { Label = "Ventas", IsActive = true }
+    };
 
     private List<VentaProductoDto> ventasFiltradas
     {
@@ -496,18 +517,11 @@
                 Toast.Show("Generando cuenta de cobro...", "info");
                 
                 // Log para debug
-                Console.WriteLine($"[DEBUG] Iniciando generación PDF para venta: {ventaId}");
-            
-                var response = await HttpClient.GetAsync($"/api/cuentas-cobro/venta/{ventaId}");
-                
-                Console.WriteLine($"[DEBUG] Respuesta del servidor: {response.StatusCode}");
-            
-                if (response.IsSuccessStatusCode)
+var response = await HttpClient.GetAsync($"/api/cuentas-cobro/venta/{ventaId}");
+if (response.IsSuccessStatusCode)
                 {
                     var bytes = await response.Content.ReadAsByteArrayAsync();
-                    Console.WriteLine($"[DEBUG] Bytes recibidos: {bytes.Length}");
-                    
-                    // DEBUG: Ver los primeros bytes para saber si es PDF
+// DEBUG: Ver los primeros bytes para saber si es PDF
                     var primeros10 = string.Join(" ", bytes.Take(10).Select(b => b.ToString("X2")));
                     Console.WriteLine($"[DEBUG] Primeros 10 bytes (HEX): {primeros10}");
                     
@@ -515,23 +529,18 @@
                     Console.WriteLine($"[DEBUG] Primeros 50 caracteres base64: {base64.Substring(0, Math.Min(50, base64.Length))}");
                     
                     var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? "CuentaCobro.pdf";
-                    
-                    Console.WriteLine($"[DEBUG] Nombre archivo: {fileName}");
-                
-                    await JSRuntime.InvokeVoidAsync("downloadFileFromBase64", base64, fileName);
+await JSRuntime.InvokeVoidAsync("downloadFileFromBase64", base64, fileName);
                     Toast.Show("Cuenta de cobro generada exitosamente", "success");
                 }
                 else
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[ERROR] Respuesta del servidor: {error}");
-                    Toast.Show($"Error al generar PDF: {error}", "error");
+Toast.Show($"Error al generar PDF: {error}", "error");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Excepción: {ex.Message}");
-                Console.WriteLine($"[ERROR] Stack: {ex.StackTrace}");
+Console.WriteLine($"[ERROR] Stack: {ex.StackTrace}");
                 Toast.Show($"Error: {ex.Message}", "error");
             }
         }

@@ -10,7 +10,9 @@
 
 <PageTitle>Gestión de Backups - LAMA Medellín</PageTitle>
 
-<UICard>
+<Breadcrumb Items="@breadcrumbs" />
+
+<UICard Class="glass-card rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
     <Header>
         <div class="flex items-center justify-between w-full">
             <div>
@@ -184,6 +186,12 @@
     private bool _eliminando = false;
     private string _backupAEliminar = string.Empty;
 
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Administración", Url = "/admin" },
+        new() { Label = "Backups", IsActive = true }
+    };
+
     protected override async Task OnInitializedAsync()
     {
         await CargarBackups();
@@ -241,9 +249,8 @@
 
     private void DescargarBackup(string nombreArchivo)
     {
-        // En producción, implementar endpoint de descarga
-        Toast.Show($"Descarga de {nombreArchivo} (funcionalidad pendiente)", "info");
-        // TODO: Implementar /api/backups/download/{nombreArchivo}
+        var url = $"/api/backups/download/{Uri.EscapeDataString(nombreArchivo)}";
+        Nav.NavigateTo(url, forceLoad: true);
     }
 
     private void MostrarConfirmacionEliminar(string nombreArchivo)

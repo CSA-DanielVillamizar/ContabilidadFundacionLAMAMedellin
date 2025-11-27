@@ -29,6 +29,7 @@ public class PresupuestosService : IPresupuestosService
         int porPagina = 50)
     {
         var query = _context.Presupuestos
+                .AsNoTracking()
             .Include(p => p.Concepto)
             .AsQueryable();
 

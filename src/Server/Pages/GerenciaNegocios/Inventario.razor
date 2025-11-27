@@ -10,6 +10,8 @@
 
 <PageTitle>Inventario - Movimientos</PageTitle>
 
+<Breadcrumb Items="@breadcrumbs" />
+
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
     <MudPaper Class="glass-card pa-6 mb-4">
         <div class="d-flex justify-content-between align-items-center">
@@ -137,7 +139,7 @@
 </MudContainer>
 
 @* Modal Ajuste Manual *@
-<MudDialog @bind-IsVisible="mostrarModalAjuste">
+<MudDialog Open="mostrarModalAjuste">
     <TitleContent>
         <MudText Typo="Typo.h6">Nuevo Ajuste de Inventario</MudText>
     </TitleContent>
@@ -251,7 +253,7 @@
     }
 
         private MarkupString TipoBadgeModern(string tipo)
-    {
+        {
         var (cls, label) = tipo switch
         {
                 "EntradaCompra" => ("badge-success", "Entrada por compra"),
@@ -333,4 +335,10 @@
         }
         finally { guardando = false; }
     }
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Gerencia de Negocios", Url = "/gerencia-negocios" },
+        new() { Label = "Inventario", IsActive = true }
+    };
 }

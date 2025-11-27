@@ -36,7 +36,9 @@ public class CuentasCobroService : ICuentasCobroService
         await using var _db = await _dbFactory.CreateDbContextAsync(ct);
 
         // Obtener datos del miembro
-        var miembro = await _db.Miembros.FirstOrDefaultAsync(m => m.Id == miembroId, ct);
+            var miembro = await _db.Miembros
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == miembroId, ct);
         if (miembro == null) return null;
 
         // Obtener detalle de deuda desde DeudoresService

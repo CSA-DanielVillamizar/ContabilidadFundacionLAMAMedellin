@@ -22,6 +22,7 @@ public class VentasService : IVentasService
         using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.VentasProductos
+            .AsNoTracking()
             .Include(v => v.Detalles)
             .ThenInclude(d => d.Producto)
             .Include(v => v.Miembro)
@@ -35,6 +36,7 @@ public class VentasService : IVentasService
         using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.VentasProductos
+            .AsNoTracking()
             .Include(v => v.Detalles)
             .ThenInclude(d => d.Producto)
             .Include(v => v.Miembro)
@@ -49,6 +51,7 @@ public class VentasService : IVentasService
         using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.VentasProductos
+            .AsNoTracking()
             .Include(v => v.Detalles)
             .ThenInclude(d => d.Producto)
             .Include(v => v.Miembro)

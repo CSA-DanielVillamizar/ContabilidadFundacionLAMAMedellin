@@ -1,4 +1,5 @@
 @page "/ejecutar-actualizacion-deudores-ahora"
+@attribute [Authorize(Policy = "AdminTesorero")]
 @using Microsoft.EntityFrameworkCore
 @using Server.Data
 @using Server.Models

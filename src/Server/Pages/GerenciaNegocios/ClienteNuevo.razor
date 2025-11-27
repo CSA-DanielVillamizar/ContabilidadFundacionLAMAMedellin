@@ -1,112 +1,139 @@
 @page "/gerencia-negocios/clientes/nuevo"
 @using Server.DTOs.Clientes
-@attribute [Authorize(Roles = "Admin,Gerente")]
+@using Server.Components.UI
+@attribute [Authorize(Policy = "GerenciaNegocios")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ToastService Toast
 
 <PageTitle>Nuevo Cliente - LAMA Medellín</PageTitle>
 
-<div class="container py-4">
+<div class="container py-4 page-shell">
     <div class="row mb-4">
         <div class="col-12">
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
+                <ol class="breadcrumb mb-2">
                     <li class="breadcrumb-item"><a href="/gerencia-negocios/clientes">Clientes</a></li>
                     <li class="breadcrumb-item active">Nuevo Cliente</li>
                 </ol>
             </nav>
-            <h2><i class="bi bi-person-plus me-2"></i>Nuevo Cliente</h2>
+            <div class="page-header">
+                <div class="icon-bubble text-primary bg-primary-subtle"><i class="bi bi-person-plus"></i></div>
+                <div>
+                    <h2 class="page-title">Nuevo Cliente</h2>
+                    <div class="page-subtitle text-muted">Registra un nuevo cliente en el sistema</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="row">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
+            <div class="card border-0 shadow-sm rounded-4 glass-card">
+                <div class="card-body p-4">
                     <EditForm Model="@model" OnValidSubmit="GuardarCliente">
                         <DataAnnotationsValidator />
 
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Nombre <span class="text-danger">*</span></label>
-                                <InputText @bind-Value="model.Nombre" class="form-control" placeholder="Nombre del cliente" />
-                                <ValidationMessage For="@(() => model.Nombre)" class="text-danger small" />
-                            </div>
+                        <FormSection 
+                            Title="Información Básica" 
+                            Description="Datos principales del cliente"
+                            Icon="person-badge"
+                            IconColor="text-info bg-info-subtle">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="model.Nombre" class="form-control" placeholder="Nombre del cliente" />
+                                    <ValidationMessage For="@(() => model.Nombre)" class="text-danger small" />
+                                </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label">Identificación <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <InputText @bind-Value="model.Identificacion" @bind-Value:event="oninput" @onkeyup="ValidarIdentificacionConDelay" class="form-control" placeholder="CC, NIT, etc." />
-                                    @if (validandoIdentificacion)
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Identificación <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <InputText @bind-Value="model.Identificacion" @bind-Value:event="oninput" @onkeyup="ValidarIdentificacionConDelay" class="form-control" placeholder="CC, NIT, etc." />
+                                        @if (validandoIdentificacion)
+                                        {
+                                            <span class="input-group-text"><div class="spinner-border spinner-border-sm"></div></span>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(model.Identificacion) && identificacionValida.HasValue)
+                                        {
+                                            <span class="input-group-text">
+                                                <i class="bi @(identificacionValida.Value ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                                            </span>
+                                        }
+                                    </div>
+                                    <ValidationMessage For="@(() => model.Identificacion)" class="text-danger small" />
+                                    @if (identificacionValida.HasValue && !identificacionValida.Value)
                                     {
-                                        <span class="input-group-text"><div class="spinner-border spinner-border-sm"></div></span>
-                                    }
-                                    else if (!string.IsNullOrWhiteSpace(model.Identificacion) && identificacionValida.HasValue)
-                                    {
-                                        <span class="input-group-text">
-                                            <i class="bi @(identificacionValida.Value ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
-                                        </span>
+                                        <small class="text-danger">Esta identificación ya está registrada</small>
                                     }
                                 </div>
-                                <ValidationMessage For="@(() => model.Identificacion)" class="text-danger small" />
-                                @if (identificacionValida.HasValue && !identificacionValida.Value)
-                                {
-                                    <small class="text-danger">Esta identificación ya está registrada</small>
-                                }
-                            </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label">Tipo <span class="text-danger">*</span></label>
-                                <InputSelect @bind-Value="model.Tipo" class="form-select">
-                                    <option value="">Seleccione...</option>
-                                    <option value="Persona Natural">Persona Natural</option>
-                                    <option value="Empresa">Empresa</option>
-                                </InputSelect>
-                                <ValidationMessage For="@(() => model.Tipo)" class="text-danger small" />
-                            </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="model.Tipo" class="form-select">
+                                        <option value="">Seleccione...</option>
+                                        <option value="Persona Natural">Persona Natural</option>
+                                        <option value="Empresa">Empresa</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => model.Tipo)" class="text-danger small" />
+                                </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label">Teléfono <span class="text-danger">*</span></label>
-                                <InputText @bind-Value="model.Telefono" class="form-control" placeholder="(+57) 300 123 4567" />
-                                <ValidationMessage For="@(() => model.Telefono)" class="text-danger small" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Email <span class="text-danger">*</span></label>
-                                <InputText @bind-Value="model.Email" type="email" class="form-control" placeholder="cliente@ejemplo.com" />
-                                <ValidationMessage For="@(() => model.Email)" class="text-danger small" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Límite de Crédito (COP)</label>
-                                <InputNumber @bind-Value="model.LimiteCredito" class="form-control" placeholder="0" />
-                                <small class="text-muted">Dejar en 0 si no aplica</small>
-                            </div>
-
-                            <div class="col-12">
-                                <label class="form-label">Dirección</label>
-                                <InputTextArea @bind-Value="model.Direccion" class="form-control" rows="2" placeholder="Dirección completa del cliente" />
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Puntos de Fidelización</label>
-                                <InputNumber @bind-Value="model.PuntosFidelizacion" class="form-control" placeholder="0" />
-                                <small class="text-muted">Puntos iniciales del programa de lealtad</small>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="form-check mt-4">
-                                    <InputCheckbox @bind-Value="model.Activo" class="form-check-input" id="activoCheck" />
-                                    <label class="form-check-label" for="activoCheck">Cliente activo</label>
+                                <div class="col-md-6">
+                                    <div class="form-check mt-4">
+                                        <InputCheckbox @bind-Value="model.Activo" class="form-check-input" id="activoCheck" />
+                                        <label class="form-check-label fw-semibold" for="activoCheck">Cliente activo</label>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </FormSection>
 
-                        <hr class="my-4" />
+                        <FormSection 
+                            Title="Contacto" 
+                            Description="Información de contacto del cliente"
+                            Icon="telephone"
+                            IconColor="text-success bg-success-subtle">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Teléfono <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="model.Telefono" class="form-control" placeholder="(+57) 300 123 4567" />
+                                    <ValidationMessage For="@(() => model.Telefono)" class="text-danger small" />
+                                </div>
 
-                        <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" @onclick="Cancelar">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="model.Email" type="email" class="form-control" placeholder="cliente@ejemplo.com" />
+                                    <ValidationMessage For="@(() => model.Email)" class="text-danger small" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Dirección</label>
+                                    <InputTextArea @bind-Value="model.Direccion" class="form-control" rows="2" placeholder="Dirección completa del cliente" />
+                                </div>
+                            </div>
+                        </FormSection>
+
+                        <FormSection 
+                            Title="Comercial" 
+                            Description="Condiciones comerciales y programa de fidelización"
+                            Icon="credit-card"
+                            IconColor="text-warning bg-warning-subtle">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Límite de Crédito (COP)</label>
+                                    <InputNumber @bind-Value="model.LimiteCredito" class="form-control" placeholder="0" />
+                                    <small class="text-muted">Dejar en 0 si no aplica</small>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Puntos de Fidelización</label>
+                                    <InputNumber @bind-Value="model.PuntosFidelizacion" class="form-control" placeholder="0" />
+                                    <small class="text-muted">Puntos iniciales del programa de lealtad</small>
+                                </div>
+                            </div>
+                        </FormSection>
+
+                        <div class="d-flex justify-content-between actions-bar pt-3">
+                            <button type="button" class="btn btn-secondary" @onclick="Cancelar">
                                 <i class="bi bi-x-circle me-2"></i>Cancelar
                             </button>
                             <button type="submit" class="btn btn-primary" disabled="@(guardando || (identificacionValida.HasValue && !identificacionValida.Value))">

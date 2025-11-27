@@ -4,7 +4,7 @@
 @using Server.DTOs.ConciliacionBancaria
 @using Server.Services
 @using Server.Components.Tesoreria
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "AdminGerenteTesorero")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ToastService Toast

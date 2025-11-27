@@ -8,7 +8,7 @@ namespace Server.Controllers;
 public class ImportsController : ControllerBase
 {
     [HttpGet("last-log")]
-    [Authorize(Roles = "Tesorero,Junta")]
+    [Authorize(Policy = "TesoreroJunta")]
     public IActionResult GetLastLog()
     {
         var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");

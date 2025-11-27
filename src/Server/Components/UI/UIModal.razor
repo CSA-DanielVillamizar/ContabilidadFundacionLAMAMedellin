@@ -19,10 +19,10 @@
     </div>
 }
 @code {
-    [Parameter] public RenderFragment Header { get; set; }
-    [Parameter] public RenderFragment Footer { get; set; }
-    [Parameter] public RenderFragment ChildContent { get; set; }
-    [Parameter] public string Class { get; set; }
+    [Parameter] public RenderFragment? Header { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
     /// <summary>
     /// Controla la visibilidad del modal. Por defecto visible para compatibilidad con UIModalHost.
     /// </summary>

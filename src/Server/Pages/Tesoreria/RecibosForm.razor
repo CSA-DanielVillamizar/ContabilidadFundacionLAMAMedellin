@@ -1,4 +1,5 @@
 @page "/tesoreria/recibos/nuevo"
+@attribute [Authorize(Policy = "TesoreroJunta")]
 @using Server.DTOs.Recibos
 @using Server.Models
 @inject Server.Services.Miembros.IMiembrosService MiembrosService
@@ -23,23 +24,26 @@
         </MudAlert>
         <EditForm Model="formData" OnValidSubmit="GuardarReciboAsync" OnInvalidSubmit="OnInvalidSubmitHandler">
             <DataAnnotationsValidator />
-            <MudGrid Class="mb-4">
-                <MudItem xs="12" md="4">
-                    <MudSelect T="Guid?" @bind-Value="formData.MiembroId" Label="Miembro" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((Guid?)null)">-- Seleccione --</MudSelectItem>
-                        @foreach (var m in miembros)
-                        {
-                            <MudSelectItem Value="@((Guid?)m.Id)">@m.NombreCompleto (@m.NumeroSocio)</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="formData.TerceroLibre" Label="Tercero Libre" Variant="Variant.Outlined" MaxLength="200" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="formData.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" InputType="InputType.Date" Format="yyyy-MM-dd" />
-                </MudItem>
-            </MudGrid>
+            
+                <FormSection Title="Información del Recibo" Icon="@Icons.Material.Filled.Person">
+                    <MudGrid>
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="Guid?" @bind-Value="formData.MiembroId" Label="Miembro" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@((Guid?)null)">-- Seleccione --</MudSelectItem>
+                                @foreach (var m in miembros)
+                                {
+                                    <MudSelectItem Value="@((Guid?)m.Id)">@m.NombreCompleto (@m.NumeroSocio)</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="formData.TerceroLibre" Label="Tercero Libre" Variant="Variant.Outlined" MaxLength="200" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="formData.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" InputType="InputType.Date" Format="yyyy-MM-dd" />
+                        </MudItem>
+                    </MudGrid>
+                </FormSection>
 
             <MudPaper Class="glass-card pa-4 mb-4">
                 <div class="d-flex justify-space-between align-center mb-3">
@@ -92,17 +96,19 @@
                 </MudTable>
             </MudPaper>
 
-            <MudGrid Class="mb-4">
-                <MudItem xs="12" md="8">
-                    <MudTextField @bind-Value="formData.Observaciones" Label="Observaciones" Variant="Variant.Outlined" Lines="3" MaxLength="500" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudPaper Class="pa-3" Style="background: linear-gradient(135deg, var(--mud-palette-primary-lighten) 0%, var(--mud-palette-primary) 100%); color: white;">
-                        <MudText Typo="Typo.body2" Class="mb-1">Total COP</MudText>
-                        <MudText Typo="Typo.h4"><b>$@formData.Items.Sum(i => CalcularSubtotalCop(i)).ToString("N0")</b></MudText>
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
+                <FormSection Title="Observaciones y Total" Icon="@Icons.Material.Filled.Notes">
+                    <MudGrid>
+                        <MudItem xs="12" md="8">
+                            <MudTextField @bind-Value="formData.Observaciones" Label="Observaciones" Variant="Variant.Outlined" Lines="3" MaxLength="500" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudPaper Class="pa-3" Style="background: linear-gradient(135deg, var(--mud-palette-primary-lighten) 0%, var(--mud-palette-primary) 100%); color: white;">
+                                <MudText Typo="Typo.body2" Class="mb-1">Total COP</MudText>
+                                <MudText Typo="Typo.h4"><b>$@formData.Items.Sum(i => CalcularSubtotalCop(i)).ToString("N0")</b></MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </FormSection>
 
             @if (!CanSave)
             {
@@ -121,7 +127,7 @@
 </MudContainer>
 
 
-<MudDialog @bind-IsVisible="mostrarModalCertificado" Options="new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small }">
+<MudDialog Open="mostrarModalCertificado" Options="new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small }">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Class="me-2" />
@@ -187,8 +193,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error cargando miembros: {ex.Message}");
-                _cachedMiembros = new();
+_cachedMiembros = new();
             }
 
             try
@@ -197,8 +202,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error cargando conceptos: {ex.Message}");
-                _cachedConceptos = new();
+_cachedConceptos = new();
             }
 
             _dataLoaded = true;
@@ -212,17 +216,14 @@
         if (formData.Items.Count == 0)
         {
             formData.Items.Add(new CreateReciboItemDto { MonedaOrigen = Moneda.COP, Cantidad = 1, PrecioUnitarioMonedaOrigen = 0 });
-            Console.WriteLine($"✅ Item inicial agregado. Total: {formData.Items.Count}");
-        }
+}
     }
 
     private void AgregarItem()
     {
-        Console.WriteLine("AgregarItem: clic detectado, agregando fila...");
-        var newItem = new CreateReciboItemDto { MonedaOrigen = Moneda.COP, Cantidad = 1, PrecioUnitarioMonedaOrigen = 0 };
+var newItem = new CreateReciboItemDto { MonedaOrigen = Moneda.COP, Cantidad = 1, PrecioUnitarioMonedaOrigen = 0 };
         formData.Items.Add(newItem);
-        Console.WriteLine($"Total items después de agregar: {formData.Items.Count}");
-        // Forzar re-render inmediato
+// Forzar re-render inmediato
         InvokeAsync(StateHasChanged);
     }
 
@@ -250,8 +251,7 @@
             // Buscar TRM para la fecha
             var trm = await RecibosService.GetTrmAsync(formData.FechaEmision);
             item.TrmAplicada = trm;
-            Console.WriteLine($"TRM obtenida: {trm}");
-        }
+}
         else
         {
             item.TrmAplicada = null;
@@ -270,16 +270,12 @@
     {
         try
         {
-            Console.WriteLine($"Guardando recibo con {formData.Items.Count} items...");
-            foreach (var item in formData.Items)
+foreach (var item in formData.Items)
             {
-                Console.WriteLine($"  Item: ConceptoId={item.ConceptoId}, Cantidad={item.Cantidad}, Precio={item.PrecioUnitarioMonedaOrigen}, Moneda={item.MonedaOrigen}");
-            }
+}
             
             var reciboId = await RecibosService.CreateAsync(formData, "tesorero");
-            Console.WriteLine($"Recibo creado con ID: {reciboId}");
-            
-            // Verificar si algún item es de tipo DONACION
+// Verificar si algún item es de tipo DONACION
             var tieneDonacion = formData.Items.Any(item => 
             {
                 var concepto = conceptos.FirstOrDefault(c => c.Id == item.ConceptoId);
@@ -306,8 +302,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al guardar recibo: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+Console.WriteLine($"Stack trace: {ex.StackTrace}");
             await InvokeAsync(() =>
             {
                 Snackbar.Add($"Error al guardar recibo: {ex.Message}", Severity.Error);
@@ -317,11 +312,9 @@
 
     private void OnInvalidSubmitHandler(EditContext editContext)
     {
-        Console.WriteLine("Formulario inválido. Mostrando errores de validación...");
-        foreach (var validation in editContext.GetValidationMessages())
+foreach (var validation in editContext.GetValidationMessages())
         {
-            Console.WriteLine($" - {validation}");
-        }
+}
         // El ValidationSummary ya está en el formulario y mostrará los errores.
     }
 

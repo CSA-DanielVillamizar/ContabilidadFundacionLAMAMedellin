@@ -9,7 +9,7 @@
 @inject Server.Services.Miembros.IMiembrosService MiembrosService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@attribute [Authorize(Roles = "Tesorero,Junta")]
+@attribute [Authorize(Policy = "TesoreroJunta")]
 
 <PageTitle>@(Id == null ? "Nuevo Certificado de Donación" : "Editar Certificado de Donación")</PageTitle>
 
@@ -413,7 +413,7 @@
                     ValorDonacionCOP = certificadoExistente.ValorDonacionCOP,
                     FormaDonacion = certificadoExistente.FormaDonacion,
                     DestinacionDonacion = certificadoExistente.DestinacionDonacion,
-                    Observaciones = certificadoExistente.Observaciones,
+                        Observaciones = certificadoExistente.Observaciones ?? string.Empty,
                     ReciboId = certificadoExistente.ReciboId
                 };
             }
@@ -471,10 +471,9 @@
                         modelo.EmailDonante = miembro.Email;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"Error cargando datos del miembro: {ex.Message}");
-                }
+}
             }
             else if (!string.IsNullOrWhiteSpace(recibo.TerceroLibre))
             {
@@ -482,10 +481,9 @@
                 modelo.NombreDonante = recibo.TerceroLibre;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Error cargando datos desde recibo: {ex.Message}");
-        }
+}
     }
 
     private async Task GuardarCertificado()

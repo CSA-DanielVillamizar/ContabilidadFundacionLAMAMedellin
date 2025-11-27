@@ -1,4 +1,5 @@
 @page "/miembros"
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @inject Server.Services.Miembros.IMiembrosService MiembrosService
 @inject Server.Services.Auth.ICurrentUserService CurrentUserService
 @inject ISnackbar Snackbar
@@ -13,6 +14,8 @@
         <RedirectToLogin />
     </NotAuthorized>
     <Authorized>
+        <Breadcrumb Items="@breadcrumbs" />
+
         <PageHeader Icon="@Icons.Material.Filled.People" Title="Gestión de Miembros">
             <Actions>
                 <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" Href="@ObtenerUrlExportExcel()" Target="_blank">Exportar Excel</MudButton>
@@ -70,54 +73,62 @@
 </AuthorizeView>
 
 <!-- Dialog Crear/Editar Miembro -->
-<MudDialog @bind-Visible="mostrarModalForm" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = false })">
+<MudDialog @bind-IsVisible="mostrarModalForm" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">@(esEdicion ? "Editar Miembro" : "Nuevo Miembro")</MudText>
     </TitleContent>
     <DialogContent>
         <EditForm Model="formData" OnValidSubmit="GuardarMiembroAsync">
             <DataAnnotationsValidator />
-            <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="formData.NombreCompleto" Label="Nombre Completo" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="formData.Nombres" Label="Nombres" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="formData.Apellidos" Label="Apellidos" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="formData.Cedula" Label="Cédula" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="formData.Email" Label="Email" InputType="InputType.Email" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="formData.Celular" Label="Celular" />
-                </MudItem>
-                <MudItem xs="12" md="12">
-                    <MudTextField @bind-Value="formData.Direccion" Label="Dirección" Lines="2" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudNumericField T="int?" @bind-Value="formData.NumeroSocio" Label="Nº Socio" Min="0" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="formData.Cargo" Label="Cargo" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField @bind-Value="formData.Rango" Label="Rango" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudSelect T="EstadoMiembro" @bind-Value="formData.Estado" Label="Estado" AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem T="EstadoMiembro" Value="EstadoMiembro.Activo">Activo</MudSelectItem>
-                        <MudSelectItem T="EstadoMiembro" Value="EstadoMiembro.Inactivo">Inactivo</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudDatePicker Date="fechaIngresoDateTime" DateChanged="@(d => fechaIngresoDateTime = d)" Label="Fecha Ingreso" />
-                </MudItem>
-            </MudGrid>
+            
+                <FormSection Title="Datos Personales" Icon="@Icons.Material.Filled.Person">
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="formData.NombreCompleto" Label="Nombre Completo" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField @bind-Value="formData.Nombres" Label="Nombres" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField @bind-Value="formData.Apellidos" Label="Apellidos" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="formData.Cedula" Label="Cédula" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="formData.Email" Label="Email" InputType="InputType.Email" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="formData.Celular" Label="Celular" />
+                        </MudItem>
+                        <MudItem xs="12" md="12">
+                            <MudTextField @bind-Value="formData.Direccion" Label="Dirección" Lines="2" />
+                        </MudItem>
+                    </MudGrid>
+                </FormSection>
+            
+                <FormSection Title="Información LAMA" Icon="@Icons.Material.Filled.Badge">
+                    <MudGrid>
+                        <MudItem xs="12" md="3">
+                            <MudNumericField T="int?" @bind-Value="formData.NumeroSocio" Label="Nº Socio" Min="0" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField @bind-Value="formData.Cargo" Label="Cargo" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField @bind-Value="formData.Rango" Label="Rango" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="EstadoMiembro" @bind-Value="formData.Estado" Label="Estado" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem T="EstadoMiembro" Value="EstadoMiembro.Activo">Activo</MudSelectItem>
+                                <MudSelectItem T="EstadoMiembro" Value="EstadoMiembro.Inactivo">Inactivo</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker Date="fechaIngresoDateTime" DateChanged="@(d => fechaIngresoDateTime = d)" Label="Fecha Ingreso" />
+                        </MudItem>
+                    </MudGrid>
+                </FormSection>
 
             <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
                 <MudButton Variant="Variant.Text" OnClick="CerrarModalForm">Cancelar</MudButton>
@@ -128,7 +139,7 @@
 </MudDialog>
 
 <!-- Dialog Confirmar Eliminar -->
-<MudDialog @bind-Visible="mostrarModalEliminar" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small })">
+<MudDialog @bind-IsVisible="mostrarModalEliminar" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small })">
     <TitleContent>
         <MudText Typo="Typo.h6">Confirmar Eliminación</MudText>
     </TitleContent>
@@ -146,6 +157,11 @@
     private bool isLoading = true;
     private string search = string.Empty;
     private int filtroEstado = 0;
+    
+    private List<Breadcrumb.BreadcrumbItem> breadcrumbs = new()
+    {
+        new() { Label = "Miembros", IsActive = true }
+    };
 
     // Modal Form
     private bool mostrarModalForm = false;

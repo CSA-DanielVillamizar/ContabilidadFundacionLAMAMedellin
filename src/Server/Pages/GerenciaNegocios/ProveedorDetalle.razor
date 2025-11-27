@@ -1,7 +1,7 @@
-@page "/gerencia-negocios/proveedores/{id:guid}"
+B) Continúe con Clientes.razor inmediatamente@page "/gerencia-negocios/proveedores/{id:guid}"
 @using Server.DTOs.Proveedores
 @using Server.Services.Proveedores
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "GerenciaNegocios")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ToastService Toast
@@ -40,7 +40,7 @@ else
                 <button class="btn btn-outline-secondary" @onclick="Volver">
                     <i class="bi bi-arrow-left"></i> Volver
                 </button>
-                <AuthorizeView Roles="Admin,Gerente">
+                <AuthorizeView Policy="GerenciaNegocios">
                     <Authorized>
                         <button class="btn btn-primary" @onclick="@(() => Nav.NavigateTo($"/gerencia-negocios/proveedores/editar/{id}"))">
                             <i class="bi bi-pencil"></i> Editar

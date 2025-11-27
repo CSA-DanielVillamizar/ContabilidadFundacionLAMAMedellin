@@ -72,7 +72,8 @@ public class DeudoresE2ETests : IClassFixture<WebApplicationFactory<Program>>
                     Email = "juan@example.com",
                     Telefono = "3000000000",
                     Estado = Server.Models.EstadoMiembro.Activo,
-                    FechaIngreso = DateOnly.FromDateTime(new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1))
+                    // Usar fecha de ingreso de 3 meses atrás para asegurar que tenga deudas pendientes
+                    FechaIngreso = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-3))
                 };
                 if (!db.Miembros.Any()) db.Miembros.Add(miembro);
                 db.SaveChanges();

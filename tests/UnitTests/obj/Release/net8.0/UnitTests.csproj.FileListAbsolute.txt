@@ -5,3 +5,4 @@ c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Release\n
 c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Release\net8.0\UnitTests.AssemblyInfoInputs.cache
 c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Release\net8.0\UnitTests.AssemblyInfo.cs
 c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Release\net8.0\UnitTests.csproj.CoreCompileInputs.cache
+c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Release\net8.0\UnitTests.sourcelink.json

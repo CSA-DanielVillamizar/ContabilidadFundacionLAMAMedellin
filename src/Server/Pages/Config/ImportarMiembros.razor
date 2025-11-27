@@ -7,6 +7,8 @@
 @inject Server.Services.Auth.ICurrentUserService CurrentUser
 @inject Server.Services.Audit.IAuditService Audit
 
+<Breadcrumb Items="@breadcrumbs" />
+
 <h2 class="text-xl font-semibold mb-4">Importación de Miembros (Admin)</h2>
 
 <div class="space-y-8">
@@ -77,6 +79,12 @@
     private string? _emailStatus;
     private Server.DTOs.Email.EmailProbeResult? _probe;
 
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Configuración", Url = "/config" },
+        new() { Label = "Importar Miembros", IsActive = true }
+    };
+
     private async Task ReimportarDesdeCsvRaizAsync()
     {
         try
@@ -88,7 +96,7 @@
                 return;
             }
 
-            var lines = await File.ReadAllLinesAsync(rootCsv, System.Text.Encoding.UTF8);
+            var lines = File.ReadAllLines(rootCsv);
             var rows = new List<Server.DTOs.Import.ImportRowDto>();
             for (int i = 1; i < lines.Length; i++)
             {

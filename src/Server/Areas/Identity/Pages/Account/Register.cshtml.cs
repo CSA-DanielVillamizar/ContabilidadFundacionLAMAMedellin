@@ -30,6 +30,8 @@ namespace Server.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
+        // Dominio autorizado para el registro de cuentas
+        private const string AllowedEmailDomain = "@fundacionlamamedellin.org";
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
@@ -113,6 +115,13 @@ namespace Server.Areas.Identity.Pages.Account
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
             if (ModelState.IsValid)
             {
+                // Validación de dominio: sólo permitir correos de la organización
+                if (!Input.Email.EndsWith(AllowedEmailDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    ModelState.AddModelError(string.Empty, $"Sólo se permiten correos con dominio {AllowedEmailDomain}.");
+                    return Page();
+                }
+
                 var user = CreateUser();
 
                 await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);

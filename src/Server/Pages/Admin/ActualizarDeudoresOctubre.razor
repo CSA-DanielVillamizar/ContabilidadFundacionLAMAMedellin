@@ -6,7 +6,7 @@
 @using Server.Models
 @inject AppDbContext DbContext
 @inject NavigationManager Nav
-@attribute [Authorize(Roles = "Admin,Tesorero")]
+@attribute [Authorize(Policy = "AdminTesorero")]
 
 <h1 class="hidden">Actualizar Deudores - Octubre 2025</h1>
 

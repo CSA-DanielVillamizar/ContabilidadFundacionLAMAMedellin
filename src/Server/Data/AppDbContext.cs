@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Server.Models;
 
@@ -393,5 +394,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             b.Property(n => n.Url).HasMaxLength(500);
             b.HasOne(n => n.Usuario).WithMany().HasForeignKey(n => n.UsuarioId).OnDelete(DeleteBehavior.Cascade);
         });
+
     }
 }

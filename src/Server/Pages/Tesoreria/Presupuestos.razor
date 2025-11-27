@@ -1,5 +1,5 @@
 @page "/tesoreria/presupuestos"
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "AdminGerenteTesorero")]
 @using Server.DTOs
 @using Server.Services
 @inject HttpClient Http

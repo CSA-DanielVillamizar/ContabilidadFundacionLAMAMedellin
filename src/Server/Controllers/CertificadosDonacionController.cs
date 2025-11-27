@@ -11,7 +11,7 @@ namespace Server.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/certificados-donacion")]
-[Authorize(Roles = "Tesorero,Junta")]
+[Authorize(Policy = "TesoreroJunta")]
 public class CertificadosDonacionController : ControllerBase
 {
     private readonly ICertificadosDonacionService _service;
@@ -151,7 +151,7 @@ public class CertificadosDonacionController : ControllerBase
     /// Descarga el PDF de un certificado.
     /// </summary>
     [HttpGet("{id:guid}/pdf")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> GetPdf(Guid id)
     {
         try

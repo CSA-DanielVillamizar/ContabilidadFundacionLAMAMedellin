@@ -4,7 +4,7 @@
 @using System.Text.Json
 @using Server.DTOs.ConciliacionBancaria
 @using Server.Services
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "AdminGerenteTesorero")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ToastService Toast
@@ -161,8 +161,7 @@
     }
     catch (Exception ex)
     {
-      Console.WriteLine($"Error al cargar conciliación: {ex.Message}");
-      Toast.ShowError($"Error al cargar: {ex.Message}");
+Toast.ShowError($"Error al cargar: {ex.Message}");
     }
   }
 
@@ -198,8 +197,7 @@
     }
     catch (Exception ex)
     {
-      Console.WriteLine($"Error al guardar: {ex.Message}");
-      Toast.ShowError($"Error al guardar: {ex.Message}");
+Toast.ShowError($"Error al guardar: {ex.Message}");
     }
     finally
     {
@@ -226,8 +224,7 @@
     }
     catch (Exception ex)
     {
-      Console.WriteLine($"Error al calcular: {ex.Message}");
-      Toast.ShowError($"Error al calcular: {ex.Message}");
+Toast.ShowError($"Error al calcular: {ex.Message}");
     }
   }
 

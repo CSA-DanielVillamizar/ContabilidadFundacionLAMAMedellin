@@ -6,7 +6,6 @@ using QuestPDF.Infrastructure;
 using Server.Data;
 using Server.DTOs;
 using Server.DTOs.Recibos;
-using Server.DTOs.Recibos;
 using Server.Models;
 using Server.Services.Exchange;
 using Server.Services.CierreContable;
@@ -51,6 +50,7 @@ public class RecibosService : IRecibosService
         {
             // Solo conceptos de ingreso para usarse en recibos (evita egresos/otros)
             return await _db.Conceptos
+                .AsNoTracking()
                 .Where(c => c.EsIngreso)
                 .Select(c => new ConceptoListItem
                 {

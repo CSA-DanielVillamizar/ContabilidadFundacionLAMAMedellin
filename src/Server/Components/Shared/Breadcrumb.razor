@@ -1,0 +1,42 @@
+@*
+    Componente reutilizable para breadcrumb de navegación
+*@
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="/">
+                <svg class="bi me-1" width="14" height="14" fill="currentColor"><use href="/bootstrap-icons.svg#house-door"/></svg>
+                Inicio
+            </a>
+        </li>
+        @if (Items != null)
+        {
+            @foreach (var item in Items)
+            {
+                @if (item.IsActive)
+                {
+                    <li class="breadcrumb-item active" aria-current="page">@item.Label</li>
+                }
+                else
+                {
+                    <li class="breadcrumb-item">
+                        <a href="@item.Url">@item.Label</a>
+                    </li>
+                }
+            }
+        }
+    </ol>
+</nav>
+
+@code {
+    [Parameter]
+    public List<BreadcrumbItem>? Items { get; set; }
+
+    public class BreadcrumbItem
+    {
+        public string Label { get; set; } = string.Empty;
+        public string? Url { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

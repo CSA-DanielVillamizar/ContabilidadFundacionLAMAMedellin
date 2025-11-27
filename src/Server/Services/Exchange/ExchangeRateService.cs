@@ -21,9 +21,14 @@ public class ExchangeRateService : IExchangeRateService
 
     public async Task<decimal> GetUsdCopAsync(DateOnly fecha, CancellationToken ct = default)
     {
-        var tasa = await _db.TasasCambio.FirstOrDefaultAsync(x => x.Fecha == fecha, ct);
+        var tasa = await _db.TasasCambio
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Fecha == fecha, ct);
         if (tasa is not null) return tasa.UsdCop;
-        var last = await _db.TasasCambio.OrderByDescending(x => x.Fecha).FirstOrDefaultAsync(ct);
+        var last = await _db.TasasCambio
+            .AsNoTracking()
+            .OrderByDescending(x => x.Fecha)
+            .FirstOrDefaultAsync(ct);
         return last?.UsdCop ?? 4000m; // placeholder si no hay datos
     }
 }

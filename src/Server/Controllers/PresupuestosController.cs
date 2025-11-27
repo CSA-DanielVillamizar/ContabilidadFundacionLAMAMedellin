@@ -10,7 +10,7 @@ namespace Server.Controllers;
 /// Controlador para gestión de presupuestos y cálculo de ejecución presupuestal.
 /// Permite crear, consultar, actualizar presupuestos y calcular % de ejecución desde movimientos reales.
 /// </summary>
-[Authorize(Roles = "Admin,Gerente,Tesorero")]
+[Authorize(Policy = "AdminGerenteTesorero")]
 [ApiController]
 [Route("api/[controller]")]
 public class PresupuestosController : ControllerBase
@@ -143,7 +143,7 @@ public class PresupuestosController : ControllerBase
     /// DELETE /api/presupuestos/{id}
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin,Gerente")]
+    [Authorize(Policy = "AdminGerente")]
     public async Task<IActionResult> Eliminar(Guid id)
     {
         try

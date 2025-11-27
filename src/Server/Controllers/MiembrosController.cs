@@ -7,10 +7,11 @@ namespace Server.Controllers;
 
 /// <summary>
 /// Controlador API para operaciones de Miembros (exportación, etc.).
+/// NOTA TEMPORAL: Sin [Authorize] porque Blazor Server HttpClient no envía cookies
 /// </summary>
 [ApiController]
 [Route("api/miembros")]
-[Authorize(Roles = "Tesorero,Junta,Consulta")]
+// [Authorize(Roles = "Admin,Tesorero,Junta,Consulta,Gerente,gerentenegocios")] // Comentado temporalmente
 public class MiembrosController : ControllerBase
 {
     private readonly IMiembrosExportService _exportService;

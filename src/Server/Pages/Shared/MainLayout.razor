@@ -33,7 +33,7 @@
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
-<MudSnackbarProvider MaximumSnackbars="4" ShowCloseIcon="true" SnackbarVariant="Variant.Filled" />
+<MudSnackbarProvider />
 
 <!-- Toasts globales existentes (legacy) -->
 <UIToast Toasts="_toasts" OnDismiss="OnToastDismiss" />
@@ -42,7 +42,7 @@
 <CascadingValue Value="this">
     <MudLayout>
     <!-- Drawer lateral izquierdo (Responsive: auto-cierra en móvil, persiste en desktop) -->
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="@DrawerVariant.Responsive">
+    <MudDrawer Open="_drawerOpen" Elevation="2" Variant="@DrawerVariant.Responsive">
             <MudDrawerHeader Class="d-flex align-center gap-3 px-4 py-3">
                 <MudImage Src="images/LogoLAMAMedellin.png" Alt="LAMA Logo" Width="48" Height="48" Class="rounded" />
                 <div>
@@ -54,7 +54,7 @@
             <!-- Usuario actual y ThemeToggle -->
             <div class="px-4 py-3 border-t">
                 <div class="d-flex align-center gap-2 mb-2">
-                    <MudAvatar Size="Size.Small" Src="images/avatar-default.png" />
+                    <img src="images/avatar-default.png" alt="Usuario" width="32" height="32" class="mud-avatar-root rounded-circle" />
                     <div class="flex-grow-1">
                         <AuthorizeView>
                             <Authorized Context="auth">

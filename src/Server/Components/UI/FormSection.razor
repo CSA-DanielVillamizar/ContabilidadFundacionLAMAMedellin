@@ -1,0 +1,79 @@
+@*
+    Componente reutilizable para secciones de formulario
+    Proporciona estructura consistente con ícono, título, descripción y contenido
+*@
+
+<div class="form-section @Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="form-section-header">
+            @if (!string.IsNullOrEmpty(Icon))
+            {
+                <div class="icon-bubble @IconColor">
+                    <i class="bi bi-@Icon"></i>
+                </div>
+            }
+            <div class="form-section-title-wrapper">
+                <h5 class="form-section-title mb-0">@Title</h5>
+                @if (!string.IsNullOrEmpty(Description))
+                {
+                    <p class="form-section-description text-muted small mb-0">@Description</p>
+                }
+            </div>
+            @if (HeaderAction != null)
+            {
+                <div class="ms-auto">
+                    @HeaderAction
+                </div>
+            }
+        </div>
+    }
+    
+    <div class="form-section-content">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Título de la sección
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Descripción opcional debajo del título
+    /// </summary>
+    [Parameter]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Nombre del ícono de Bootstrap Icons (sin prefijo 'bi-')
+    /// </summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>
+    /// Clase de color para el ícono (text-primary, text-success, text-info, etc.)
+    /// </summary>
+    [Parameter]
+    public string IconColor { get; set; } = "text-primary bg-primary-subtle";
+
+    /// <summary>
+    /// Contenido de la sección
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Acción opcional en el encabezado (botones, badges, etc.)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? HeaderAction { get; set; }
+
+    /// <summary>
+    /// Clases CSS adicionales
+    /// </summary>
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+}

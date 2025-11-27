@@ -8,6 +8,8 @@
 
 <PageTitle>Productos - Gerencia de Negocios</PageTitle>
 
+<Breadcrumb Items="@breadcrumbs" />
+
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
     <!-- Header con título y botón -->
     <PageHeader Icon="@Icons.Material.Filled.Inventory" 
@@ -140,7 +142,7 @@
 </MudContainer>
 
 @* Modal Formulario con MudDialog *@
-<MudDialog @bind-Visible="mostrarModal" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+<MudDialog @bind-IsVisible="mostrarModal" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="me-2" />
@@ -150,52 +152,64 @@
     <DialogContent>
         <EditForm Model="formulario" OnValidSubmit="GuardarProducto">
             <DataAnnotationsValidator />
-            
-            <MudGrid>
-                <MudItem xs="12" sm="6">
-                    <MudTextField Label="Código" @bind-Value="formulario.Codigo" Required="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudSelect Label="Tipo" @bind-Value="formulario.Tipo" Required="true">
-                        <MudSelectItem Value="1">Parche</MudSelectItem>
-                        <MudSelectItem Value="2">Souvenir</MudSelectItem>
-                        <MudSelectItem Value="3">Camiseta</MudSelectItem>
-                        <MudSelectItem Value="4">Jersey</MudSelectItem>
-                        <MudSelectItem Value="5">Gorra</MudSelectItem>
-                        <MudSelectItem Value="6">Sticker</MudSelectItem>
-                        <MudSelectItem Value="7">Llavero</MudSelectItem>
-                        <MudSelectItem Value="99">Otros</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField Label="Nombre" @bind-Value="formulario.Nombre" Required="true" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudNumericField Label="Precio Venta COP" @bind-Value="formulario.PrecioVentaCOP" Required="true" Format="N0" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudNumericField Label="Precio Venta USD" @bind-Value="formulario.PrecioVentaUSD" Format="N2" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudTextField Label="Talla" @bind-Value="formulario.Talla" Placeholder="XS, S, M, L, XL..." />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField Label="Stock Actual" @bind-Value="formulario.StockActual" Required="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField Label="Stock Mínimo" @bind-Value="formulario.StockMinimo" Required="true" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField Label="Descripción" @bind-Value="formulario.Descripcion" Lines="3" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField Label="URL Imagen" @bind-Value="formulario.ImagenUrl" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudCheckBox T="bool" @bind-Value="formulario.EsParcheOficial" Label="Es parche oficial (LAMA International)" Color="Color.Primary" />
-                    <MudCheckBox T="bool" @bind-Value="formulario.Activo" Label="Producto activo" Color="Color.Success" />
-                </MudItem>
-            </MudGrid>
+
+            <FormSection Title="Información Básica" Description="Datos principales del producto" Icon="bi-info-circle" IconColor="primary">
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Label="Código" @bind-Value="formulario.Codigo" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect Label="Tipo" @bind-Value="formulario.Tipo" Required="true">
+                            <MudSelectItem Value="1">Parche</MudSelectItem>
+                            <MudSelectItem Value="2">Souvenir</MudSelectItem>
+                            <MudSelectItem Value="3">Camiseta</MudSelectItem>
+                            <MudSelectItem Value="4">Jersey</MudSelectItem>
+                            <MudSelectItem Value="5">Gorra</MudSelectItem>
+                            <MudSelectItem Value="6">Sticker</MudSelectItem>
+                            <MudSelectItem Value="7">Llavero</MudSelectItem>
+                            <MudSelectItem Value="99">Otros</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Nombre" @bind-Value="formulario.Nombre" Required="true" />
+                    </MudItem>
+                </MudGrid>
+            </FormSection>
+
+            <FormSection Title="Precios e Inventario" Description="Valores de venta y stock" Icon="bi-cash-coin" IconColor="success" Class="mt-3">
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField Label="Precio Venta COP" @bind-Value="formulario.PrecioVentaCOP" Required="true" Format="N0" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField Label="Precio Venta USD" @bind-Value="formulario.PrecioVentaUSD" Format="N2" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField Label="Talla" @bind-Value="formulario.Talla" Placeholder="XS, S, M, L, XL..." />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField Label="Stock Actual" @bind-Value="formulario.StockActual" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField Label="Stock Mínimo" @bind-Value="formulario.StockMinimo" Required="true" />
+                    </MudItem>
+                </MudGrid>
+            </FormSection>
+
+            <FormSection Title="Otros" Description="Descripción, imagen y estado" Icon="bi-card-text" IconColor="info" Class="mt-3">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField Label="Descripción" @bind-Value="formulario.Descripcion" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Label="URL Imagen" @bind-Value="formulario.ImagenUrl" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudCheckBox T="bool" @bind-Value="formulario.EsParcheOficial" Label="Es parche oficial (LAMA International)" Color="Color.Primary" />
+                        <MudCheckBox T="bool" @bind-Value="formulario.Activo" Label="Producto activo" Color="Color.Success" />
+                    </MudItem>
+                </MudGrid>
+            </FormSection>
         </EditForm>
     </DialogContent>
     <DialogActions>
@@ -221,6 +235,12 @@
     private int filtroActual = 0; // 0=Todos, 1=Activos, 2=Bajo stock
     private ProductoDto? productoEditando = null;
     private ProductoCreateUpdateDto formulario = new();
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Gerencia de Negocios", Url = "/gerencia-negocios" },
+        new() { Label = "Productos", IsActive = true }
+    };
 
     private List<ProductoDto> productosFiltrados
     {

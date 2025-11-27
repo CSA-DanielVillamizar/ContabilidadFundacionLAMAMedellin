@@ -22,6 +22,7 @@ public class ComprasService : IComprasService
         using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.ComprasProductos
+            .AsNoTracking()
             .Include(c => c.Detalles)
             .ThenInclude(d => d.Producto)
             .OrderByDescending(c => c.FechaCompra)
@@ -34,6 +35,7 @@ public class ComprasService : IComprasService
         using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.ComprasProductos
+            .AsNoTracking()
             .Include(c => c.Detalles)
             .ThenInclude(d => d.Producto)
             .Where(c => c.Estado == (EstadoCompra)estado)
@@ -217,8 +219,8 @@ public class ComprasService : IComprasService
             TotalUSD = compra.TotalUSD,
             TrmAplicada = compra.TrmAplicada,
             Estado = compra.Estado.ToString(),
-            NumeroFacturaProveedor = compra.NumeroFacturaProveedor,
-            Observaciones = compra.Observaciones,
+                NumeroFacturaProveedor = compra.NumeroFacturaProveedor ?? string.Empty,
+                Observaciones = compra.Observaciones ?? string.Empty,
             EgresoId = compra.EgresoId,
             CreatedAt = compra.CreatedAt,
             Detalles = compra.Detalles.Select(d => new DetalleCompraProductoDto

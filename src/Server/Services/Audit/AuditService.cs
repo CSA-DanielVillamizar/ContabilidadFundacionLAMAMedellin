@@ -63,6 +63,7 @@ public class AuditService : IAuditService
     public async Task<List<AuditLog>> GetEntityLogsAsync(string entityType, string entityId)
     {
         return await _db.AuditLogs
+            .AsNoTracking()
             .Where(a => a.EntityType == entityType && a.EntityId == entityId)
             .OrderByDescending(a => a.Timestamp)
             .ToListAsync();
@@ -71,6 +72,7 @@ public class AuditService : IAuditService
     public async Task<List<AuditLog>> GetRecentLogsAsync(int count = 100)
     {
         return await _db.AuditLogs
+            .AsNoTracking()
             .OrderByDescending(a => a.Timestamp)
             .Take(count)
             .ToListAsync();

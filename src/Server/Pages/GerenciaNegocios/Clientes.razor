@@ -1,12 +1,14 @@
 @page "/gerencia-negocios/clientes"
 @using Server.DTOs.Clientes
 @using Server.Components.Shared
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "GerenciaNegocios")]
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
 <PageTitle>Clientes - LAMA Medellín</PageTitle>
+
+<Breadcrumb Items="@breadcrumbs" />
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-4">
     <MudPaper Class="glass-card pa-6 mb-6">
@@ -15,7 +17,7 @@
                 <h2 class="mb-1"><MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Class="me-2" />Clientes</h2>
                 <MudText Typo="Typo.body2" Class="text-muted">Gestión de clientes y ventas</MudText>
             </div>
-            <AuthorizeView Roles="Admin,Gerente">
+                <AuthorizeView Policy="GerenciaNegocios">
                 <Authorized>
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Primary" 
@@ -35,37 +37,29 @@
                 <ModernStatCard 
                     Icon="@Icons.Material.Filled.People"
                     Value="@totalClientes.ToString()"
-                    Label="Total Clientes"
-                    Color="primary"
-                    GradientFrom="#667eea"
-                    GradientTo="#764ba2" />
+                    Title="Total Clientes"
+                    IconColor="primary" />
             </div>
             <div class="col-md-3">
                 <ModernStatCard 
                     Icon="@Icons.Material.Filled.CheckCircle"
                     Value="@clientesActivos.ToString()"
-                    Label="Activos"
-                    Color="success"
-                    GradientFrom="#11998e"
-                    GradientTo="#38ef7d" />
+                    Title="Activos"
+                    IconColor="success" />
             </div>
             <div class="col-md-3">
                 <ModernStatCard 
                     Icon="@Icons.Material.Filled.ShoppingCart"
                     Value="@clientesConVentas.ToString()"
-                    Label="Con Ventas"
-                    Color="info"
-                    GradientFrom="#4facfe"
-                    GradientTo="#00f2fe" />
+                    Title="Con Ventas"
+                    IconColor="info" />
             </div>
             <div class="col-md-3">
                 <ModernStatCard 
                     Icon="@Icons.Material.Filled.Star"
                     Value="@puntosTotales.ToString()"
-                    Label="Puntos Total"
-                    Color="warning"
-                    GradientFrom="#f093fb"
-                    GradientTo="#f5576c" />
+                    Title="Puntos Total"
+                    IconColor="warning" />
             </div>
         </div>
     }
@@ -173,7 +167,7 @@
                                                        Size="Size.Small"
                                                        OnClick="@(() => Nav.NavigateTo($"/gerencia-negocios/clientes/{cliente.Id}"))"
                                                        Title="Ver detalle" />
-                                        <AuthorizeView Roles="Admin,Gerente">
+                                        <AuthorizeView Policy="GerenciaNegocios">
                                             <Authorized>
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                                Color="Color.Default" 
@@ -215,7 +209,7 @@
     </MudPaper>
 </MudContainer>
 
-<MudDialog @bind-IsVisible="mostrarModalEliminar">
+<MudDialog Open="mostrarModalEliminar">
     <TitleContent>
         <MudText Typo="Typo.h6">Confirmar @(clienteEliminar?.Activo == true ? "Desactivación" : "Activación")</MudText>
     </TitleContent>
@@ -259,6 +253,12 @@
     private int puntosTotales = 0;
     private System.Threading.Timer? _debounceTimer;
 
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Gerencia de Negocios", Url = "/gerencia-negocios" },
+        new() { Label = "Clientes", IsActive = true }
+    };
+
     protected override async Task OnInitializedAsync()
     {
         await CargarClientes();
@@ -276,7 +276,31 @@
             if (activoFiltro.HasValue) query += $"&activo={activoFiltro.Value}";
             if (!string.IsNullOrWhiteSpace(filtroTipo)) query += $"&tipo={Uri.EscapeDataString(filtroTipo)}";
 
-            var response = await Http.GetFromJsonAsync<ClientesListResponse>($"/api/clientes{query}");
+            // Llamada segura que detecta HTML (login) y estados no autorizados
+            var httpResponse = await Http.GetAsync($"/api/clientes{query}");
+            if ((int)httpResponse.StatusCode == 401 || (int)httpResponse.StatusCode == 403)
+            {
+                RedirigirALogin();
+                return;
+            }
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                var errorText = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception($"HTTP {(int)httpResponse.StatusCode}: {errorText}");
+            }
+
+            var mediaType = httpResponse.Content.Headers.ContentType?.MediaType ?? string.Empty;
+            var rawText = mediaType.Contains("json", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : await httpResponse.Content.ReadAsStringAsync();
+            if (rawText != null && rawText.TrimStart().StartsWith("<"))
+            {
+                // Muy probablemente HTML del Login
+                RedirigirALogin();
+                return;
+            }
+
+            var response = await httpResponse.Content.ReadFromJsonAsync<ClientesListResponse>();
             if (response != null)
             {
                 clientes = response.Clientes;
@@ -298,7 +322,23 @@
     {
         try
         {
-            var response = await Http.GetFromJsonAsync<ClientesListResponse>("/api/clientes?registrosPorPagina=10000");
+            var httpResponse = await Http.GetAsync("/api/clientes?registrosPorPagina=10000");
+            if ((int)httpResponse.StatusCode == 401 || (int)httpResponse.StatusCode == 403)
+            {
+                // No bloquear la página por estadísticas, pero sugerir login
+                RedirigirALogin();
+                return;
+            }
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                return; // estadísticas son opcionales
+            }
+            var mediaType = httpResponse.Content.Headers.ContentType?.MediaType ?? string.Empty;
+            if (!mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            var response = await httpResponse.Content.ReadFromJsonAsync<ClientesListResponse>();
             if (response != null)
             {
                 clientesActivos = response.Clientes.Count(c => c.Activo);
@@ -393,6 +433,13 @@
     public void Dispose()
     {
         _debounceTimer?.Dispose();
+    }
+
+    private void RedirigirALogin()
+    {
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+        if (!relative.StartsWith("/")) relative = "/" + relative;
+        Nav.NavigateTo($"/Identity/Account/Login?ReturnUrl={Uri.EscapeDataString(relative)}", forceLoad: true);
     }
 
     public class ClientesListResponse

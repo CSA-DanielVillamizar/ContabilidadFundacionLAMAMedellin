@@ -8,7 +8,7 @@
 @inject Server.Services.Egresos.IEgresosService EgresosService
 @inject NavigationManager Nav
 @inject ToastService _toastService
-@attribute [Authorize(Roles="Tesorero,Junta,Consulta")]
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 
 <AuthorizeView>
     <NotAuthorized>
@@ -117,7 +117,7 @@
     </div>
 </MudPaper>
 
-<MudDialog @bind-IsVisible="mostrarModal" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium })" aria-label="Modal de egreso">
+<MudDialog Open="mostrarModal" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium })" aria-label="Modal de egreso">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@(editando ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
@@ -187,10 +187,9 @@
         {
             await Buscar();
         }
-        catch (Exception ex)
+            catch (Exception)
         {
-            Console.WriteLine($"Error en OnInitializedAsync Egresos: {ex.Message}");
-            egresos = new List<Server.Models.Egreso>();
+egresos = new List<Server.Models.Egreso>();
         }
     }
 

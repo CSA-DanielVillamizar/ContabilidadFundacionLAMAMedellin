@@ -22,6 +22,7 @@ public class ProductosService : IProductosService
         using var context = await _contextFactory.CreateDbContextAsync();
         
         return await context.Productos
+            .AsNoTracking()
             .OrderBy(p => p.Nombre)
             .Select(p => new ProductoDto
             {
@@ -48,6 +49,7 @@ public class ProductosService : IProductosService
         using var context = await _contextFactory.CreateDbContextAsync();
         
         return await context.Productos
+            .AsNoTracking()
             .Where(p => p.Activo)
             .OrderBy(p => p.Nombre)
             .Select(p => new ProductoDto
@@ -75,6 +77,7 @@ public class ProductosService : IProductosService
         using var context = await _contextFactory.CreateDbContextAsync();
         
         return await context.Productos
+            .AsNoTracking()
             .Where(p => p.Activo && p.StockActual <= p.StockMinimo)
             .OrderBy(p => p.StockActual)
             .Select(p => new ProductoDto

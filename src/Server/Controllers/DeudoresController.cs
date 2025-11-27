@@ -33,7 +33,7 @@ public class DeudoresController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> Get([FromQuery] string? desde = null, [FromQuery] string? hasta = null, CancellationToken ct = default)
     {
         DateOnly? d = null, h = null;
@@ -107,7 +107,7 @@ public class DeudoresController : ControllerBase
     }
 
     [HttpGet("excel")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> GetExcel([FromQuery] string? desde = null, [FromQuery] string? hasta = null, CancellationToken ct = default)
     {
         DateOnly? d = null, h = null;
@@ -118,7 +118,7 @@ public class DeudoresController : ControllerBase
     }
 
     [HttpGet("pdf")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> GetPdf([FromQuery] string? desde = null, [FromQuery] string? hasta = null, CancellationToken ct = default)
     {
         DateOnly? d = null, h = null;
@@ -131,7 +131,7 @@ public class DeudoresController : ControllerBase
     public record GenerarDto(Guid MiembroId, int CantidadMeses);
 
     [HttpPost("generar-recibo")]
-    [Authorize(Roles = "Tesorero,Junta")]
+    [Authorize(Policy = "TesoreroJunta")]
     public async Task<IActionResult> GenerarRecibo([FromBody] GenerarDto dto, CancellationToken ct)
     {
         if (dto.CantidadMeses <= 0) return BadRequest("Cantidad inválida");

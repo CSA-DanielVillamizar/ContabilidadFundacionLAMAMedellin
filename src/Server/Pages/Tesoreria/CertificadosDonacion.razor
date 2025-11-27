@@ -4,9 +4,11 @@
 @using Server.Services.Donaciones
 @inject ICertificadosDonacionService CertificadosService
 @inject NavigationManager Nav
-@attribute [Authorize(Roles = "Tesorero,Junta,Consulta")]
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 
 <PageTitle>Certificados de Donación - RTE</PageTitle>
+
+<Breadcrumb Items="@breadcrumbs" />
 
 <div class="container mx-auto p-6">
     <div class="flex justify-between items-center mb-6">
@@ -195,6 +197,12 @@
     private int paginaActual = 1;
     private const int registrosPorPagina = 20;
 
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Tesorería", Url = "/tesoreria" },
+        new() { Label = "Certificados RTE", IsActive = true }
+    };
+
     protected override async Task OnInitializedAsync()
     {
         await CargarCertificados();
@@ -223,8 +231,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando certificados: {ex.Message}");
-            certificados = new();
+certificados = new();
         }
         finally
         {

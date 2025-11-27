@@ -1,5 +1,6 @@
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\appsettings.Development.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\appsettings.json
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\appsettings.Production.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\appsettings.sample.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\Server.staticwebassets.runtime.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\Server.staticwebassets.endpoints.json
@@ -287,6 +288,7 @@ C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\S
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.RazorAssemblyInfo.cache
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.RazorAssemblyInfo.cs
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.sourcelink.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\rjimswa.dswa.cache.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
@@ -302,4 +304,4 @@ C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\r
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.pdb
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.genruntimeconfig.cache
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\ref\Server.dll
-c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\obj\Debug\net8.0\Server.sourcelink.json
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\src\Server\bin\Debug\net8.0\appsettings.Test.json

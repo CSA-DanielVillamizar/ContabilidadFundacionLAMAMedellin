@@ -1,9 +1,11 @@
 @page "/gerencia-negocios/proveedores"
 @using Server.DTOs.Proveedores
 @using Server.Controllers
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "GerenciaNegocios")]
 
 <PageTitle>Proveedores - LAMA Medellín</PageTitle>
+
+<Breadcrumb Items="@breadcrumbs" />
 
 <MudPaper Class="glass-card pa-6 mb-6" Elevation="0">
     <!-- Header -->
@@ -15,10 +17,10 @@
             </div>
             <MudText Typo="Typo.body2" Color="Color.Secondary">Gestión de proveedores y términos comerciales</MudText>
         </div>
-        <AuthorizeView Roles="Admin,Gerente">
+        <AuthorizeView Policy="GerenciaNegocios">
             <Authorized>
                 <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
+                               Color="Color.Primary"
                            OnClick="AbrirModalNuevo"
                            StartIcon="@Icons.Material.Filled.Add">
                     Nuevo Proveedor
@@ -85,10 +87,10 @@
         <MudPaper Class="pa-8 text-center" Elevation="0">
             <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 64px;" />
             <MudText Typo="Typo.h6" Class="mb-2">No se encontraron proveedores</MudText>
-            <AuthorizeView Roles="Admin,Gerente">
+            <AuthorizeView Policy="GerenciaNegocios">
                 <Authorized>
                     <MudButton Variant="Variant.Filled" 
-                               Color="Color.Primary" 
+                                   Color="Color.Primary"
                                OnClick="AbrirModalNuevo"
                                StartIcon="@Icons.Material.Filled.Add"
                                Class="mt-3">
@@ -185,10 +187,10 @@
                                                    Size="Size.Small"
                                                    OnClick="() => VerDetalle(proveedor.Id)"
                                                    title="Ver detalle" />
-                                    <AuthorizeView Roles="Admin,Gerente">
+                                    <AuthorizeView Policy="GerenciaNegocios">
                                         <Authorized>
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                                           Color="Color.Default" 
+                                                               Color="Color.Default"
                                                            Size="Size.Small"
                                                            OnClick="() => AbrirModalEditar(proveedor.Id)"
                                                            title="Editar" />
@@ -254,6 +256,12 @@
 
     private System.Threading.Timer? _debounceTimer;
 
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Gerencia de Negocios", Url = "/gerencia-negocios" },
+        new() { Label = "Proveedores", IsActive = true }
+    };
+
     protected override async Task OnInitializedAsync()
     {
         await CargarProveedores();
@@ -274,8 +282,25 @@
             if (activoFiltro.HasValue)
                 query += $"&activo={activoFiltro.Value}";
 
-            var response = await Http.GetFromJsonAsync<ProveedoresListResponse>($"/api/proveedores{query}");
-            
+            var httpResponse = await Http.GetAsync($"/api/proveedores{query}");
+            if ((int)httpResponse.StatusCode == 401 || (int)httpResponse.StatusCode == 403)
+            {
+                RedirigirALogin();
+                return;
+            }
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                var err = await httpResponse.Content.ReadAsStringAsync();
+                throw new Exception($"HTTP {(int)httpResponse.StatusCode}: {err}");
+            }
+            var mediaType = httpResponse.Content.Headers.ContentType?.MediaType ?? string.Empty;
+            var raw = mediaType.Contains("json", StringComparison.OrdinalIgnoreCase) ? null : await httpResponse.Content.ReadAsStringAsync();
+            if (raw != null && raw.TrimStart().StartsWith("<"))
+            {
+                RedirigirALogin();
+                return;
+            }
+            var response = await httpResponse.Content.ReadFromJsonAsync<ProveedoresListResponse>();
             if (response != null)
             {
                 proveedores = response.Proveedores;
@@ -297,7 +322,17 @@
     {
         try
         {
-            var response = await Http.GetFromJsonAsync<ProveedoresListResponse>("/api/proveedores?registrosPorPagina=10000");
+            var httpResponse = await Http.GetAsync("/api/proveedores?registrosPorPagina=10000");
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                return;
+            }
+            var mediaType = httpResponse.Content.Headers.ContentType?.MediaType ?? string.Empty;
+            if (!mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            var response = await httpResponse.Content.ReadFromJsonAsync<ProveedoresListResponse>();
             if (response != null)
             {
                 proveedoresActivos = response.Proveedores.Count(p => p.Activo);
@@ -406,6 +441,13 @@
     private void VerDetalle(Guid id)
     {
         Navigation.NavigateTo($"/gerencia-negocios/proveedores/{id}");
+    }
+
+    private void RedirigirALogin()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        if (!relative.StartsWith("/")) relative = "/" + relative;
+        Navigation.NavigateTo($"/Identity/Account/Login?ReturnUrl={Uri.EscapeDataString(relative)}", forceLoad: true);
     }
 
     public void Dispose()

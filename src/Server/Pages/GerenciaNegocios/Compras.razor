@@ -13,6 +13,8 @@
 
 <PageTitle>Compras - Gerencia de Negocios</PageTitle>
 
+<Breadcrumb Items="@breadcrumbs" />
+
 <!-- Encabezado -->
 <PageHeader Icon="@Icons.Material.Filled.ShoppingBag" Title="Órdenes de Compra" Subtitle="Gestión de compras y recepciones" />
 
@@ -84,7 +86,7 @@
 </DataTableWrapper>
 
 <!-- Dialog Nueva Compra -->
-<MudDialog @bind-Visible="mostrarModalNueva" Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, CloseOnEscapeKey = false })">
+<MudDialog @bind-IsVisible="mostrarModalNueva" Options="@(new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">Nueva Compra</MudText>
     </TitleContent>
@@ -92,35 +94,36 @@
         
         <EditForm Model="formNueva" OnValidSubmit="GuardarCompra">
             <DataAnnotationsValidator />
-            <MudGrid Class="mb-2">
-                <MudItem xs="12" md="3">
-                    <MudDatePicker Date="formNueva.FechaCompra" DateChanged="@(d => formNueva.FechaCompra = d ?? DateTime.Now)" Label="Fecha" Required="true" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudSelect T="string" @bind-Value="proveedorSeleccionadoId" Label="Proveedor" AnchorOrigin="Origin.TopCenter">
-                        <MudSelectItem T="string" Value="@string.Empty">Seleccione...</MudSelectItem>
-                        @foreach (var prov in proveedoresActivos)
-                        {
-                            <MudSelectItem T="string" Value="@prov.Id.ToString()">@prov.Nombre (@prov.Nit)</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="6" md="2">
-                    <MudNumericField T="decimal?" @bind-Value="formNueva.TotalUSD" Label="Total USD" Min="0" />
-                </MudItem>
-                <MudItem xs="6" md="3">
-                    <MudNumericField T="decimal?" @bind-Value="formNueva.TrmAplicada" Label="TRM" Min="0" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="formNueva.NumeroFacturaProveedor" Label="Factura Proveedor" />
-                </MudItem>
-                <MudItem xs="12" md="8">
-                    <MudTextField @bind-Value="formNueva.Observaciones" Label="Observaciones" Lines="2" />
-                </MudItem>
-            </MudGrid>
-            <MudDivider Class="my-2" />
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Detalles</MudText>
-            <MudGrid Class="mb-2">
+            <FormSection Title="Información de Compra" Description="Datos generales de la orden" Icon="bi-receipt" IconColor="primary">
+                <MudGrid Class="mb-2">
+                    <MudItem xs="12" md="3">
+                        <MudDatePicker Date="formNueva.FechaCompra" DateChanged="@(d => formNueva.FechaCompra = d ?? DateTime.Now)" Label="Fecha" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="string" @bind-Value="proveedorSeleccionadoId" Label="Proveedor" AnchorOrigin="Origin.TopCenter">
+                            <MudSelectItem T="string" Value="@string.Empty">Seleccione...</MudSelectItem>
+                            @foreach (var prov in proveedoresActivos)
+                            {
+                                <MudSelectItem T="string" Value="@prov.Id.ToString()">@prov.Nombre (@prov.Nit)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudNumericField T="decimal?" @bind-Value="formNueva.TotalUSD" Label="Total USD" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudNumericField T="decimal?" @bind-Value="formNueva.TrmAplicada" Label="TRM" Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="formNueva.NumeroFacturaProveedor" Label="Factura Proveedor" />
+                    </MudItem>
+                    <MudItem xs="12" md="8">
+                        <MudTextField @bind-Value="formNueva.Observaciones" Label="Observaciones" Lines="2" />
+                    </MudItem>
+                </MudGrid>
+            </FormSection>
+            <FormSection Title="Detalles" Description="Productos y cantidades a comprar" Icon="bi-bag-plus" IconColor="success" Class="mt-3">
+                <MudGrid Class="mb-2">
                 <MudItem xs="12" md="5">
                     <MudSelect T="string" @bind-Value="productoSeleccionadoId" Label="Producto" Dense="true" AnchorOrigin="Origin.TopCenter">
                         <MudSelectItem T="string" Value="@string.Empty">Seleccione...</MudSelectItem>
@@ -162,6 +165,7 @@
                 </RowTemplate>
             </MudTable>
             <MudText Typo="Typo.subtitle2" Align="Align.Right" Class="mt-2">Total COP: $@formNueva.Detalles.Sum(x => x.Cantidad * x.PrecioUnitarioCOP).ToString("N0")</MudText>
+            </FormSection>
             
             <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
                 <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CerrarModalNueva">Cancelar</MudButton>
@@ -172,7 +176,7 @@
 </MudDialog>
 
 <!-- Dialog Registrar Pago -->
-<MudDialog @bind-Visible="mostrarModalPago" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
+<MudDialog @bind-IsVisible="mostrarModalPago" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">Registrar Pago - @compraSeleccionada?.NumeroCompra</MudText>
     </TitleContent>
@@ -186,7 +190,7 @@
 </MudDialog>
 
 <!-- Dialog Registrar Recepción -->
-<MudDialog @bind-Visible="mostrarModalRecepcion" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
+<MudDialog @bind-IsVisible="mostrarModalRecepcion" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, CloseOnEscapeKey = false })">
     <TitleContent>
         <MudText Typo="Typo.h6">Registrar Recepción - @compraSeleccionada?.NumeroCompra</MudText>
     </TitleContent>
@@ -221,6 +225,12 @@
     private string egresoIdTexto = string.Empty;
 
     private bool mostrarModalRecepcion = false;
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Gerencia de Negocios", Url = "/gerencia-negocios" },
+        new() { Label = "Compras", IsActive = true }
+    };
 
     protected override async Task OnInitializedAsync()
     {

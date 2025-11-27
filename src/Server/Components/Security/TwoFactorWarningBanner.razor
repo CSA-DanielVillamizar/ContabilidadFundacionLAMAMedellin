@@ -1,8 +1,11 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.Extensions.Options
+@using Server.Data
 @using Server.Security
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDbContextFactory<AppDbContext> DbFactory
 @inject UserManager<ApplicationUser> UserManager
 @inject IJSRuntime JSRuntime
 @inject IOptions<TwoFactorEnforcementOptions> EnforcementOptions
@@ -81,6 +84,11 @@
     private int _gracePeriodDays;
     private const string DismissalKey = "TwoFactorWarningDismissed";
 
+    /// <summary>
+    /// Inicializa el componente verificando el estado 2FA del usuario actual.
+    /// Usa DbContextFactory para crear instancia dedicada y evitar conflictos de concurrencia
+    /// con otros componentes que también acceden a AspNetUsers durante OnInitializedAsync.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         _gracePeriodDays = EnforcementOptions.Value.GracePeriodDays;
@@ -95,11 +103,14 @@
             
             if (isAdminOrTesorero)
             {
-                // Obtener usuario de Identity
+                // Obtener usuario de Identity usando DbContext dedicado para evitar conflictos de concurrencia
                 var userId = UserManager.GetUserId(user);
                 if (userId != null)
                 {
-                    var appUser = await UserManager.FindByIdAsync(userId);
+                    // Crear instancia dedicada de DbContext para esta query
+                    await using var db = await DbFactory.CreateDbContextAsync();
+                    var appUser = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                    
                     if (appUser != null && !appUser.TwoFactorEnabled)
                     {
                         // Calcular días restantes si hay fecha de inicio

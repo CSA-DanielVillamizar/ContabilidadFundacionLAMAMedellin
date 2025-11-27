@@ -1,5 +1,5 @@
 @page "/admin/correccion-fechas-ingreso-oct-2025"
-@attribute [Authorize(Roles = "Admin,Tesorero")]
+@attribute [Authorize(Policy = "AdminTesorero")]
 @using Microsoft.EntityFrameworkCore
 @using Server.Data
 @using Server.Models

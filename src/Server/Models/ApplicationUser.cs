@@ -13,4 +13,5 @@ public class ApplicationUser : IdentityUser
     /// Null si el usuario nunca ha tenido rol Admin/Tesorero.
     /// </summary>
     public DateTime? TwoFactorRequiredSince { get; set; }
+
 }

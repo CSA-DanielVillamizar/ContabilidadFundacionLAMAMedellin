@@ -48,226 +48,233 @@
                         <EditForm Model="@proveedor" OnValidSubmit="@GuardarCambios">
                             <DataAnnotationsValidator />
                             
-                            <div class="row g-3">
-                                <!-- Información General -->
-                                <div class="col-12">
-                                    <h5 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="bi bi-info-circle me-2"></i>Información General
-                                    </h5>
-                                </div>
+                            <FormSection 
+                                Title="Información General"
+                                Description="Datos principales del proveedor"
+                                Icon="bi-info-circle"
+                                IconColor="warning">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="nombre" class="form-label">
+                                            Nombre <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText id="nombre" @bind-Value="proveedor.Nombre" class="form-control" placeholder="Nombre del proveedor" />
+                                        <ValidationMessage For="@(() => proveedor.Nombre)" />
+                                    </div>
 
-                                <div class="col-md-6">
-                                    <label for="nombre" class="form-label">
-                                        Nombre <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText id="nombre" @bind-Value="proveedor.Nombre" class="form-control" placeholder="Nombre del proveedor" />
-                                    <ValidationMessage For="@(() => proveedor.Nombre)" />
+                                    <div class="col-md-6">
+                                        <label for="nit" class="form-label">NIT</label>
+                                        <InputText id="nit" @bind-Value="proveedor.Nit" class="form-control" placeholder="Ej: 900123456-7" />
+                                        <ValidationMessage For="@(() => proveedor.Nit)" />
+                                        @if (!string.IsNullOrEmpty(mensajeNit))
+                                        {
+                                            <div class="text-danger small mt-1">@mensajeNit</div>
+                                        }
+                                    </div>
                                 </div>
+                            </FormSection>
 
-                                <div class="col-md-6">
-                                    <label for="nit" class="form-label">NIT</label>
-                                    <InputText id="nit" @bind-Value="proveedor.Nit" class="form-control" placeholder="Ej: 900123456-7" />
-                                    <ValidationMessage For="@(() => proveedor.Nit)" />
-                                    @if (!string.IsNullOrEmpty(mensajeNit))
-                                    {
-                                        <div class="text-danger small mt-1">@mensajeNit</div>
-                                    }
+                            <FormSection 
+                                Title="Información de Contacto"
+                                Description="Datos del contacto principal"
+                                Icon="bi-telephone"
+                                IconColor="info"
+                                Class="mt-4">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="contacto" class="form-label">
+                                            Contacto <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText id="contacto" @bind-Value="proveedor.Contacto" class="form-control" placeholder="Nombre del contacto" />
+                                        <ValidationMessage For="@(() => proveedor.Contacto)" />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label for="telefono" class="form-label">
+                                            Teléfono <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText id="telefono" @bind-Value="proveedor.Telefono" class="form-control" placeholder="Ej: +57 300 123 4567" />
+                                        <ValidationMessage For="@(() => proveedor.Telefono)" />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label for="email" class="form-label">
+                                            Email <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText id="email" type="email" @bind-Value="proveedor.Email" class="form-control" placeholder="contacto@proveedor.com" />
+                                        <ValidationMessage For="@(() => proveedor.Email)" />
+                                    </div>
                                 </div>
+                            </FormSection>
 
-                                <!-- Información de Contacto -->
-                                <div class="col-12 mt-4">
-                                    <h5 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="bi bi-telephone me-2"></i>Información de Contacto
-                                    </h5>
+                            <FormSection 
+                                Title="Dirección"
+                                Description="Ubicación del proveedor"
+                                Icon="bi-geo-alt"
+                                IconColor="primary"
+                                Class="mt-4">
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <label for="direccion" class="form-label">Dirección</label>
+                                        <InputText id="direccion" @bind-Value="proveedor.Direccion" class="form-control" placeholder="Dirección completa" />
+                                        <ValidationMessage For="@(() => proveedor.Direccion)" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="ciudad" class="form-label">Ciudad</label>
+                                        <InputText id="ciudad" @bind-Value="proveedor.Ciudad" class="form-control" placeholder="Ej: Medellín" />
+                                        <ValidationMessage For="@(() => proveedor.Ciudad)" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="pais" class="form-label">País</label>
+                                        <InputText id="pais" @bind-Value="proveedor.Pais" class="form-control" placeholder="Ej: Colombia" />
+                                        <ValidationMessage For="@(() => proveedor.Pais)" />
+                                    </div>
                                 </div>
+                            </FormSection>
 
-                                <div class="col-md-4">
-                                    <label for="contacto" class="form-label">
-                                        Contacto <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText id="contacto" @bind-Value="proveedor.Contacto" class="form-control" placeholder="Nombre del contacto" />
-                                    <ValidationMessage For="@(() => proveedor.Contacto)" />
-                                </div>
+                            <FormSection 
+                                Title="Condiciones Comerciales"
+                                Description="Términos de pago y calificación"
+                                Icon="bi-cash-coin"
+                                IconColor="success"
+                                Class="mt-4">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="terminosPago" class="form-label">Términos de Pago</label>
+                                        <InputText id="terminosPago" @bind-Value="proveedor.TerminosPago" class="form-control" placeholder="Ej: 30 días, Contado, etc." />
+                                        <ValidationMessage For="@(() => proveedor.TerminosPago)" />
+                                    </div>
 
-                                <div class="col-md-4">
-                                    <label for="telefono" class="form-label">
-                                        Teléfono <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText id="telefono" @bind-Value="proveedor.Telefono" class="form-control" placeholder="Ej: +57 300 123 4567" />
-                                    <ValidationMessage For="@(() => proveedor.Telefono)" />
-                                </div>
+                                    <div class="col-md-6">
+                                        <label for="diasCredito" class="form-label">
+                                            Días de Crédito <span class="text-danger">*</span>
+                                        </label>
+                                        <InputNumber id="diasCredito" @bind-Value="proveedor.DiasCredito" class="form-control" />
+                                        <ValidationMessage For="@(() => proveedor.DiasCredito)" />
+                                        <small class="text-muted">0 = Contado</small>
+                                    </div>
 
-                                <div class="col-md-4">
-                                    <label for="email" class="form-label">
-                                        Email <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText id="email" type="email" @bind-Value="proveedor.Email" class="form-control" placeholder="contacto@proveedor.com" />
-                                    <ValidationMessage For="@(() => proveedor.Email)" />
-                                </div>
-
-                                <!-- Dirección -->
-                                <div class="col-12 mt-4">
-                                    <h5 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="bi bi-geo-alt me-2"></i>Dirección
-                                    </h5>
-                                </div>
-
-                                <div class="col-md-12">
-                                    <label for="direccion" class="form-label">Dirección</label>
-                                    <InputText id="direccion" @bind-Value="proveedor.Direccion" class="form-control" placeholder="Dirección completa" />
-                                    <ValidationMessage For="@(() => proveedor.Direccion)" />
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="ciudad" class="form-label">Ciudad</label>
-                                    <InputText id="ciudad" @bind-Value="proveedor.Ciudad" class="form-control" placeholder="Ej: Medellín" />
-                                    <ValidationMessage For="@(() => proveedor.Ciudad)" />
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="pais" class="form-label">País</label>
-                                    <InputText id="pais" @bind-Value="proveedor.Pais" class="form-control" placeholder="Ej: Colombia" />
-                                    <ValidationMessage For="@(() => proveedor.Pais)" />
-                                </div>
-
-                                <!-- Condiciones Comerciales -->
-                                <div class="col-12 mt-4">
-                                    <h5 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="bi bi-cash-coin me-2"></i>Condiciones Comerciales
-                                    </h5>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="terminosPago" class="form-label">Términos de Pago</label>
-                                    <InputText id="terminosPago" @bind-Value="proveedor.TerminosPago" class="form-control" placeholder="Ej: 30 días, Contado, etc." />
-                                    <ValidationMessage For="@(() => proveedor.TerminosPago)" />
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="diasCredito" class="form-label">
-                                        Días de Crédito <span class="text-danger">*</span>
-                                    </label>
-                                    <InputNumber id="diasCredito" @bind-Value="proveedor.DiasCredito" class="form-control" />
-                                    <ValidationMessage For="@(() => proveedor.DiasCredito)" />
-                                    <small class="text-muted">0 = Contado</small>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="calificacion" class="form-label">Calificación</label>
-                                    <div class="input-group">
-                                        <InputNumber id="calificacion" @bind-Value="proveedor.Calificacion" class="form-control" min="0" max="5" step="0.5" />
-                                        <span class="input-group-text">
-                                            @if (proveedor.Calificacion.HasValue)
-                                            {
-                                                @for (decimal i = 1; i <= 5; i++)
+                                    <div class="col-md-6">
+                                        <label for="calificacion" class="form-label">Calificación</label>
+                                        <div class="input-group">
+                                            <InputNumber id="calificacion" @bind-Value="proveedor.Calificacion" class="form-control" min="0" max="5" step="0.5" />
+                                            <span class="input-group-text">
+                                                @if (proveedor.Calificacion.HasValue)
                                                 {
-                                                    if (i <= proveedor.Calificacion.Value)
+                                                    @for (decimal i = 1; i <= 5; i++)
                                                     {
-                                                        <i class="bi bi-star-fill text-warning"></i>
-                                                    }
-                                                    else if (i - 0.5m <= proveedor.Calificacion.Value)
-                                                    {
-                                                        <i class="bi bi-star-half text-warning"></i>
-                                                    }
-                                                    else
-                                                    {
-                                                        <i class="bi bi-star text-muted"></i>
+                                                        if (i <= proveedor.Calificacion.Value)
+                                                        {
+                                                            <i class="bi bi-star-fill text-warning"></i>
+                                                        }
+                                                        else if (i - 0.5m <= proveedor.Calificacion.Value)
+                                                        {
+                                                            <i class="bi bi-star-half text-warning"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-star text-muted"></i>
+                                                        }
                                                     }
                                                 }
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">Sin calificación</span>
-                                            }
-                                        </span>
+                                                else
+                                                {
+                                                    <span class="text-muted">Sin calificación</span>
+                                                }
+                                            </span>
+                                        </div>
+                                        <ValidationMessage For="@(() => proveedor.Calificacion)" />
+                                        <small class="text-muted">Rango: 0 a 5 estrellas</small>
                                     </div>
-                                    <ValidationMessage For="@(() => proveedor.Calificacion)" />
-                                    <small class="text-muted">Rango: 0 a 5 estrellas</small>
-                                </div>
 
-                                <div class="col-md-6">
-                                    <label class="form-label">Estado</label>
-                                    <div class="form-check form-switch mt-2">
-                                        <InputCheckbox id="activo" @bind-Value="proveedor.Activo" class="form-check-input" />
-                                        <label class="form-check-label" for="activo">
-                                            @(proveedor.Activo ? "Activo" : "Inactivo")
-                                        </label>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Estado</label>
+                                        <div class="form-check form-switch mt-2">
+                                            <InputCheckbox id="activo" @bind-Value="proveedor.Activo" class="form-check-input" />
+                                            <label class="form-check-label" for="activo">
+                                                @(proveedor.Activo ? "Activo" : "Inactivo")
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
+                            </FormSection>
 
-                                <!-- Notas -->
-                                <div class="col-12 mt-4">
-                                    <h5 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="bi bi-sticky me-2"></i>Notas Adicionales
-                                    </h5>
+                            <FormSection 
+                                Title="Notas Adicionales"
+                                Description="Información complementaria del proveedor"
+                                Icon="bi-sticky"
+                                IconColor="secondary"
+                                Class="mt-4">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label for="notas" class="form-label">Notas</label>
+                                        <InputTextArea id="notas" @bind-Value="proveedor.Notas" class="form-control" rows="4" placeholder="Información adicional sobre el proveedor..." />
+                                        <ValidationMessage For="@(() => proveedor.Notas)" />
+                                    </div>
                                 </div>
+                            </FormSection>
 
-                                <div class="col-12">
-                                    <label for="notas" class="form-label">Notas</label>
-                                    <InputTextArea id="notas" @bind-Value="proveedor.Notas" class="form-control" rows="4" placeholder="Información adicional sobre el proveedor..." />
-                                    <ValidationMessage For="@(() => proveedor.Notas)" />
-                                </div>
-
-                                <!-- Información de Auditoría -->
-                                @if (!string.IsNullOrEmpty(proveedor.CreadoPor))
-                                {
-                                    <div class="col-12 mt-4">
-                                        <div class="card bg-light">
-                                            <div class="card-body">
-                                                <h6 class="card-title text-muted mb-2">
-                                                    <i class="bi bi-clock-history me-2"></i>Información de Auditoría
-                                                </h6>
-                                                <div class="row">
+                            <!-- Información de Auditoría -->
+                            @if (!string.IsNullOrEmpty(proveedor.CreadoPor))
+                            {
+                                <div class="mt-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-muted mb-2">
+                                                <i class="bi bi-clock-history me-2"></i>Información de Auditoría
+                                            </h6>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted d-block">
+                                                        <strong>Creado por:</strong> @proveedor.CreadoPor
+                                                    </small>
+                                                    @if (proveedor.FechaCreacion.HasValue)
+                                                    {
+                                                        <small class="text-muted d-block">
+                                                            <strong>Fecha creación:</strong> @proveedor.FechaCreacion.Value.ToString("dd/MM/yyyy HH:mm")
+                                                        </small>
+                                                    }
+                                                </div>
+                                                @if (!string.IsNullOrEmpty(proveedor.ActualizadoPor))
+                                                {
                                                     <div class="col-md-6">
                                                         <small class="text-muted d-block">
-                                                            <strong>Creado por:</strong> @proveedor.CreadoPor
+                                                            <strong>Última actualización:</strong> @proveedor.ActualizadoPor
                                                         </small>
-                                                        @if (proveedor.FechaCreacion.HasValue)
+                                                        @if (proveedor.FechaActualizacion.HasValue)
                                                         {
                                                             <small class="text-muted d-block">
-                                                                <strong>Fecha creación:</strong> @proveedor.FechaCreacion.Value.ToString("dd/MM/yyyy HH:mm")
+                                                                <strong>Fecha actualización:</strong> @proveedor.FechaActualizacion.Value.ToString("dd/MM/yyyy HH:mm")
                                                             </small>
                                                         }
                                                     </div>
-                                                    @if (!string.IsNullOrEmpty(proveedor.ActualizadoPor))
-                                                    {
-                                                        <div class="col-md-6">
-                                                            <small class="text-muted d-block">
-                                                                <strong>Última actualización:</strong> @proveedor.ActualizadoPor
-                                                            </small>
-                                                            @if (proveedor.FechaActualizacion.HasValue)
-                                                            {
-                                                                <small class="text-muted d-block">
-                                                                    <strong>Fecha actualización:</strong> @proveedor.FechaActualizacion.Value.ToString("dd/MM/yyyy HH:mm")
-                                                                </small>
-                                                            }
-                                                        </div>
-                                                    }
-                                                </div>
+                                                }
                                             </div>
                                         </div>
                                     </div>
-                                }
+                                </div>
+                            }
 
-                                <!-- Botones -->
-                                <div class="col-12 mt-4">
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <button type="button" class="btn btn-outline-secondary" @onclick="Volver" disabled="@guardando">
-                                            <i class="bi bi-x-circle me-1"></i>Cancelar
-                                        </button>
-                                        <button type="submit" class="btn btn-warning text-dark" disabled="@guardando">
-                                            @if (guardando)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                                <span>Guardando...</span>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-save me-1"></i>
-                                                <span>Guardar Cambios</span>
-                                            }
-                                        </button>
-                                    </div>
+                            <!-- Botones -->
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="Volver" disabled="@guardando">
+                                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-warning text-dark" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                            <span>Guardando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-save me-1"></i>
+                                            <span>Guardar Cambios</span>
+                                        }
+                                    </button>
                                 </div>
                             </div>
                         </EditForm>
@@ -341,8 +348,7 @@
         catch (Exception ex)
         {
             ToastService.Show($"Error al cargar el proveedor: {ex.Message}", "danger");
-            Console.WriteLine($"Error cargando proveedor: {ex}");
-        }
+}
         finally
         {
             cargando = false;
@@ -375,10 +381,9 @@
                 mensajeNit = "⚠️ Este NIT ya está registrado en otro proveedor.";
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Error validando NIT: {ex.Message}");
-        }
+}
     }
 
     private async Task GuardarCambios()
@@ -413,8 +418,7 @@
         catch (Exception ex)
         {
             ToastService.Show($"Error: {ex.Message}", "danger");
-            Console.WriteLine($"Error actualizando proveedor: {ex}");
-        }
+}
         finally
         {
             guardando = false;

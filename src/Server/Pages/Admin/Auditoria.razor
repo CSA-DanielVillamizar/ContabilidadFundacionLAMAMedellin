@@ -4,10 +4,13 @@
 @inject Server.Services.Audit.IAuditService AuditService
 @inject Server.Services.Export.ICsvExportService CsvExportService
 @inject Microsoft.JSInterop.IJSRuntime JS
+@inject ToastService Toast
 @using Server.Models
 @using System.Text.Json
 
 <PageTitle>Auditoría del Sistema - LAMA Medellín</PageTitle>
+
+<Breadcrumb Items="@breadcrumbs" />
 
 <UICard Class="mb-6">
     <Header>
@@ -47,61 +50,106 @@
         </div>
     </Header>
     <ChildContent>
-                <!-- Filtros -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Tipo de Entidad</label>
-                        <select @bind="filtroEntityType" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary">
-                            <option value="">Todas</option>
-                            <option value="CertificadoDonacion">Certificados</option>
-                            <option value="Recibo">Recibos</option>
-                            <option value="Miembro">Miembros</option>
-                            <option value="Egreso">Egresos</option>
-                            <option value="CierreMensual">Cierres</option>
-                        </select>
+                <!-- Filtros con glassmorphism -->
+                <div class="glass-card p-6 rounded-2xl mb-6 backdrop-blur-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-700/50 shadow-lg">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Tipo de Entidad</label>
+                            <MudSelect T="string" 
+                                       Value="@filtroEntityType" 
+                                       ValueChanged="@OnEntityTypeChanged"
+                                       Variant="Variant.Outlined" 
+                                       Margin="Margin.Dense"
+                                       Class="rounded-xl"
+                                       AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@("")">Todas</MudSelectItem>
+                                <MudSelectItem Value="@("CertificadoDonacion")">Certificados</MudSelectItem>
+                                <MudSelectItem Value="@("Recibo")">Recibos</MudSelectItem>
+                                <MudSelectItem Value="@("Miembro")">Miembros</MudSelectItem>
+                                <MudSelectItem Value="@("Egreso")">Egresos</MudSelectItem>
+                                <MudSelectItem Value="@("CierreMensual")">Cierres</MudSelectItem>
+                            </MudSelect>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Acción</label>
+                            <MudSelect T="string" 
+                                       Value="@filtroAction" 
+                                       ValueChanged="@OnActionChanged"
+                                       Variant="Variant.Outlined" 
+                                       Margin="Margin.Dense"
+                                       Class="rounded-xl"
+                                       AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@("")">Todas</MudSelectItem>
+                                <MudSelectItem Value="@("Emitted")">Emitido</MudSelectItem>
+                                <MudSelectItem Value="@("Annulled")">Anulado</MudSelectItem>
+                                <MudSelectItem Value="@("Created")">Creado</MudSelectItem>
+                                <MudSelectItem Value="@("Updated")">Actualizado</MudSelectItem>
+                                <MudSelectItem Value="@("Deleted")">Eliminado</MudSelectItem>
+                            </MudSelect>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Usuario</label>
+                            <MudTextField T="string" 
+                                          Value="@filtroUserName" 
+                                          ValueChanged="@OnUserNameChanged"
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense"
+                                          Placeholder="usuario@fundacionlamamedellin.org"
+                                          Class="rounded-xl"
+                                          Immediate="false" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Fecha Desde</label>
+                            <MudDatePicker @bind-Date="@filtroFechaDesde"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Class="rounded-xl"
+                                           DateFormat="dd/MM/yyyy"
+                                           Editable="true"
+                                           Placeholder="Seleccionar fecha"
+                                           AutoClose="true" />
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Acción</label>
-                        <select @bind="filtroAction" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary">
-                            <option value="">Todas</option>
-                            <option value="Emitted">Emitido</option>
-                            <option value="Annulled">Anulado</option>
-                            <option value="Created">Creado</option>
-                            <option value="Updated">Actualizado</option>
-                            <option value="Deleted">Eliminado</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Usuario</label>
-                        <input @bind="filtroUserName" type="text" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" placeholder="usuario@fundacionlamamedellin.org" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Fecha Desde</label>
-                        <input @bind="filtroFechaDesde" type="date" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
-                    </div>
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Fecha Hasta</label>
-                        <input @bind="filtroFechaHasta" type="date" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">ID de Entidad</label>
-                        <input @bind="filtroEntityId" type="text" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" placeholder="GUID de la entidad" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Registros</label>
-                        <select @bind="cantidadRegistros" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary">
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="200">200</option>
-                            <option value="500">500</option>
-                        </select>
-                    </div>
-                    <div class="flex items-end gap-2">
-                        <UIButton Variant="primary" Size="md" OnClick="@BuscarAsync" IsLoading="@isLoading">Buscar</UIButton>
-                        <UIButton Variant="ghost" Size="md" OnClick="@LimpiarFiltros">Limpiar</UIButton>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Fecha Hasta</label>
+                            <MudDatePicker @bind-Date="@filtroFechaHasta"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Class="rounded-xl"
+                                           DateFormat="dd/MM/yyyy"
+                                           Editable="true"
+                                           Placeholder="Seleccionar fecha"
+                                           AutoClose="true" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">ID de Entidad</label>
+                            <MudTextField T="string" 
+                                          @bind-Value="@filtroEntityId"
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense"
+                                          Placeholder="GUID de la entidad"
+                                          Class="rounded-xl" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Registros</label>
+                            <MudSelect T="int" 
+                                       @bind-Value="@cantidadRegistros"
+                                       Variant="Variant.Outlined" 
+                                       Margin="Margin.Dense"
+                                       Class="rounded-xl"
+                                       AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="50">50</MudSelectItem>
+                                <MudSelectItem Value="100">100</MudSelectItem>
+                                <MudSelectItem Value="200">200</MudSelectItem>
+                                <MudSelectItem Value="500">500</MudSelectItem>
+                            </MudSelect>
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <UIButton Variant="primary" Size="md" OnClick="@BuscarAsync" IsLoading="@isLoading">Buscar</UIButton>
+                            <UIButton Variant="ghost" Size="md" OnClick="@LimpiarFiltros">Limpiar</UIButton>
+                        </div>
                     </div>
                 </div>
 
@@ -202,7 +250,7 @@
         <!-- Modal de detalles -->
         @if (mostrarModalDetalle && logSeleccionado != null)
         {
-            <UIModal Show="@mostrarModalDetalle" OnClose="@CerrarModalDetalle" Class="max-w-4xl">
+            <UIModal IsOpen="@mostrarModalDetalle" IsOpenChanged="@((bool open) => mostrarModalDetalle = open)" Class="max-w-4xl">
                 <Header>
                     <h3 class="text-lg font-semibold">Detalles del Registro de Auditoría</h3>
                 </Header>
@@ -284,6 +332,12 @@
     private bool isLoading = false;
     private bool vistaTimeline = false;
 
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Administración", Url = "/admin" },
+        new() { Label = "Auditoría", IsActive = true }
+    };
+
     // Filtros
     private string filtroEntityType = "";
     private string filtroAction = "";
@@ -297,11 +351,62 @@
     private bool mostrarModalDetalle = false;
     private AuditLog? logSeleccionado = null;
 
+    // Debounce para búsqueda de usuario
+    private CancellationTokenSource? _ctsBusquedaUsuario;
+    private const int DebounceMilliseconds = 300;
+
     protected override async Task OnInitializedAsync()
     {
         await BuscarAsync();
     }
 
+    /// <summary>
+    /// Manejador de cambio en el filtro de tipo de entidad con búsqueda automática.
+    /// </summary>
+    private async Task OnEntityTypeChanged(string value)
+    {
+        filtroEntityType = value;
+        await BuscarAsync();
+    }
+
+    /// <summary>
+    /// Manejador de cambio en el filtro de acción con búsqueda automática.
+    /// </summary>
+    private async Task OnActionChanged(string value)
+    {
+        filtroAction = value;
+        await BuscarAsync();
+    }
+
+    /// <summary>
+    /// Manejador de cambio en el filtro de usuario con debounce de 300ms.
+    /// Cancela búsqueda anterior y programa nueva después del delay.
+    /// </summary>
+    private async Task OnUserNameChanged(string value)
+    {
+        filtroUserName = value;
+        
+        // Cancelar búsqueda anterior si existe
+        _ctsBusquedaUsuario?.Cancel();
+        _ctsBusquedaUsuario = new CancellationTokenSource();
+        
+        try
+        {
+            // Esperar 300ms antes de buscar
+            await Task.Delay(DebounceMilliseconds, _ctsBusquedaUsuario.Token);
+            await BuscarAsync();
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignorar si fue cancelado por un nuevo cambio
+        }
+    }
+
+    /// <summary>
+    /// Ejecuta la búsqueda de eventos de auditoría aplicando filtros activos.
+    /// - Si se especifica un EntityId, consulta focalizada por entidad.
+    /// - Caso contrario, trae los registros recientes y filtra en memoria.
+    /// </summary>
     private async Task BuscarAsync()
     {
         isLoading = true;
@@ -318,14 +423,14 @@
                 logs = await AuditService.GetRecentLogsAsync(cantidadRegistros);
             }
 
-            // Aplicar filtros en memoria
+            // Aplicar filtros en memoria (case-insensitive cuando aplica)
             var query = logs.AsEnumerable();
 
             if (!string.IsNullOrWhiteSpace(filtroEntityType))
-                query = query.Where(l => l.EntityType == filtroEntityType);
+                query = query.Where(l => string.Equals(l.EntityType, filtroEntityType, StringComparison.OrdinalIgnoreCase));
 
             if (!string.IsNullOrWhiteSpace(filtroAction))
-                query = query.Where(l => l.Action == filtroAction);
+                query = query.Where(l => string.Equals(l.Action, filtroAction, StringComparison.OrdinalIgnoreCase));
 
             if (!string.IsNullOrWhiteSpace(filtroUserName))
                 query = query.Where(l => l.UserName.Contains(filtroUserName, StringComparison.OrdinalIgnoreCase));
@@ -338,13 +443,21 @@
 
             logs = query.OrderByDescending(l => l.Timestamp).ToList();
         }
+        catch (Exception ex)
+        {
+            // Feedback de error al usuario y log en consola para diagnóstico
+            Toast?.ShowError($"Error al buscar auditoría: {ex.Message}");
+}
         finally
         {
             isLoading = false;
         }
     }
 
-    private void LimpiarFiltros()
+    /// <summary>
+    /// Restablece todos los filtros a los valores por defecto para una búsqueda fresca.
+    /// </summary>
+    private async Task LimpiarFiltros()
     {
         filtroEntityType = "";
         filtroAction = "";
@@ -353,20 +466,30 @@
         filtroFechaDesde = DateTime.Now.AddMonths(-1);
         filtroFechaHasta = DateTime.Now;
         cantidadRegistros = 100;
+        await BuscarAsync();
     }
 
+    /// <summary>
+    /// Abre el modal con los detalles del registro seleccionado.
+    /// </summary>
     private void MostrarDetalleLog(AuditLog log)
     {
         logSeleccionado = log;
         mostrarModalDetalle = true;
     }
 
+    /// <summary>
+    /// Cierra el modal de detalle y limpia la selección actual.
+    /// </summary>
     private void CerrarModalDetalle()
     {
         mostrarModalDetalle = false;
         logSeleccionado = null;
     }
 
+    /// <summary>
+    /// Obtiene el alias corto del usuario (antes del @). Si está vacío, retorna "Sistema".
+    /// </summary>
     private string ObtenerNombreCorto(string userName)
     {
         if (string.IsNullOrWhiteSpace(userName)) return "Sistema";
@@ -374,56 +497,83 @@
         return parts.Length > 0 ? parts[0] : userName;
     }
 
+    /// <summary>
+    /// Mapea el tipo de entidad a una etiqueta amigable. Acepta valores en distintos formatos/casos.
+    /// </summary>
     private string ObtenerNombreEntidad(string entityType)
     {
-        return entityType switch
+        var e = entityType?.Trim();
+        if (string.IsNullOrEmpty(e)) return string.Empty;
+        var key = e.ToUpperInvariant();
+        return key switch
         {
-            "CertificadoDonacion" => "Certificado",
-            "Recibo" => "Recibo",
-            "Miembro" => "Miembro",
-            "Egreso" => "Egreso",
-            "CierreMensual" => "Cierre",
-            _ => entityType
+            "CERTIFICADODONACION" or "CERTIFICADO" => "Certificado",
+            "RECIBO" => "Recibo",
+            "MIEMBRO" => "Miembro",
+            "EGRESO" => "Egreso",
+            "CIERREMENSUAL" or "CIERRE_CONTABLE" or "CIERRE" => "Cierre",
+            _ => entityType ?? string.Empty
         };
     }
 
+    /// <summary>
+    /// Devuelve la variante de color para el tipo de entidad (para UIBadge).
+    /// </summary>
     private string ObtenerColorEntidad(string entityType)
     {
-        return entityType switch
+        var e = entityType?.Trim();
+        if (string.IsNullOrEmpty(e)) return "default";
+        var key = e.ToUpperInvariant();
+        return key switch
         {
-            "CertificadoDonacion" => "success",
-            "Recibo" => "primary",
-            "Miembro" => "info",
-            "Egreso" => "warning",
-            "CierreMensual" => "danger",
+            "CERTIFICADODONACION" or "CERTIFICADO" => "success",
+            "RECIBO" => "primary",
+            "MIEMBRO" => "info",
+            "EGRESO" => "warning",
+            "CIERREMENSUAL" or "CIERRE_CONTABLE" or "CIERRE" => "danger",
             _ => "default"
         };
     }
 
+    /// <summary>
+    /// Traduce la acción a una etiqueta amigable.
+    /// </summary>
     private string ObtenerNombreAccion(string action)
     {
-        return action switch
+        var a = action?.Trim();
+        if (string.IsNullOrEmpty(a)) return "";
+        var key = a.ToUpperInvariant();
+        return key switch
         {
-            "Emitted" => "Emitido",
-            "Annulled" => "Anulado",
-            "Created" => "Creado",
-            "Updated" => "Actualizado",
-            "Deleted" => "Eliminado",
-            _ => action
+            "EMITTED" or "EMITIDO" => "Emitido",
+            "ANNULLED" or "ANULADO" => "Anulado",
+            "CREATED" or "CREADO" => "Creado",
+            "UPDATED" or "ACTUALIZADO" => "Actualizado",
+            "DELETED" or "ELIMINADO" => "Eliminado",
+            _ => a
         };
     }
 
+    /// <summary>
+    /// Variante de color asociada a la acción realizada.
+    /// </summary>
     private string ObtenerColorAccion(string action)
     {
-        return action switch
+        var a = action?.Trim();
+        if (string.IsNullOrEmpty(a)) return "default";
+        var key = a.ToUpperInvariant();
+        return key switch
         {
-            "Emitted" or "Created" => "success",
-            "Annulled" or "Deleted" => "danger",
-            "Updated" => "info",
+            "EMITTED" or "EMITIDO" or "CREATED" or "CREADO" => "success",
+            "ANNULLED" or "ANULADO" or "DELETED" or "ELIMINADO" => "danger",
+            "UPDATED" or "ACTUALIZADO" => "info",
             _ => "default"
         };
     }
 
+    /// <summary>
+    /// Intenta formatear un string JSON para visualización legible; si falla, retorna el original.
+    /// </summary>
     private string FormatearJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json)) return "";
@@ -438,6 +588,10 @@
         }
     }
 
+    /// <summary>
+    /// Exporta a CSV los registros actualmente filtrados y dispara la descarga en el navegador.
+    /// Reporta éxito o error mediante Toasts.
+    /// </summary>
     private async Task ExportarCsv()
     {
         try
@@ -450,11 +604,11 @@
             
             // Descargar archivo usando JavaScript
             await JS.InvokeVoidAsync("downloadFile", fileName, "text/csv", Convert.ToBase64String(csvBytes));
+            Toast?.ShowSuccess($"Archivo {fileName} generado");
         }
         catch (Exception ex)
         {
-            // Manejo básico de errores (podría mejorarse con Toast)
-            Console.WriteLine($"Error al exportar CSV: {ex.Message}");
-        }
+            Toast?.ShowError($"Error al exportar CSV: {ex.Message}");
+}
     }
 }

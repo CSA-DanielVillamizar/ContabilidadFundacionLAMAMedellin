@@ -36,6 +36,8 @@ public class TasaCambio
     public decimal UsdCop { get; set; }
     public string Fuente { get; set; } = "Manual";
     public bool ObtenidaAutomaticamente { get; set; } = false;
+    public bool EsOficial { get; set; } = false;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>

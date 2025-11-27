@@ -45,6 +45,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTZWN1cml0eVxUd29GYWN0b3JXYXJuaW5nQmFubmVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/Breadcrumb.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcQnJlYWRjcnVtYi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Shared/DataTableWrapper.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcRGF0YVRhYmxlV3JhcHBlci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
@@ -79,6 +83,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/Tesoreria/ImportarExtractoModal.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUZXNvcmVyaWFcSW1wb3J0YXJFeHRyYWN0b01vZGFsLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/FormSection.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xVSVxGb3JtU2VjdGlvbi5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Components/UI/UIBadge.razor]
@@ -141,8 +149,12 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cRWplY3V0YXJBY3R1YWxpemFjaW9uRGV1ZG9yZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Conceptos.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uY2VwdG9zLnJhem9y
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Configuracion/Parametros.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uZmlndXJhY2lvblxQYXJhbWV0cm9zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Configuracion/Roles.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uZmlndXJhY2lvblxSb2xlcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Config/ImportarMiembros.razor]

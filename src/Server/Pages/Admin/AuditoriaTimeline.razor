@@ -105,11 +105,17 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Colección de registros de auditoría a renderizar en formato timeline.
+    /// </summary>
     [Parameter]
     public List<AuditLog> Logs { get; set; } = new();
 
     private List<AuditLog> logs => Logs ?? new();
 
+    /// <summary>
+    /// Determina el color del punto en el timeline según la acción.
+    /// </summary>
     private string GetTimelineDotColor(string action) => action switch
     {
         var a when a.Contains("CREADO") || a.Contains("CREATED") => "bg-green-500",
@@ -120,6 +126,9 @@
         _ => "bg-slate-400"
     };
 
+    /// <summary>
+    /// Color del ícono asociado al tipo de entidad.
+    /// </summary>
     private string GetEntityIconColor(string entityType) => entityType switch
     {
         "MIEMBRO" => "text-blue-600 dark:text-blue-400",
@@ -130,6 +139,9 @@
         _ => "text-slate-600 dark:text-slate-400"
     };
 
+    /// <summary>
+    /// Devuelve el fragmento SVG que representa visualmente el tipo de entidad.
+    /// </summary>
     private RenderFragment GetEntityIcon(string entityType) => entityType switch
     {
         "MIEMBRO" => @<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,6 +169,9 @@
         </svg>
     };
 
+    /// <summary>
+    /// Traduce códigos de acción a etiquetas legibles para el usuario.
+    /// </summary>
     private string GetActionLabel(string action) => action switch
     {
         "MIEMBRO_CREADO" => "Creado",

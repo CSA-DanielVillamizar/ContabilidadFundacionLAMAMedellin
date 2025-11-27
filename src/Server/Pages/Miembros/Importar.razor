@@ -1,7 +1,7 @@
 @page "/miembros/importar"
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Tesorero,Junta")]
+@attribute [Authorize(Policy = "TesoreroJunta")]
 @inject Server.Services.Import.IImportService ImportService
 
 <h3>Importar Miembros</h3>

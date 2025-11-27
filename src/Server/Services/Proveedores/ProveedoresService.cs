@@ -24,7 +24,7 @@ public class ProveedoresService : IProveedoresService
         int pagina = 1,
         int registrosPorPagina = 20)
     {
-        var query = _context.Proveedores.AsQueryable();
+        var query = _context.Proveedores.AsNoTracking().AsQueryable();
 
         // Filtro de búsqueda
         if (!string.IsNullOrWhiteSpace(busqueda))
@@ -77,6 +77,7 @@ public class ProveedoresService : IProveedoresService
     public async Task<ProveedorDto?> ObtenerProveedorPorIdAsync(Guid id)
     {
         return await _context.Proveedores
+            .AsNoTracking()
             .Where(p => p.Id == id)
             .Select(p => new ProveedorDto
             {
@@ -153,7 +154,7 @@ public class ProveedoresService : IProveedoresService
         string usuarioId)
     {
         // Validar NIT único
-        if (await ExisteNitAsync(dto.Nit))
+            if (!string.IsNullOrWhiteSpace(dto.Nit) && await ExisteNitAsync(dto.Nit))
         {
             return (false, $"Ya existe un proveedor con el NIT {dto.Nit}", null);
         }
@@ -215,7 +216,7 @@ public class ProveedoresService : IProveedoresService
         }
 
         // Validar NIT único (excluyendo el proveedor actual)
-        if (await ExisteNitAsync(dto.Nit, id))
+        if (!string.IsNullOrWhiteSpace(dto.Nit) && await ExisteNitAsync(dto.Nit, id))
         {
             return (false, $"Ya existe otro proveedor con el NIT {dto.Nit}");
         }

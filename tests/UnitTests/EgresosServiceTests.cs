@@ -85,9 +85,10 @@ public class EgresosServiceTests
     {
         var (db, conn, root, env, cierre) = CreateInMemoryDb();
         var audit = new FakeAuditService();
+        var factory = new TestDbFactory(conn);
         try
         {
-            var svc = new EgresosService(db, env, cierre, audit);
+            var svc = new EgresosService(factory, env, cierre, audit);
             var eg = new Egreso
             {
                 Fecha = DateTime.UtcNow,
@@ -116,9 +117,10 @@ public class EgresosServiceTests
     {
         var (db, conn, root, env, cierre) = CreateInMemoryDb();
         var audit = new FakeAuditService();
+        var factory = new TestDbFactory(conn);
         try
         {
-            var svc = new EgresosService(db, env, cierre, audit);
+            var svc = new EgresosService(factory, env, cierre, audit);
             var eg = new Egreso
             {
                 Fecha = DateTime.UtcNow,
@@ -155,15 +157,15 @@ public class EgresosServiceTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
-
     [Fact]
     public async Task EliminarAsync_BorraDeBd_Y_Archivo()
     {
         var (db, conn, root, env, cierre) = CreateInMemoryDb();
         var audit = new FakeAuditService();
+        var factory = new TestDbFactory(conn);
         try
         {
-            var svc = new EgresosService(db, env, cierre, audit);
+            var svc = new EgresosService(factory, env, cierre, audit);
             var eg = new Egreso
             {
                 Fecha = DateTime.UtcNow,

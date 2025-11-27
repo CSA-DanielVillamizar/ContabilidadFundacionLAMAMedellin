@@ -1,16 +1,19 @@
-
 @page "/Tesoreria/Reportes"
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @using Microsoft.JSInterop
 @using Server.Services.Reportes
 @using Server.Models
 @inject IJSRuntime JS
 @inject IReportesService ReportesService
+@inject MudBlazor.ISnackbar Snackbar
 
 <AuthorizeView>
     <NotAuthorized>
         <RedirectToLogin />
     </NotAuthorized>
     <Authorized>
+<Breadcrumb Items="@breadcrumbs" />
+
 <UICard Class="mb-6">
     <Header>
         <div class="flex items-center gap-3">
@@ -29,7 +32,13 @@
                 <input type="number" @bind="mes" class="w-full rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-primary focus:ring-primary" />
             </div>
             <div class="flex gap-2">
-                <UIButton Variant="primary" Size="md" OnClick="@Cargar">Cargar</UIButton>
+                <UIButton Variant="primary" Size="md" OnClick="@CargarAsync" Disabled="@cargando">
+                    @if (cargando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Cargar
+                </UIButton>
                 <a class="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center font-semibold" href="@($"/api/reportes/tesoreria/pdf?anio={anio}&mes={mes}")" target="_blank" download>Descargar PDF</a>
                 <a class="px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center font-semibold" href="@($"/api/reportes/tesoreria/excel?anio={anio}&mes={mes}")" target="_blank" download>Descargar Excel</a>
             </div>
@@ -66,10 +75,31 @@
     int anio = DateTime.UtcNow.Year;
     int mes = DateTime.UtcNow.Month;
     TesoreriaMesResult? resultado;
+    bool cargando = false;
 
-    async Task Cargar()
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
     {
-        resultado = await ReportesService.GenerarReporteMensualAsync(anio, mes);
+        new() { Label = "Tesorería", Url = "/tesoreria" },
+        new() { Label = "Reportes", IsActive = true }
+    };
+
+    async Task CargarAsync()
+    {
+        cargando = true;
+        try
+        {
+            resultado = await ReportesService.GenerarReporteMensualAsync(anio, mes);
+            Snackbar.Add($"Reporte cargado para {anio}/{mes:D2}", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Reportes.CargarAsync] {ex}");
+            Snackbar.Add($"Error al cargar reporte: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+        }
     }
 
     // Descarga directa por <a href> para archivos grandes. El endpoint debe retornar Content-Disposition: attachment.

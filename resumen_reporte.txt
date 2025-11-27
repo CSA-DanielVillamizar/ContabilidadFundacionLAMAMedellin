@@ -1,0 +1,17 @@
+RESUMEN CALIDAD DE MIEMBROS
+Total registros: 28
+MemberNumber asignados nuevos: 5
+Cédulas duplicadas: 0
+Cédulas faltantes: 0
+Emails faltantes: 0
+Celulares inválidos (<10 dígitos): 0
+Fechas ingreso no parseadas: 0
+
+Registros con datos faltantes: 0
+
+Recomendaciones:
+- Revisar archivo faltantes_validar.csv para completar datos.
+- Validar MemberNumber asignados automáticamente.
+- Completar emails y cédulas faltantes.
+- Corregir celulares con longitud <10.
+- Revisar duplicados de cédula para posible consolidación.

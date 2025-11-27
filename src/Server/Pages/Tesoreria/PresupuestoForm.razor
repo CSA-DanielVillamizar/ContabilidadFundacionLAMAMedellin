@@ -1,6 +1,6 @@
 @page "/tesoreria/presupuestos/form"
 @page "/tesoreria/presupuestos/form/{Id:guid}"
-@attribute [Authorize(Roles = "Admin,Gerente,Tesorero")]
+@attribute [Authorize(Policy = "AdminGerenteTesorero")]
 @using Server.DTOs
 @inject HttpClient Http
 @inject NavigationManager Navigation

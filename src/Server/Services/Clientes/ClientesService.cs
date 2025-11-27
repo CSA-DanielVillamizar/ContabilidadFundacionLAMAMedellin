@@ -25,12 +25,12 @@ public class ClientesService : IClientesService
         int pagina = 1,
         int registrosPorPagina = 20)
     {
-        var query = _context.Clientes.AsQueryable();
+        var query = _context.Clientes.AsNoTracking().AsQueryable();
 
         // Filtro de búsqueda
         if (!string.IsNullOrWhiteSpace(busqueda))
         {
-            busqueda = busqueda.ToLower();
+              busqueda = busqueda?.ToLower() ?? string.Empty;
             query = query.Where(c =>
                 c.Nombre.ToLower().Contains(busqueda) ||
                 c.Identificacion.ToLower().Contains(busqueda) ||
@@ -83,6 +83,7 @@ public class ClientesService : IClientesService
     public async Task<ClienteDto?> ObtenerClientePorIdAsync(Guid id)
     {
         return await _context.Clientes
+            .AsNoTracking()
             .Where(c => c.Id == id)
             .Select(c => new ClienteDto
             {

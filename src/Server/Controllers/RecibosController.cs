@@ -20,7 +20,7 @@ public class RecibosController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public IActionResult List([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var skip = (page - 1) * pageSize;
@@ -56,7 +56,7 @@ public class RecibosController : ControllerBase
     public record CreateItemDto(string CodigoConcepto, int Cantidad);
 
     [HttpPost]
-    [Authorize(Roles = "Tesorero,Junta")]
+    [Authorize(Policy = "TesoreroJunta")]
     public async Task<IActionResult> Create([FromBody] CreateReciboDto dto)
     {
         if (dto is null || dto.Items is null || dto.Items.Count == 0) return BadRequest("Items requeridos");
@@ -68,7 +68,7 @@ public class RecibosController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public IActionResult Get(Guid id)
     {
         var r = _db.Recibos.Where(x => x.Id == id).Select(x => new { x.Id, x.Serie, x.Ano, x.Consecutivo, x.FechaEmision, x.TotalCop, x.Estado }).FirstOrDefault();
@@ -77,7 +77,7 @@ public class RecibosController : ControllerBase
     }
 
     [HttpGet("{id:guid}/pdf")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> GetPdf(Guid id)
     {
         var pdf = await _recibos.GenerarPdfAsync(id);
@@ -85,7 +85,7 @@ public class RecibosController : ControllerBase
     }
 
     [HttpPost("{id:guid}/emitir")]
-    [Authorize(Roles = "Tesorero,Junta")]
+    [Authorize(Policy = "TesoreroJunta")]
     public async Task<IActionResult> Emitir(Guid id)
     {
         try
@@ -111,7 +111,7 @@ public class RecibosController : ControllerBase
     public record AnularRequest(string? Razon);
 
     [HttpPost("{id:guid}/anular")]
-    [Authorize(Roles = "Tesorero,Junta")]
+    [Authorize(Policy = "TesoreroJunta")]
     public async Task<IActionResult> Anular(Guid id, [FromBody] AnularRequest req)
     {
         var ok = await _recibos.AnularAsync(id, req?.Razon ?? string.Empty, User?.Identity?.Name ?? "api");

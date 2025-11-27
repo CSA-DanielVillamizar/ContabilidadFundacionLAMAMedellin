@@ -8,6 +8,7 @@ using Server.Services.Reportes;
 using Xunit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.FileProviders;
+using System.Threading;
 
 namespace UnitTests;
 
@@ -22,29 +23,41 @@ public class ReportesTests
         public string ContentRootPath { get; set; } = string.Empty;
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
+
+    internal sealed class TestDbFactory : IDbContextFactory<AppDbContext>
+    {
+        private readonly SqliteConnection _conn;
+        public TestDbFactory(SqliteConnection conn) { _conn = conn; }
+        public AppDbContext CreateDbContext()
+        {
+            var opts = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_conn).Options;
+            var db = new AppDbContext(opts);
+            db.Database.EnsureCreated();
+            return db;
+        }
+        public Task<AppDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(CreateDbContext());
+    }
     [Fact]
     public async Task ExportarReporteMensualPdf_GeneraArchivoNoVacio()
     {
         var conn = new SqliteConnection("DataSource=:memory:");
         conn.Open();
-    conn.CreateCollation("Modern_Spanish_CI_AS", (x, y) => string.Compare(x, y, new System.Globalization.CultureInfo("es-ES"), System.Globalization.CompareOptions.IgnoreCase));
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(conn).Options;
+        conn.CreateCollation("Modern_Spanish_CI_AS", (x, y) => string.Compare(x, y, new System.Globalization.CultureInfo("es-ES"), System.Globalization.CompareOptions.IgnoreCase));
+        var factory = new TestDbFactory(conn);
 
-        using (var db = new AppDbContext(options))
+        using (var db = factory.CreateDbContext())
         {
-            db.Database.EnsureCreated();
             db.Recibos.Add(new Recibo { FechaEmision = DateTime.UtcNow, Estado = EstadoRecibo.Emitido, TotalCop = 10000m });
             db.SaveChanges();
         }
 
-        using (var db = new AppDbContext(options))
-        {
-            var env = new TestEnv();
-            var service = new ReportesService(db, env);
-            var pdf = await service.GenerarReporteMensualPdfAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
-            Assert.NotNull(pdf);
-            Assert.True(pdf.Length > 100); // PDF debe tener contenido (minimal en Testing es ~200+ bytes)
-        }
+        var env = new TestEnv();
+        var service = new ReportesService(factory, env);
+        var pdf = await service.GenerarReporteMensualPdfAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
+        Assert.NotNull(pdf);
+        Assert.True(pdf.Length > 100); // PDF debe tener contenido (minimal en Testing es ~200+ bytes)
+        
         conn.Close();
     }
 
@@ -54,23 +67,20 @@ public class ReportesTests
         var conn = new SqliteConnection("DataSource=:memory:");
         conn.Open();
         conn.CreateCollation("Modern_Spanish_CI_AS", (x, y) => string.Compare(x, y, new System.Globalization.CultureInfo("es-ES"), System.Globalization.CompareOptions.IgnoreCase));
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(conn).Options;
+        var factory = new TestDbFactory(conn);
 
-        using (var db = new AppDbContext(options))
+        using (var db = factory.CreateDbContext())
         {
-            db.Database.EnsureCreated();
             db.Recibos.Add(new Recibo { FechaEmision = DateTime.UtcNow, Estado = EstadoRecibo.Emitido, TotalCop = 15000m });
             db.SaveChanges();
         }
 
-        using (var db = new AppDbContext(options))
-        {
-            var env = new TestEnv();
-            var service = new ReportesService(db, env);
-            var excel = await service.GenerarReporteMensualExcelAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
-            Assert.NotNull(excel);
-            Assert.True(excel.Length > 1000); // Excel debe tener contenido
-        }
+        var env = new TestEnv();
+        var service = new ReportesService(factory, env);
+        var excel = await service.GenerarReporteMensualExcelAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
+        Assert.NotNull(excel);
+        Assert.True(excel.Length > 1000); // Excel debe tener contenido
+        
         conn.Close();
     }
 
@@ -80,36 +90,34 @@ public class ReportesTests
         var conn = new SqliteConnection("DataSource=:memory:");
         conn.Open();
         conn.CreateCollation("Modern_Spanish_CI_AS", (x, y) => string.Compare(x, y, new System.Globalization.CultureInfo("es-ES"), System.Globalization.CompareOptions.IgnoreCase));
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(conn).Options;
+        var factory = new TestDbFactory(conn);
 
-        using (var db = new AppDbContext(options))
+        // Crear el esquema de base de datos
+        using (var db = factory.CreateDbContext())
         {
-            db.Database.EnsureCreated();
+            // Schema ya creado por TestDbFactory
         }
 
-        using (var db = new AppDbContext(options))
-        {
-            var env = new TestEnv();
-            var service = new ReportesService(db, env);
-            var res = await service.GenerarReporteMensualAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
-            Assert.Equal(0m, res.SaldoFinal);
-            Assert.Equal(0m, res.Ingresos);
-            Assert.Equal(0m, res.Egresos);
-        }
+        var env = new TestEnv();
+        var service = new ReportesService(factory, env);
+        var res = await service.GenerarReporteMensualAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
+        Assert.Equal(0m, res.SaldoFinal);
+        Assert.Equal(0m, res.Ingresos);
+        Assert.Equal(0m, res.Egresos);
+        
         conn.Close();
     }
+    
     [Fact]
     public async Task GenerarReporteMensual_IncluyeEgresosYIngresos()
     {
         var conn = new SqliteConnection("DataSource=:memory:");
         conn.Open();
         conn.CreateCollation("Modern_Spanish_CI_AS", (x, y) => string.Compare(x, y, new System.Globalization.CultureInfo("es-ES"), System.Globalization.CompareOptions.IgnoreCase));
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(conn).Options;
+        var factory = new TestDbFactory(conn);
 
-        using (var db = new AppDbContext(options))
+        using (var db = factory.CreateDbContext())
         {
-            db.Database.EnsureCreated();
-
             // Crear un recibo emitido el mes actual por 20000 COP
             var ahora = DateTime.UtcNow;
             var recibo = new Recibo { FechaEmision = ahora, Estado = EstadoRecibo.Emitido, TotalCop = 20000m };
@@ -136,16 +144,13 @@ public class ReportesTests
             db.SaveChanges();
         }
 
-        using (var db = new AppDbContext(options))
-        {
-            var env = new TestEnv();
-            var service = new ReportesService(db, env);
-            var res = await service.GenerarReporteMensualAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
+        var env = new TestEnv();
+        var service = new ReportesService(factory, env);
+        var res = await service.GenerarReporteMensualAsync(DateTime.UtcNow.Year, DateTime.UtcNow.Month);
 
-            Assert.Equal(15000m, res.SaldoFinal);
-            Assert.Equal(20000m, res.Ingresos);
-            Assert.Equal(5000m, res.Egresos);
-        }
+        Assert.Equal(15000m, res.SaldoFinal);
+        Assert.Equal(20000m, res.Ingresos);
+        Assert.Equal(5000m, res.Egresos);
 
         conn.Close();
     }

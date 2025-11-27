@@ -78,6 +78,7 @@ public class DeudoresService : IDeudoresService
 
         // Cargar miembros activos y excluir "Asociados"
         var miembros = await _db.Miembros
+            .AsNoTracking()
             .Where(m => m.Estado == EstadoMiembro.Activo)
             .ToListAsync(ct);
         miembros = miembros

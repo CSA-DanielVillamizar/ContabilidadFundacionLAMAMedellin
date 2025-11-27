@@ -19,20 +19,24 @@
             <b>Instrucciones:</b> Genere cuentas de cobro con conceptos personalizados para cualquier miembro. Agregue los items (productos, servicios, cuotas especiales, etc.) y descargue el PDF.
         </MudAlert>
         <EditForm Model="request" OnValidSubmit="GenerarCuentaCobro">
-            <MudGrid Class="mb-4">
-                <MudItem xs="12" md="6">
-                    <MudSelect T="Guid" @bind-Value="request.MiembroId" Label="Miembro *" Required="true" Variant="Variant.Outlined" OnChange="OnMiembroChanged">
-                        <MudSelectItem Value="Guid.Empty">Seleccione un miembro...</MudSelectItem>
-                        @foreach (var miembro in miembros)
-                        {
-                            <MudSelectItem Value="@miembro.Id">@miembro.NombreCompleto - #@miembro.NumeroSocio</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="request.Consecutivo" Label="Consecutivo (Opcional)" Variant="Variant.Outlined" Placeholder="Ej: CC-2025-001" />
-                </MudItem>
-            </MudGrid>
+            
+            <FormSection Title="Datos del Miembro" Icon="@Icons.Material.Filled.Person">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Guid" Value="request.MiembroId" ValueChanged="@((Guid v) => { request.MiembroId = v; OnMiembroChanged(v); })" ValueExpression="@(() => request.MiembroId)" Label="Miembro *" Required="true" Variant="Variant.Outlined">
+                            <MudSelectItem Value="Guid.Empty">Seleccione un miembro...</MudSelectItem>
+                            @foreach (var miembro in miembros)
+                            {
+                                <MudSelectItem Value="@miembro.Id">@miembro.NombreCompleto - #@miembro.NumeroSocio</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="request.Consecutivo" Label="Consecutivo (Opcional)" Variant="Variant.Outlined" Placeholder="Ej: CC-2025-001" />
+                    </MudItem>
+                </MudGrid>
+            </FormSection>
+            
             @if (miembroSeleccionado != null)
             {
                 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
@@ -40,30 +44,33 @@
                     <b>Email:</b> @(miembroSeleccionado.Email ?? "No especificado")
                 </MudAlert>
             }
-            <MudText Typo="Typo.h6" Class="mb-3">Items de la Cuenta de Cobro</MudText>
-            <MudGrid Class="mb-3">
-                <MudItem xs="12" md="5">
-                    <MudTextField @bind-Value="nuevaDescripcion" Label="Descripción *" Variant="Variant.Outlined" Placeholder="Ej: Parche oficial LAMA" />
-                </MudItem>
-                <MudItem xs="12" md="2">
-                    <MudNumericField T="int" @bind-Value="nuevaCantidad" Label="Cantidad *" Variant="Variant.Outlined" Min="1" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudNumericField T="decimal" @bind-Value="nuevoPrecio" Label="Precio Unitario COP *" Variant="Variant.Outlined" Min="0" Step="100" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
-                </MudItem>
-                <MudItem xs="12" md="2">
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarItem" FullWidth="true">Agregar</MudButton>
-                </MudItem>
-            </MudGrid>
+            
+            <FormSection Title="Items de la Cuenta de Cobro" Icon="@Icons.Material.Filled.ShoppingCart">
+                <MudGrid Class="mb-3">
+                    <MudItem xs="12" md="5">
+                        <MudTextField @bind-Value="nuevaDescripcion" Label="Descripción *" Variant="Variant.Outlined" Placeholder="Ej: Parche oficial LAMA" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="int" @bind-Value="nuevaCantidad" Label="Cantidad *" Variant="Variant.Outlined" Min="1" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="decimal" @bind-Value="nuevoPrecio" Label="Precio Unitario COP *" Variant="Variant.Outlined" Min="0" Step="100" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarItem" FullWidth="true">Agregar</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </FormSection>
+            
             @if (request.Items.Any())
             {
                 <MudTable Items="@request.Items" Class="modern-table mb-3" Dense="true" Hover="true">
                     <HeaderContent>
                         <MudTh>Descripción</MudTh>
-                        <MudTh class="text-center" Width="100">Cantidad</MudTh>
-                        <MudTh class="text-end" Width="150">Precio Unit.</MudTh>
-                        <MudTh class="text-end" Width="150">Subtotal</MudTh>
-                        <MudTh class="text-center" Width="80">Acciones</MudTh>
+                        <MudTh class="text-center" Style="width: 100px;">Cantidad</MudTh>
+                        <MudTh class="text-end" Style="width: 150px;">Precio Unit.</MudTh>
+                        <MudTh class="text-end" Style="width: 150px;">Subtotal</MudTh>
+                        <MudTh class="text-center" Style="width: 80px;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="item">
                         <MudTd>@item.Descripcion</MudTd>
@@ -81,7 +88,11 @@
                     </FooterContent>
                 </MudTable>
             }
-            <MudTextField @bind-Value="request.Observaciones" Label="Observaciones" Variant="Variant.Outlined" Lines="3" Class="mb-3" Placeholder="Notas adicionales (opcional)" />
+            
+            <FormSection Title="Observaciones" Icon="@Icons.Material.Filled.Notes">
+                <MudTextField @bind-Value="request.Observaciones" Label="Observaciones" Variant="Variant.Outlined" Lines="3" Placeholder="Notas adicionales (opcional)" />
+            </FormSection>
+            
             <div class="d-flex justify-content-between align-items-center mt-4">
                 <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Restore" OnClick="LimpiarFormulario">Limpiar</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="@(generando || request.MiembroId == Guid.Empty || !request.Items.Any())" ButtonType="ButtonType.Submit">

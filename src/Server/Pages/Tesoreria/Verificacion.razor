@@ -1,7 +1,11 @@
 @page "/tesoreria/verificacion"
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @using Server.Services.Reportes
 @using Microsoft.AspNetCore.Components.Forms
 @inject IVerificacionTesoreriaService VerifService
+@inject MudBlazor.ISnackbar Snackbar
+
+<Breadcrumb Items="@breadcrumbs" />
 
 <h3>Verificación de Tesorería</h3>
 
@@ -16,8 +20,20 @@
             <InputNumber @bind-Value="mes" class="form-control" />
         </div>
         <div class="col-auto align-self-end">
-            <button type="button" class="btn btn-primary" @onclick="Verificar">Verificar</button>
-            <button type="button" class="btn btn-outline-secondary ms-2" @onclick="RepararSaldoInicial">Reparar saldo inicial</button>
+            <button type="button" class="btn btn-primary" @onclick="VerificarAsync" disabled="@verificando">
+                @if (verificando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                Verificar
+            </button>
+            <button type="button" class="btn btn-outline-secondary ms-2" @onclick="RepararSaldoInicialAsync" disabled="@reparando">
+                @if (reparando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                Reparar saldo inicial
+            </button>
         </div>
     </div>
 </EditForm>
@@ -48,21 +64,56 @@
     private int anio = 2025;
     private int mes = 10;
     private VerificacionResultado? resultado;
+    private bool verificando = false;
+    private bool reparando = false;
+
+    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
+    {
+        new() { Label = "Tesorería", Url = "/tesoreria" },
+        new() { Label = "Verificación", IsActive = true }
+    };
 
     protected override async Task OnInitializedAsync()
     {
-        await Verificar();
+        await VerificarAsync();
     }
 
-    private async Task Verificar()
+    private async Task VerificarAsync()
     {
-        resultado = await VerifService.VerificarAsync(anio, mes);
-        StateHasChanged();
+        verificando = true;
+        try
+        {
+            resultado = await VerifService.VerificarAsync(anio, mes);
+            Snackbar.Add($"Verificación completada para {anio}/{mes:D2}", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Verificacion.VerificarAsync] {ex}");
+            Snackbar.Add($"Error al verificar: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            verificando = false;
+        }
     }
 
-    private async Task RepararSaldoInicial()
+    private async Task RepararSaldoInicialAsync()
     {
-        var reparo = await VerifService.RepararSaldoInicialAsync();
-        await Verificar();
+        reparando = true;
+        try
+        {
+            var reparo = await VerifService.RepararSaldoInicialAsync();
+            Snackbar.Add("Saldo inicial reparado correctamente", MudBlazor.Severity.Success);
+            await VerificarAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Verificacion.RepararSaldoInicialAsync] {ex}");
+            Snackbar.Add($"Error al reparar: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            reparando = false;
+        }
     }
 }

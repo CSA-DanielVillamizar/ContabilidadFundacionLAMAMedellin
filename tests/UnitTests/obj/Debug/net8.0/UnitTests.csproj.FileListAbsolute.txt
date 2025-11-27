@@ -689,3 +689,17 @@ C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net
 c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Server.staticwebassets.endpoints.json
 c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Debug\net8.0\UnitTests.csproj.Up2Date
 C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\appsettings.Development.json
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\obj\Debug\net8.0\UnitTests.sourcelink.json
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\appsettings.Production.json
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.AspNetCore.Authorization.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.AspNetCore.Components.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.AspNetCore.Components.Forms.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.AspNetCore.Components.Web.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.AspNetCore.Metadata.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.Extensions.Localization.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.Extensions.Localization.Abstractions.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\Microsoft.JSInterop.dll
+C:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\MudBlazor.dll
+c:\Users\DanielVillamizar\ContabilidadLAMAMedellin\tests\UnitTests\bin\Debug\net8.0\appsettings.Test.json

@@ -1,8 +1,8 @@
 # Script para mantener el servidor Blazor activo
 $env:ASPNETCORE_ENVIRONMENT = "Development"
-$env:ASPNETCORE_URLS = "http://localhost:5179"
+$env:ASPNETCORE_URLS = "http://localhost:5000"
 
-Write-Host "🚀 Iniciando servidor Blazor en http://localhost:5179" -ForegroundColor Green
+Write-Host "🚀 Iniciando servidor Blazor en http://localhost:5000" -ForegroundColor Green
 Write-Host "Presiona Ctrl+C para detener el servidor" -ForegroundColor Yellow
 Write-Host ""
 

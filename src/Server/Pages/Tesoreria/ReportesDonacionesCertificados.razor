@@ -1,4 +1,5 @@
 @page "/tesoreria/reportes/donaciones-certificados"
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @using Microsoft.EntityFrameworkCore
 @using Server.Models
 @inject Server.Data.AppDbContext Db
@@ -149,7 +150,7 @@
             {
                 Numero = $"{r.Serie}-{r.Ano}-{r.Consecutivo:D6}",
                 Fecha = r.FechaEmision,
-                Donante = r.MiembroId.HasValue ? (Db.Miembros.Where(m => m.Id == r.MiembroId.Value).Select(m => m.NombreCompleto).FirstOrDefault() ?? r.TerceroLibre) : r.TerceroLibre,
+                    Donante = r.MiembroId.HasValue ? (Db.Miembros.Where(m => m.Id == r.MiembroId.Value).Select(m => m.NombreCompleto).FirstOrDefault() ?? r.TerceroLibre ?? "Sin nombre") : (r.TerceroLibre ?? "Sin nombre"),
                 TotalCop = r.TotalCop
             })
             .ToList();

@@ -13,7 +13,7 @@ public class ReportsController : ControllerBase
     public ReportsController(IReportesService reportes) => _reportes = reportes;
 
     [HttpGet("tesoreria")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> Tesoreria([FromQuery] int anio, [FromQuery] int mes)
     {
         if (anio <= 0 || mes <= 0) return BadRequest("anio y mes requeridos");
@@ -22,7 +22,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("tesoreria/pdf")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> TesoreriaPdf([FromQuery] int anio, [FromQuery] int mes)
     {
         if (anio <= 0 || mes <= 0) return BadRequest("anio y mes requeridos");
@@ -31,7 +31,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("tesoreria/excel")]
-    [Authorize(Roles = "Tesorero,Junta,Consulta")]
+    [Authorize(Policy = "TesoreroJuntaConsulta")]
     public async Task<IActionResult> TesoreriaExcel([FromQuery] int anio, [FromQuery] int mes)
     {
         if (anio <= 0 || mes <= 0) return BadRequest("anio y mes requeridos");

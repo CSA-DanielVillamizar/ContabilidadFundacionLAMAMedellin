@@ -1,4 +1,5 @@
 @page "/tesoreria/recibos/rapido"
+@attribute [Authorize(Policy = "TesoreroJunta")]
 @using Server.DTOs.Recibos
 @using Server.Models
 @inject Server.Services.Miembros.IMiembrosService MiembrosService
@@ -23,23 +24,26 @@
         </MudAlert>
         <EditForm Model="form" OnValidSubmit="GuardarEImprimirAsync">
             <DataAnnotationsValidator />
-            <MudGrid Class="mb-4">
-                <MudItem xs="12" md="4">
-                    <MudSelect T="Guid?" @bind-Value="form.MiembroId" Label="Miembro" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((Guid?)null)">-- Seleccione --</MudSelectItem>
-                        @foreach (var m in miembros)
-                        {
-                            <MudSelectItem Value="@((Guid?)m.Id)">@m.NombreCompleto (@m.NumeroSocio)</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="form.TerceroLibre" Label="Tercero Libre (opcional)" Variant="Variant.Outlined" MaxLength="200" HelperText="Usar solo si no seleccionas un miembro" />
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudTextField @bind-Value="form.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" InputType="InputType.Date" Format="yyyy-MM-dd" />
-                </MudItem>
-            </MudGrid>
+            
+                <FormSection Title="Información del Recibo" Icon="@Icons.Material.Filled.Person">
+                    <MudGrid>
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="Guid?" @bind-Value="form.MiembroId" Label="Miembro" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@((Guid?)null)">-- Seleccione --</MudSelectItem>
+                                @foreach (var m in miembros)
+                                {
+                                    <MudSelectItem Value="@((Guid?)m.Id)">@m.NombreCompleto (@m.NumeroSocio)</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="form.TerceroLibre" Label="Tercero Libre (opcional)" Variant="Variant.Outlined" MaxLength="200" HelperText="Usar solo si no seleccionas un miembro" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="form.FechaEmision" Label="Fecha Emisión" Variant="Variant.Outlined" InputType="InputType.Date" Format="yyyy-MM-dd" />
+                        </MudItem>
+                    </MudGrid>
+                </FormSection>
 
             <MudPaper Class="glass-card pa-4 mb-4">
                 <MudText Typo="Typo.h6" Class="mb-3">Conceptos Rápidos</MudText>
@@ -48,7 +52,7 @@
                     {
                         <MudItem xs="12" md="6">
                             <MudPaper Class="pa-3 d-flex align-center gap-3" Style="border: 1px solid var(--mud-palette-divider);">
-                                <MudCheckBox T="bool" @bind-Checked="c.Seleccionado" Color="Color.Primary" />
+                                <MudCheckBox T="bool" @bind-Value="c.Seleccionado" Color="Color.Primary" />
                                 <div class="flex-grow-1">
                                     <MudText Typo="Typo.body1"><b>@c.Nombre</b> <span style="color: var(--mud-palette-text-secondary);">(@c.Codigo)</span></MudText>
                                 </div>
@@ -93,8 +97,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando miembros: {ex.Message}");
-            miembros = new();
+miembros = new();
         }
 
         try
@@ -110,8 +113,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando conceptos: {ex.Message}");
-            conceptos = new();
+conceptos = new();
         }
     }
 
@@ -157,8 +159,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error guardando recibo rápido: {ex.Message}");
-            Snackbar.Add($"Error guardando: {ex.Message}", Severity.Error);
+Snackbar.Add($"Error guardando: {ex.Message}", Severity.Error);
         }
     }
 

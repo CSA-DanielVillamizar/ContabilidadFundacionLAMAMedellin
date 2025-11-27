@@ -1,5 +1,5 @@
 @page "/tesoreria/recibos"
-
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @using System.Net
 @using System.Net.Http.Json
 @using Microsoft.EntityFrameworkCore
@@ -203,7 +203,7 @@
 
 @if (mostrarModalEmitir)
 {
-    <MudDialog @bind-IsVisible="mostrarModalEmitir" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
+    <MudDialog Open="mostrarModalEmitir" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
         <TitleContent>
             <MudText Typo="Typo.h6" Color="Color.Success">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
@@ -224,7 +224,7 @@
 
 @if (mostrarModalAnular)
 {
-    <MudDialog @bind-IsVisible="mostrarModalAnular" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
+    <MudDialog Open="mostrarModalAnular" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small })">
         <TitleContent>
             <MudText Typo="Typo.h6" Color="Color.Error">
                 <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="mr-2" />
@@ -298,13 +298,9 @@
                         .FirstOrDefault()
                 })
                 .ToListAsync();
-
-            Console.WriteLine($"✅ Recibos cargados: {recibos?.Count ?? 0}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando recibos: {ex.Message}");
-            Console.WriteLine($"Stack: {ex.StackTrace}");
             await InvokeAsync(() =>
             {
                 errorMsg = "No se pudieron cargar los recibos. Reintenta o contacta al administrador.";
@@ -325,7 +321,6 @@
     // ----- Modal emisión -----
     private void AbrirModalEmision(Guid id)
     {
-        Console.WriteLine($"[UI] AbrirModalEmision click => {id}");
         emitirId = id;
         mostrarModalEmitir = true;
         // Telemetría rápida para verificar que el click funciona aunque el modal no sea visible
@@ -344,49 +339,35 @@
     {
         if (emitirId is null)
         {
-            Console.WriteLine("⚠️ emitirId es null, abortando emisión");
             return;
         }
-
-        Console.WriteLine($"🚀 Iniciando emisión para recibo {emitirId}");
 
         try
         {
             var auth = AuthenticationStateTask != null ? await AuthenticationStateTask : null;
             var currentUser = auth?.User?.Identity?.Name ?? "ui";
             
-            Console.WriteLine($"📝 Usuario actual: {currentUser}");
-            
             var ok = await RecibosService.EmitirAsync(emitirId.Value, currentUser);
             
             if (!ok)
             {
-                Console.WriteLine("❌ Servicio retornó false al emitir");
                 Toasts?.Show("No se pudo emitir el recibo.", "danger");
                 return;
             }
-
-            Console.WriteLine("✅ Servicio confirmó emisión exitosa");
             
             // Cerrar modal primero
             mostrarModalEmitir = false;
             
             // Recargar los datos para obtener el estado actualizado desde el servidor
-            Console.WriteLine("🔄 Recargando recibos desde el servidor...");
             await CargarRecibosAsync();
-            Console.WriteLine($"✅ Recibos recargados. Total: {recibos?.Count ?? 0}");
 
             Toasts?.Show("Recibo emitido exitosamente", "success");
             
             emitirId = null;
             StateHasChanged();
-            
-            Console.WriteLine("✅ Emisión completada exitosamente");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error emitiendo recibo: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             Toasts?.Show($"Error emitiendo: {ex.Message}", "danger");
         }
     }
@@ -411,7 +392,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error emitiendo directo: {ex.Message}");
             Toasts?.Show($"Error emitiendo: {ex.Message}", "danger");
         }
     }
@@ -436,7 +416,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error anulando directo: {ex.Message}");
             Toasts?.Show($"Error anulando: {ex.Message}", "danger");
         }
     }
@@ -444,7 +423,6 @@
     // ----- Modal anulación (se mantiene por si reactivamos) -----
     private void AbrirModalAnulacion(Guid id)
     {
-        Console.WriteLine($"[UI] AbrirModalAnulacion click => {id}");
         anularId = id;
         razonAnulacion = string.Empty;
         mostrarModalAnular = true;
@@ -465,57 +443,42 @@
     {
         if (anularId is null)
         {
-            Console.WriteLine("⚠️ anularId es null, abortando anulación");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(razonAnulacion))
         {
-            Console.WriteLine("⚠️ Razón de anulación vacía");
             Toasts?.Show("Debes ingresar el motivo de anulación", "warning");
             return;
         }
-
-        Console.WriteLine($"🚀 Iniciando anulación para recibo {anularId}");
 
         try
         {
             var auth = AuthenticationStateTask != null ? await AuthenticationStateTask : null;
             var currentUser = auth?.User?.Identity?.Name ?? "ui";
             
-            Console.WriteLine($"📝 Usuario actual: {currentUser}, Razón: {razonAnulacion}");
-            
             var ok = await RecibosService.AnularAsync(anularId.Value, razonAnulacion, currentUser);
             
             if (!ok)
             {
-                Console.WriteLine("❌ Servicio retornó false al anular");
                 Toasts?.Show("No se pudo anular el recibo.", "danger");
                 return;
             }
-
-            Console.WriteLine("✅ Servicio confirmó anulación exitosa");
             
             // Cerrar modal primero
             mostrarModalAnular = false;
             
             // Recargar para reflejar estado actualizado desde el servidor
-            Console.WriteLine("🔄 Recargando recibos desde el servidor...");
             await CargarRecibosAsync();
-            Console.WriteLine($"✅ Recibos recargados. Total: {recibos?.Count ?? 0}");
             
             Toasts?.Show("Recibo anulado exitosamente", "success");
             
             anularId = null;
             razonAnulacion = string.Empty;
             StateHasChanged();
-            
-            Console.WriteLine("✅ Anulación completada exitosamente");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error anulando recibo: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             Toasts?.Show($"Error anulando: {ex.Message}", "danger");
         }
     }

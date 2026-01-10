@@ -55,6 +55,12 @@ public class DiagnosticoController : ControllerBase
                     ? "IntegratedSecurity"
                     : "SqlAuthentication";
 
+            // Estado de configuración de almacenamiento/backup sin exponer secretos
+            var storageConfigured = (_azureOptions.Value?.UseAzureBlobBackup ?? false)
+                && !string.IsNullOrWhiteSpace(_azureOptions.Value?.StorageConnectionString)
+                && !string.IsNullOrWhiteSpace(_azureOptions.Value?.BackupContainerName);
+            var backupReady = storageConfigured && (_backupOptions.Value?.Enabled ?? false);
+
             var diagnostico = new
             {
                 timestamp = DateTime.UtcNow,
@@ -70,6 +76,8 @@ public class DiagnosticoController : ControllerBase
                     blobStorageEnabled = _azureOptions.Value?.UseAzureBlobBackup ?? false,
                     blobStorageConfigured = !string.IsNullOrEmpty(_azureOptions.Value?.StorageConnectionString),
                     backupContainerName = _azureOptions.Value?.BackupContainerName ?? "not-configured",
+                    storageConfigured,
+                    backupReady,
                     appInsightsConfigured = !string.IsNullOrEmpty(_configuration["ApplicationInsights:ConnectionString"])
                 },
                 

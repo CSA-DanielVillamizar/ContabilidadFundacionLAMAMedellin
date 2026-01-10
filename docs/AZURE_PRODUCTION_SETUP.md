@@ -18,7 +18,7 @@
 | Base de Datos | `sqldb-tesorerialamamedellin-prod` | SQL Database |
 | Key Vault | `kvtesorerialamamdln` | Key Vault |
 | Application Insights | `appi-tesorerialamamedellin-prod` | Application Insights |
-| Storage Account | `lamaprodstorage` | Storage Account (Backups) |
+| Storage Account | `<STORAGE_ACCOUNT_NAME>` | Storage Account (Backups) |
 
 ---
 
@@ -59,7 +59,7 @@
 
 **Pasos en Azure Portal:**
 
-1. Navega a `lamaprodstorage` → Access Control (IAM)
+1. Navega a `<STORAGE_ACCOUNT_NAME>` → Access Control (IAM)
 2. Presiona **+ Add** → **Add role assignment**
 3. En "Role":
    - Busca y selecciona **Storage Blob Data Contributor**
@@ -192,7 +192,7 @@ Navega a `kvtesorerialamamdln` → Secrets y crea los siguientes secretos:
 | `DefaultConnection` | Connection string SQL | `Server=tcp:sql-tesorerialamamedellin-prod.database.windows.net,1433;...` |
 | `Smtp--Password` | Contraseña SMTP Office 365 | Contraseña de `tesoreria@fundacionlamamedellin.org` |
 | `ApplicationInsights--ConnectionString` | App Insights conn string | Obtenida de Application Insights → Settings |
-| `Azure--StorageConnectionString` | Storage Account conn string | Obtenida de lamaprodstorage → Access keys |
+| `Azure--StorageConnectionString` | Storage Account conn string | Obtenida de Storage Account `lamaprodstorage2025` → Access keys |
 | `Azure--ApplicationInsightsInstrumentationKey` | Instrumentation key | Obtenida de Application Insights |
 
 ### 3.2 Crear Secretos en Azure Portal
@@ -259,24 +259,160 @@ En la misma sección, presiona **Connection strings** y agrega:
 
 ## 6. Configuración de Backups en Azure Blob Storage
 
-### 6.1 Crear Contenedor de Backups
+> **Importante:** En Producción el `BackupService` requiere Azure Blob Storage configurado. Si el Storage Account o el contenedor no existen, el servicio fallará en el arranque (fail-fast).
+
+### 6.1 Crear Storage Account (Portal y CLI)
+
+**Ejemplo de nombre real:** `lamaprodstorage2025`
 
 **En Azure Portal:**
+1. Entra a **Resource groups** → `RG-TesoreriaLAMAMedellin-Prod`
+2. Presiona **Create** → **Storage account**
+3. Valores requeridos:
+   - **Storage account name**: `lamaprodstorage2025` (solo minúsculas, sin guiones)
+   - **Region**: `eastus` (o la misma que el App Service)
+   - **Performance**: Standard
+   - **Redundancy**: LRS (Locally-redundant storage)
+   - **Access tier**: Hot
+4. Pestaña **Advanced**:
+   - ✅ Require secure transfer (HTTPS only)
+   - ✅ Enable blob public access
+5. Presiona **Review + create** → **Create**
 
-1. Navega a `lamaprodstorage`
-2. Presiona **Containers**
+**Con Azure CLI (Recomendado):**
+
+```bash
+# Variables
+$resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
+$storageAccountName = "lamaprodstorage2025"
+$region = "eastus"
+
+# Crear Storage Account
+az storage account create \
+  --resource-group $resourceGroup \
+  --name $storageAccountName \
+  --location $region \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --access-tier Hot \
+  --https-only true \
+  --min-tls-version TLS1_2 \
+  --default-action Deny
+
+# Output: Guarda el nombre para referencia futura
+Write-Host "Storage Account creado: $storageAccountName"
+```
+
+### 6.2 Crear el contenedor `sql-backups`
+
+**En Azure Portal:**
+1. Navega al Storage Account `lamaprodstorage2025`
+2. Presiona **Containers** (en el menú izquierdo bajo **Data storage**)
 3. Presiona **+ Container**
 4. Nombre: `sql-backups`
 5. Public access level: `Private`
 6. Presiona **Create**
 
-### 6.2 Verificar Backups Automáticos
+**Con Azure CLI:**
+```bash
+# Variables
+$storageAccountName = "lamaprodstorage2025"
+$containerName = "sql-backups"
+
+# Crear contenedor
+az storage container create \
+  --name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --public-access off
+
+# Verificar que se creó
+az storage container list \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --output table
+```
+
+### 6.3 Obtener Connection String y Guardar en Key Vault
+
+**En Azure Portal:**
+1. En Storage Account `lamaprodstorage2025` → **Security + networking** → **Access keys**
+2. Copia la **Connection string** bajo "key1"
+3. Navega a Key Vault `kvtesorerialamamdln` → **Secrets** → **+ Generate/Import**
+4. Nombre: `Azure--StorageConnectionString`
+5. Valor: Pega la connection string copiada
+6. Presiona **Create**
+
+**Con Azure CLI:**
+```bash
+# Variables
+$storageAccountName = "lamaprodstorage2025"
+$resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
+$keyVaultName = "kvtesorerialamamdln"
+
+# Obtener connection string
+$connectionString = $(az storage account show-connection-string \
+  --resource-group $resourceGroup \
+  --name $storageAccountName \
+  --query connectionString -o tsv)
+
+Write-Host "Connection String obtenido (primeros 50 chars):"
+Write-Host $connectionString.Substring(0, 50) "..."
+
+# Guardar en Key Vault
+az keyvault secret set \
+  --vault-name $keyVaultName \
+  --name "Azure--StorageConnectionString" \
+  --value $connectionString
+
+Write-Host "✓ Secreto 'Azure--StorageConnectionString' guardado en Key Vault"
+```
+
+### 6.4 Verificar Configuración en la Aplicación
+
+**Endpoint de diagnóstico (después de redeployar):**
+
+```bash
+# 1. Autentícate como Admin en la aplicación
+# 2. Realiza una petición GET a:
+curl -H "Authorization: Bearer <YOUR_AUTH_TOKEN>" \
+  https://app-tesorerialamamedellin-prod.azurewebsites.net/api/diagnostico
+
+# Respuesta esperada (sección "azure"):
+# {
+#   "azure": {
+#     "keyVaultEnabled": true,
+#     "keyVaultConfigured": true,
+#     "blobStorageEnabled": true,
+#     "blobStorageConfigured": true,      <-- DEBE SER: true
+#     "backupContainerName": "sql-backups",
+#     "storageConfigured": true,           <-- NUEVO CAMPO: true
+#     "backupReady": true,                 <-- NUEVO CAMPO: true (si Backup también está habilitado)
+#     "appInsightsConfigured": true
+#   }
+# }
+```
+
+**Si `backupReady = true`:**
+- ✅ Storage Account está creado
+- ✅ Contenedor `sql-backups` existe
+- ✅ Connection string está en Key Vault y se cargó correctamente
+- ✅ BackupHostedService está habilitado
+- ✅ Backups automáticos estarán activos
+
+**Si `backupReady = false`:**
+- ❌ Falta alguno de los pasos anteriores
+- ❌ Verifica los logs del App Service para ver el error específico
+- ❌ El BackupHostedService no iniciará
+
+### 6.5 Verificar Backups Automáticos
 
 Los backups se generarán automáticamente cada día a las 2 AM (según `CronSchedule` en appsettings):
 
 ```json
 {
   "Backup": {
+    "Enabled": true,
     "CronSchedule": "0 2 * * *",
     "BackupPath": "Backups",
     "RetentionDays": 30,
@@ -286,13 +422,24 @@ Los backups se generarán automáticamente cada día a las 2 AM (según `CronSch
 }
 ```
 
-**Para verificar:**
+**Para verificar manualmente que existen backups en el contenedor:**
 
-```powershell
-# En Azure PowerShell
-$storageAccount = Get-AzStorageAccount -ResourceGroupName "RG-TesoreriaLAMAMedellin-Prod" -Name "lamaprodstorage"
-$ctx = $storageAccount.Context
-Get-AzStorageBlob -Container "sql-backups" -Context $ctx | Select-Object Name, LastModified, Length
+```bash
+# Variables
+$storageAccountName = "lamaprodstorage2025"
+$containerName = "sql-backups"
+
+# Listar blobs en el contenedor
+az storage blob list \
+  --container-name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --output table
+
+# Output esperado después de la primera ejecución (2 AM):
+# Name                           Blob Type     Length
+# Backup_20250110_020000.bak     BlockBlob     2147483648
+# Backup_20250109_020000.bak     BlockBlob     2147483648
 ```
 
 ---

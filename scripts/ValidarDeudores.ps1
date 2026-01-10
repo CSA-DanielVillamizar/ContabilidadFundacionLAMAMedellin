@@ -2,7 +2,7 @@
 # Compila, arranca la app, consulta endpoint con autenticación, y compara resultados
 
 $baseUrl = "http://localhost:5179"
-$email = "admin@lamamed.org"
+$email = "admin@fundacionlamamedellin.org"
 $password = "Admin123!"
 
 Write-Host "=== VALIDACIÓN DE DEUDORES SQL vs APP ===" -ForegroundColor Cyan

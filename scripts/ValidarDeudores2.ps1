@@ -1,6 +1,6 @@
 ﻿# Validacion de deudores SQL vs APP
 $baseUrl = 'http://localhost:5179'
-$email = 'admin@lamamed.org'
+$email = 'admin@fundacionlamamedellin.org'
 $password = 'Admin123!'
 
 Write-Host '=== VALIDACION DE DEUDORES SQL vs APP ===' -ForegroundColor Cyan

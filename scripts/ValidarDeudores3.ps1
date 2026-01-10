@@ -7,7 +7,7 @@ $login = Invoke-WebRequest -Uri 'http://localhost:5000/Identity/Account/Login' -
 $token = ($login.InputFields | Where-Object { $_.name -eq '__RequestVerificationToken' }).value
 
 $body = @{
-    'Input.Email' = 'admin@lamamed.org'
+    'Input.Email' = 'admin@fundacionlamamedellin.org'
     'Input.Password' = 'Admin123!'
     'Input.RememberMe' = 'false'
     '__RequestVerificationToken' = $token

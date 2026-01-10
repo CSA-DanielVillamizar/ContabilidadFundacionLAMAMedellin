@@ -269,8 +269,9 @@ En la misma sección, presiona **Connection strings** y agrega:
 1. Entra a **Resource groups** → `RG-TesoreriaLAMAMedellin-Prod`
 2. Presiona **Create** → **Storage account**
 3. Valores requeridos:
-   - **Storage account name**: `lamaprodstorage2025` (solo minúsculas, sin guiones)
-   - **Region**: `eastus` (o la misma que el App Service)
+   - **Storage account name**: `lamaprodstorage2025` (solo minúsculas, sin guiones, 3-24 caracteres)
+     - ⚠️ **Importante:** Validar disponibilidad con `az storage account check-name --name <STORAGE_ACCOUNT_NAME>`
+   - **Region**: `centralus` (misma región que todos los demás recursos de producción)
    - **Performance**: Standard
    - **Redundancy**: LRS (Locally-redundant storage)
    - **Access tier**: Hot
@@ -284,10 +285,13 @@ En la misma sección, presiona **Connection strings** y agrega:
 ```bash
 # Variables
 $resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
-$storageAccountName = "lamaprodstorage2025"
-$region = "eastus"
+$storageAccountName = "lamaprodstorage2025"  # Ejemplo - personalizar según necesidad
+$region = "centralus"  # TODOS los recursos están en centralus
 
-# Crear Storage Account
+# PASO PREVIO: Validar disponibilidad del nombre
+az storage account check-name --name $storageAccountName
+
+# Si "nameAvailable": true, proceder:
 az storage account create \
   --resource-group $resourceGroup \
   --name $storageAccountName \
@@ -453,15 +457,20 @@ az storage blob list \
 **Variables (personaliza según tu entorno):**
 ```bash
 $resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
-$storageAccountName = "lamaprodstorage2025"
+$storageAccountName = "lamaprodstorage2025"  # Ejemplo - validar disponibilidad primero
 $containerName = "sql-backups"
-$region = "eastus"
+$region = "centralus"  # Región confirmada de todos los recursos
 $keyVaultName = "kvtesorerialamamdln"
 ```
 
 **Ejecutar:**
 ```bash
-# Crear Storage Account
+# IMPORTANTE: Validar disponibilidad del nombre primero
+Write-Host "=== Validando disponibilidad del nombre de Storage Account ==="
+az storage account check-name --name $storageAccountName
+
+# Si retorna "nameAvailable": true, proceder:
+Write-Host "=== Crear Storage Account ==="
 az storage account create \
   --resource-group $resourceGroup \
   --name $storageAccountName \
@@ -598,6 +607,179 @@ Write-Host "✓ Health check /health/ready validado (DB conectada)"
 ```
 
 ### 7.7 Paso 7: Verificar Logs en Application Insights
+
+**En Azure Portal:**
+1. Navega a Application Insights: `appi-tesorerialamamedellin-prod`
+2. Presiona **Logs** (en el menú izquierdo)
+3. Ejecuta esta consulta KQL:
+
+```kql
+traces
+| where timestamp > ago(1h)
+| where message contains "Backup" or message contains "Azure Blob"
+| project timestamp, severityLevel, message
+| order by timestamp desc
+```
+
+**Busca mensajes como:**
+- `"✓ Azure Blob Storage configurado correctamente"`
+- `"Backup automático programado para: 0 2 * * *"`
+- `"BackupHostedService iniciado"`
+
+**Si ves errores:**
+- Lee el mensaje completo del error
+- Verifica que el secreto `Azure--StorageConnectionString` existe en Key Vault
+- Re-ejecuta el restart del App Service
+
+Write-Host "✓ Logs de Application Insights verificados"
+
+### 7.8 Paso 8: Listar Blobs en Contenedor (Backups Existentes)
+
+```bash
+# Listar blobs en el contenedor sql-backups
+Write-Host "=== Listar Blobs en Contenedor sql-backups ==="
+
+az storage blob list \
+  --container-name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --output table
+
+Write-Host "Blobs listados exitosamente"
+
+# Para más detalles (tamaño, fecha modificación)
+Write-Host ""
+Write-Host "=== Detalles de Blobs ==="
+az storage blob list \
+  --container-name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --query "[].{Name:name, LastModified:properties.lastModified, Size:properties.contentLength}" \
+  --output table
+
+# Output esperado después del primer backup (2 AM):
+# Name                           LastModified                  Size
+# Backup_20250110_020000.bak     2025-01-10T02:00:15+00:00     2147483648
+# Backup_20250109_020000.bak     2025-01-09T02:00:12+00:00     2147483648
+
+Write-Host "✓ Blobs verificados en contenedor"
+```
+
+### 7.9 Verificación Final Consolidada
+
+> **Propósito:** Validación completa end-to-end después de configurar Storage Account y backups
+
+**Ejecuta este script consolidado:**
+
+```bash
+# ========== VERIFICACIÓN FINAL BACKUPS ==========
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "VERIFICACIÓN FINAL - BACKUPS AZURE BLOB" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Variables (reutilizar las definidas anteriormente)
+$appServiceName = "app-tesorerialamamedellin-prod"
+$healthUrl = "https://$appServiceName.azurewebsites.net/health/ready"
+$diagnosticoUrl = "https://$appServiceName.azurewebsites.net/api/diagnostico"
+
+# 1. REINICIAR APP SERVICE
+Write-Host "[1/4] Reiniciando App Service..." -ForegroundColor Yellow
+az webapp restart \
+  --resource-group $resourceGroup \
+  --name $appServiceName
+
+Write-Host "      Esperando 60 segundos para que el servicio inicie..." -ForegroundColor Gray
+Start-Sleep -Seconds 60
+Write-Host "      ✓ App Service reiniciado" -ForegroundColor Green
+Write-Host ""
+
+# 2. VALIDAR /health/ready
+Write-Host "[2/4] Validando /health/ready (sin autenticación)..." -ForegroundColor Yellow
+$healthResponse = curl -s $healthUrl | ConvertFrom-Json
+
+if ($healthResponse.status -eq "Healthy") {
+    Write-Host "      ✅ Health Check = Healthy" -ForegroundColor Green
+    Write-Host "      ✓ Base de datos conectada correctamente" -ForegroundColor Green
+} else {
+    Write-Host "      ❌ Health Check = $($healthResponse.status)" -ForegroundColor Red
+    Write-Host "      ⚠️  Revisar conectividad de base de datos" -ForegroundColor Red
+}
+Write-Host ""
+
+# 3. VALIDAR /api/diagnostico (backupReady=true)
+Write-Host "[3/4] Validando /api/diagnostico (requiere autenticación admin)..." -ForegroundColor Yellow
+Write-Host "      ⚠️  Nota: Necesitas obtener un token JWT como admin primero" -ForegroundColor Gray
+Write-Host "      Comando: curl -H 'Authorization: Bearer YOUR_TOKEN' $diagnosticoUrl" -ForegroundColor Gray
+
+# Si tienes el token, descomentar:
+# $diagnosticoResponse = curl -s -H "Authorization: Bearer $TOKEN" $diagnosticoUrl | ConvertFrom-Json
+# if ($diagnosticoResponse.azure.backupReady -eq $true) {
+#     Write-Host "      ✅ backupReady = TRUE" -ForegroundColor Green
+#     Write-Host "      ✅ storageConfigured = TRUE" -ForegroundColor Green
+#     Write-Host "      ✓ Backups habilitados y configurados correctamente" -ForegroundColor Green
+# } else {
+#     Write-Host "      ❌ backupReady = FALSE" -ForegroundColor Red
+#     Write-Host "      ⚠️  Revisar logs en Application Insights" -ForegroundColor Red
+# }
+
+Write-Host "      Ejecuta manualmente con tu token de admin" -ForegroundColor Cyan
+Write-Host ""
+
+# 4. LISTAR BLOBS EN CONTENEDOR
+Write-Host "[4/4] Listando blobs en contenedor sql-backups..." -ForegroundColor Yellow
+$blobs = az storage blob list \
+  --container-name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --query "length(@)" 2>$null
+
+if ($blobs -gt 0) {
+    Write-Host "      ✅ Backups encontrados: $blobs archivo(s)" -ForegroundColor Green
+    Write-Host ""
+    az storage blob list \
+      --container-name $containerName \
+      --account-name $storageAccountName \
+      --auth-mode login \
+      --query "[].{Nombre:name, Tamaño:properties.contentLength, Fecha:properties.lastModified}" \
+      --output table
+} else {
+    Write-Host "      ⚠️  No se encontraron backups aún" -ForegroundColor Yellow
+    Write-Host "      ℹ️  Los backups se generan automáticamente a las 2 AM UTC" -ForegroundColor Gray
+    Write-Host "      ℹ️  O ejecuta manualmente el endpoint de backup si está habilitado" -ForegroundColor Gray
+}
+Write-Host ""
+
+# RESUMEN FINAL
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "RESUMEN" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "✓ App Service reiniciado" -ForegroundColor Green
+Write-Host "✓ Health check validado" -ForegroundColor Green
+Write-Host "⚠️  Validar /api/diagnostico manualmente con token admin" -ForegroundColor Yellow
+Write-Host "✓ Blobs listados en contenedor" -ForegroundColor Green
+Write-Host ""
+Write-Host "Próximos backups automáticos: 2 AM UTC (diariamente)" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+```
+
+**Checklist Final:**
+- [ ] Storage Account `lamaprodstorage2025` creado en `centralus`
+- [ ] Contenedor `sql-backups` creado con acceso privado
+- [ ] Connection string guardada en Key Vault como `Azure--StorageConnectionString`
+- [ ] App Service reiniciado correctamente
+- [ ] `/health/ready` retorna `Healthy`
+- [ ] `/api/diagnostico` retorna `backupReady=true` (validar con token admin)
+- [ ] Blobs visibles con `az storage blob list` (después de 2 AM)
+
+**Si algún paso falla:**
+1. Verificar logs en Application Insights (Sección 7.7)
+2. Re-ejecutar el comando específico que falló
+3. Contactar con el equipo de soporte si persiste el error
+
+---
+
+## 8. Health Checks
 
 ```bash
 # Ejecutar query en Application Insights para ver inicialización

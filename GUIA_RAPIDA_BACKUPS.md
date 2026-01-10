@@ -20,11 +20,30 @@
 ```powershell
 # Personaliza estos valores
 $resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
-$storageAccountName = "lamaprodstorage2025"
+$storageAccountName = "lamaprodstorage2025"  # Ejemplo - validar disponibilidad primero
 $containerName = "sql-backups"
-$region = "eastus"
+$region = "centralus"  # Región confirmada de todos los recursos de producción
 $keyVaultName = "kvtesorerialamamdln"
 $appServiceName = "app-tesorerialamamedellin-prod"
+```
+
+### Paso 0: Validar Disponibilidad del Nombre (IMPORTANTE)
+
+```powershell
+Write-Host "=== Validar Disponibilidad del Nombre de Storage Account ==="
+az storage account check-name --name $storageAccountName
+
+# Verifica que retorne:
+# {
+#   "nameAvailable": true,
+#   "reason": null,
+#   "message": null
+# }
+
+# Si "nameAvailable": false, elige otro nombre y actualiza la variable:
+# $storageAccountName = "lamaprodstorage2026"  # Ejemplo alternativo
+
+Write-Host "✓ Nombre validado como disponible"
 ```
 
 ### Paso 1: Crear Storage Account

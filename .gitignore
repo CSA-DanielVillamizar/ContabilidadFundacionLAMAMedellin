@@ -1,0 +1,84 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# IDE specific files
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# Entity Framework
+*.db
+*.db-shm
+*.db-wal
+Migrations/
+
+# Local appsettings files (keep sample, but not actual)
+appsettings.AzureProd.json
+appsettings.Development.json
+appsettings.Test.json
+
+# Node modules and artifacts
+node_modules/
+dist/
+build/
+coverage/
+
+# Playwright browsers cache
+tests/E2E/bin/
+tests/E2E/obj/
+
+# Test Results
+TestResults/
+.coverage/
+*.trx
+
+# Publish
+publish/
+
+# Logs
+*.log
+app-log.txt
+server-log.txt
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+.sass-cache/
+
+# Environment
+.env
+.env.local
+
+# Backups
+backup*/
+*.backup

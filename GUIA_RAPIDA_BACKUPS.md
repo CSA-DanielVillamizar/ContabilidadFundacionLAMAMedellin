@@ -1,15 +1,17 @@
-# Guía Rápida: Habilitación de Backups en Azure
+# Guía Rápida: Habilitación de Backups en Azure con Managed Identity
 
 > **Fecha:** Enero 2026  
-> **Propósito:** Referencia rápida para crear Storage Account y validar backups
+> **Propósito:** Referencia rápida para crear Storage Account y configurar backups con Managed Identity (RBAC)  
+> **⭐ Novedad:** Sin connection strings - Autenticación con System Assigned MI
 
 ---
 
 ## Resumen Ejecutivo
 
-**Paso 1-4: Crear infraestructura (5 min)**  
-**Paso 5-8: Validar configuración (10 min)**  
-**Total estimado: 15 minutos**
+**Paso 0-2: Crear infraestructura (5 min)**  
+**Paso 3: Configurar RBAC + Managed Identity (3 min)**  
+**Paso 4-8: Validar configuración (10 min)**  
+**Total estimado: 18 minutos**
 
 ---
 
@@ -23,7 +25,6 @@ $resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
 $storageAccountName = "lamaprodstorage2025"  # Ejemplo - validar disponibilidad primero
 $containerName = "sql-backups"
 $region = "centralus"  # Región confirmada de todos los recursos de producción
-$keyVaultName = "kvtesorerialamamdln"
 $appServiceName = "app-tesorerialamamedellin-prod"
 ```
 
@@ -83,35 +84,48 @@ az storage container list `
 Write-Host "✓ Contenedor creado: $containerName"
 ```
 
-### Paso 3: Obtener Connection String y Guardar en Key Vault
+### Paso 3: Configurar RBAC con Managed Identity (⭐ Recomendado)
 
 ```powershell
-Write-Host "=== Guardar Connection String en Key Vault ==="
+Write-Host "=== Configurar RBAC con Managed Identity ===" -ForegroundColor Cyan
 
-# Obtener connection string
-$connectionString = $(az storage account show-connection-string `
+# Obtener Principal ID de la System Assigned MI del App Service
+$principalId = $(az webapp identity show `
+  --resource-group $resourceGroup `
+  --name $appServiceName `
+  --query principalId -o tsv)
+
+Write-Host "System Assigned MI Principal ID: $principalId"
+
+# Obtener Resource ID del Storage Account
+$storageResourceId = $(az storage account show `
   --resource-group $resourceGroup `
   --name $storageAccountName `
-  --query connectionString -o tsv)
+  --query id -o tsv)
 
-Write-Host "Connection String obtenido (primeros 60 caracteres):"
-Write-Host $connectionString.Substring(0, 60) "..."
+Write-Host "Storage Account Resource ID: $storageResourceId"
 
-# Guardar en Key Vault con nombre EXACTO
-az keyvault secret set `
-  --vault-name $keyVaultName `
-  --name "Azure--StorageConnectionString" `
-  --value $connectionString
+# Asignar rol "Storage Blob Data Contributor" a la Managed Identity
+az role assignment create `
+  --assignee $principalId `
+  --role "Storage Blob Data Contributor" `
+  --scope $storageResourceId
 
-Write-Host "✓ Secreto guardado en Key Vault"
+Write-Host "✓ Rol 'Storage Blob Data Contributor' asignado" -ForegroundColor Green
 
-# Verificar
-az keyvault secret show `
-  --vault-name $keyVaultName `
-  --name "Azure--StorageConnectionString" `
-  --query id -o tsv
+# Verificar asignación de roles
+az role assignment list `
+  --scope $storageResourceId `
+  --query "[?principalId=='$principalId'].{Role:roleDefinitionName, Principal:principalId}" `
+  --output table
 
-Write-Host "✓ Secreto verificado en Key Vault"
+# Configurar App Settings con URI de Storage Account (no requiere secreto)
+az webapp config appsettings set `
+  --resource-group $resourceGroup `
+  --name $appServiceName `
+  --settings Azure__StorageBlobServiceUri="https://$storageAccountName.blob.core.windows.net/"
+
+Write-Host "✓ App Settings configurado con URI (Managed Identity)" -ForegroundColor Green
 ```
 
 ### Paso 4: Reiniciar App Service
@@ -145,15 +159,23 @@ Write-Host ($response.azure | ConvertTo-Json)
 
 # Validar campos clave
 if ($response.azure.backupReady -eq $true) {
-    Write-Host "✅ backupReady = TRUE - Backups habilitados correctamente"
+    Write-Host "✅ backupReady = TRUE - Backups habilitados con Managed Identity" -ForegroundColor Green
 } else {
-    Write-Host "❌ backupReady = FALSE - Revisar logs en Application Insights"
+    Write-Host "❌ backupReady = FALSE - Revisar logs en Application Insights" -ForegroundColor Red
 }
 
 if ($response.azure.storageConfigured -eq $true) {
-    Write-Host "✅ storageConfigured = TRUE - Storage está configurado"
+    Write-Host "✅ storageConfigured = TRUE - Storage URI configurado" -ForegroundColor Green
 } else {
-    Write-Host "❌ storageConfigured = FALSE - Verificar Azure--StorageConnectionString en Key Vault"
+    Write-Host "❌ storageConfigured = FALSE - Verificar RBAC y Azure__StorageBlobServiceUri" -ForegroundColor Red
+}
+
+# Verificar método de autenticación
+if ($response.azure.blobStorageAuthMethod -eq "ManagedIdentity") {
+    Write-Host "✅ Autenticación: Managed Identity (sin connection string)" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  Autenticación: $($response.azure.blobStorageAuthMethod)" -ForegroundColor Yellow
+}
 }
 ```
 
@@ -202,7 +224,7 @@ Write-Host "✓ Blobs verificados"
 ### Paso 8: Validación Completa (One-Liner)
 
 ```powershell
-Write-Host "========== VALIDACIÓN COMPLETA BACKUPS ==========="
+Write-Host "========== VALIDACIÓN COMPLETA BACKUPS (MANAGED IDENTITY) ==========="
 
 # 1. Storage Account existe
 $sa = az storage account show --resource-group $resourceGroup --name $storageAccountName --query "{Name:name, Status:provisioningState}"
@@ -212,16 +234,18 @@ Write-Host "✓ Storage Account: $($sa | ConvertFrom-Json | Select-Object -Expan
 $cont = az storage container exists --account-name $storageAccountName --name $containerName --auth-mode login --query exists
 Write-Host "✓ Contenedor sql-backups existe: $cont"
 
-# 3. Key Vault tiene secreto
-$secret = az keyvault secret show --vault-name $keyVaultName --name "Azure--StorageConnectionString" --query id 2>$null
-if ($secret) {
-    Write-Host "✓ Secreto 'Azure--StorageConnectionString' guardado en Key Vault"
+# 3. RBAC - Verificar rol asignado a Managed Identity
+$principalId = $(az webapp identity show --resource-group $resourceGroup --name $appServiceName --query principalId -o tsv)
+$storageResourceId = $(az storage account show --resource-group $resourceGroup --name $storageAccountName --query id -o tsv)
+$roleAssignment = az role assignment list --scope $storageResourceId --query "[?principalId=='$principalId'].roleDefinitionName" -o tsv
+if ($roleAssignment -contains "Storage Blob Data Contributor") {
+    Write-Host "✓ RBAC: Managed Identity tiene rol 'Storage Blob Data Contributor'" -ForegroundColor Green
 } else {
-    Write-Host "❌ Secreto 'Azure--StorageConnectionString' NO encontrado en Key Vault"
+    Write-Host "❌ RBAC: Rol no asignado - Ejecutar Paso 3" -ForegroundColor Red
 }
 
 # 4. App Service está ejecutando
-$appStatus = az webapp show --resource-group $resourceGroup --name $appServiceName --query state
+$appStatus = az webapp show --resource-group $resourceGroup --name $appServiceName --query state -o tsv
 Write-Host "✓ App Service estado: $appStatus"
 
 # 5. Blobs en contenedor (backups existentes)
@@ -233,11 +257,48 @@ Write-Host "========== ✓ VALIDACIÓN COMPLETADA ==========="
 
 ---
 
+## Tabla de Configuración Requerida
+
+| Configuración | Valor Ejemplo | Método |
+|---------------|---------------|--------|
+| `Azure__StorageBlobServiceUri` | `https://lamaprodstorage2025.blob.core.windows.net/` | App Setting |
+| `Azure__BackupContainerName` | `sql-backups` | appsettings.json |
+| `Azure__UseAzureBlobBackup` | `true` | appsettings.json |
+| **RBAC Role** | `Storage Blob Data Contributor` | Portal o CLI |
+| **Managed Identity** | System Assigned | App Service Identity |
+
+---
+
 ## Troubleshooting
 
-### ❌ Error: "Azure--StorageConnectionString NOT FOUND in Key Vault"
+### ❌ Error: "Access Denied" al intentar crear backup
+
+**Causa:** Managed Identity no tiene permisos RBAC.
 
 **Solución:**
+```powershell
+# Verificar roles asignados
+$principalId = $(az webapp identity show --resource-group $resourceGroup --name $appServiceName --query principalId -o tsv)
+$storageResourceId = $(az storage account show --resource-group $resourceGroup --name $storageAccountName --query id -o tsv)
+
+az role assignment list \
+  --scope $storageResourceId \
+  --query "[?principalId=='$principalId']" \
+  --output table
+
+# Si no tiene rol, asignar:
+az role assignment create \
+  --assignee $principalId \
+  --role "Storage Blob Data Contributor" \
+  --scope $storageResourceId
+```
+
+### ❌ Error: "Azure--StorageConnectionString NOT FOUND in Key Vault" (Legacy)
+
+> **Nota:** Este error solo aplica si usas connection string (método deprecado).  
+> Con Managed Identity, NO necesitas este secreto.
+
+**Solución (solo si NO usas Managed Identity):**
 ```powershell
 # Verificar que se guardó
 az keyvault secret list --vault-name $keyVaultName --query "[?name=='Azure--StorageConnectionString']"

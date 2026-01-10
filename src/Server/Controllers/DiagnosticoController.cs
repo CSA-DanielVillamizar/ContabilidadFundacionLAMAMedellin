@@ -56,8 +56,11 @@ public class DiagnosticoController : ControllerBase
                     : "SqlAuthentication";
 
             // Estado de configuración de almacenamiento/backup sin exponer secretos
+            // Ahora valida URI o AccountName en lugar de connection string
+            var hasStorageUri = !string.IsNullOrWhiteSpace(_azureOptions.Value?.StorageBlobServiceUri) 
+                || !string.IsNullOrWhiteSpace(_azureOptions.Value?.StorageAccountName);
             var storageConfigured = (_azureOptions.Value?.UseAzureBlobBackup ?? false)
-                && !string.IsNullOrWhiteSpace(_azureOptions.Value?.StorageConnectionString)
+                && hasStorageUri
                 && !string.IsNullOrWhiteSpace(_azureOptions.Value?.BackupContainerName);
             var backupReady = storageConfigured && (_backupOptions.Value?.Enabled ?? false);
 
@@ -74,7 +77,8 @@ public class DiagnosticoController : ControllerBase
                     keyVaultEnabled = _azureOptions.Value?.EnableKeyVault ?? false,
                     keyVaultConfigured = !string.IsNullOrEmpty(_azureOptions.Value?.KeyVaultEndpoint),
                     blobStorageEnabled = _azureOptions.Value?.UseAzureBlobBackup ?? false,
-                    blobStorageConfigured = !string.IsNullOrEmpty(_azureOptions.Value?.StorageConnectionString),
+                    blobStorageConfigured = hasStorageUri,
+                    blobStorageAuthMethod = "ManagedIdentity", // Ahora usa Managed Identity en lugar de connection string
                     backupContainerName = _azureOptions.Value?.BackupContainerName ?? "not-configured",
                     storageConfigured,
                     backupReady,

@@ -97,21 +97,48 @@ builder.Services.Configure<BackupOptions>(
 builder.Services.Configure<TwoFactorEnforcementOptions>(
     builder.Configuration.GetSection("TwoFactorEnforcement"));
 
-// ========== REGISTRAR AZURE BLOB STORAGE CLIENT (Opcional con Fallback) ==========
-// Si AzureOptions.UseAzureBlobBackup = true y tenemos StorageConnectionString, registrar BlobServiceClient
+// ========== REGISTRAR AZURE BLOB STORAGE CLIENT CON MANAGED IDENTITY ==========
+// Si AzureOptions.UseAzureBlobBackup = true, registrar BlobServiceClient con DefaultAzureCredential
 var azureOpts = builder.Configuration.GetSection("Azure").Get<AzureOptions>();
-if (azureOpts?.UseAzureBlobBackup == true && !string.IsNullOrEmpty(azureOpts.StorageConnectionString))
+if (azureOpts?.UseAzureBlobBackup == true)
 {
     try
     {
-        var blobServiceClient = new BlobServiceClient(azureOpts.StorageConnectionString);
-        builder.Services.AddSingleton(blobServiceClient);
-        Log.Logger.Information("✓ Azure Blob Storage configurado (contenedor: {ContainerName})", azureOpts.BackupContainerName);
+        // Construir URI del Storage Account
+        Uri? storageBlobServiceUri = null;
+        
+        if (!string.IsNullOrEmpty(azureOpts.StorageBlobServiceUri))
+        {
+            storageBlobServiceUri = new Uri(azureOpts.StorageBlobServiceUri);
+        }
+        else if (!string.IsNullOrEmpty(azureOpts.StorageAccountName))
+        {
+            storageBlobServiceUri = new Uri($"https://{azureOpts.StorageAccountName}.blob.core.windows.net/");
+        }
+
+        if (storageBlobServiceUri != null)
+        {
+            // Crear BlobServiceClient con Managed Identity (DefaultAzureCredential)
+            // En producción usa System Assigned MI del App Service
+            // En desarrollo puede usar credenciales locales (Azure CLI, Visual Studio, etc.)
+            var credential = new Azure.Identity.DefaultAzureCredential();
+            var blobServiceClient = new BlobServiceClient(storageBlobServiceUri, credential);
+            
+            builder.Services.AddSingleton(blobServiceClient);
+            Log.Logger.Information("✓ Azure Blob Storage configurado con Managed Identity (URI: {Uri}, contenedor: {ContainerName})", 
+                storageBlobServiceUri, azureOpts.BackupContainerName);
+        }
+        else
+        {
+            Log.Logger.Warning("⚠️ UseAzureBlobBackup=true pero falta StorageBlobServiceUri o StorageAccountName");
+            builder.Services.AddSingleton<BlobServiceClient>(_ => null!);
+        }
     }
     catch (Exception ex)
     {
-        Log.Logger.Warning(ex, "⚠️ Warning: No se pudo configurar Azure Blob Storage");
-        // BackupService usará fallback a almacenamiento local
+        Log.Logger.Warning(ex, "⚠️ Warning: No se pudo configurar Azure Blob Storage con Managed Identity");
+        // BackupService usará fallback a almacenamiento local en Development
+        builder.Services.AddSingleton<BlobServiceClient>(_ => null!);
     }
 }
 else

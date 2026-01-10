@@ -19,10 +19,18 @@ public class AzureOptions
     public string BackupContainerName { get; set; } = "sql-backups";
 
     /// <summary>
-    /// Cadena de conexión a Azure Storage Account (se lee de Key Vault en producción).
-    /// Formato: DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...
+    /// URI del servicio Blob de Azure Storage Account.
+    /// Formato: https://{storageAccountName}.blob.core.windows.net/
+    /// Se usa con Managed Identity (DefaultAzureCredential) en producción.
     /// </summary>
-    public string? StorageConnectionString { get; set; }
+    public string? StorageBlobServiceUri { get; set; }
+
+    /// <summary>
+    /// Nombre de la Storage Account de Azure (alternativa a StorageBlobServiceUri).
+    /// Si se especifica, se construirá el URI automáticamente.
+    /// Ej: "lamaprodstorage2025"
+    /// </summary>
+    public string? StorageAccountName { get; set; }
 
     /// <summary>
     /// Clave de instrumentación para Application Insights (se lee de Key Vault en producción).

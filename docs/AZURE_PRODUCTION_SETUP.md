@@ -337,7 +337,92 @@ az storage container list \
   --output table
 ```
 
-### 6.3 Obtener Connection String y Guardar en Key Vault
+### 6.3 Configurar RBAC con Managed Identity (Recomendado)
+
+> **⭐ RECOMENDADO:** Usar Managed Identity con RBAC en lugar de connection strings.
+> No requiere guardar secretos en Key Vault, más seguro y sin rotación de claves.
+
+**Paso 1: Obtener Object ID de la Managed Identity del App Service**
+
+```bash
+# Variables
+$appServiceName = "app-tesorerialamamedellin-prod"
+$resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
+
+# Obtener Principal ID (Object ID) de la System Assigned Managed Identity
+$principalId = $(az webapp identity show \
+  --resource-group $resourceGroup \
+  --name $appServiceName \
+  --query principalId -o tsv)
+
+Write-Host "System Assigned MI Principal ID: $principalId"
+```
+
+**Paso 2: Asignar Rol "Storage Blob Data Contributor" a la Managed Identity**
+
+```bash
+# Variables
+$storageAccountName = "lamaprodstorage2025"
+$storageResourceId = $(az storage account show \
+  --resource-group $resourceGroup \
+  --name $storageAccountName \
+  --query id -o tsv)
+
+Write-Host "Storage Account Resource ID: $storageResourceId"
+
+# Asignar rol RBAC a la Managed Identity
+az role assignment create \
+  --assignee $principalId \
+  --role "Storage Blob Data Contributor" \
+  --scope $storageResourceId
+
+Write-Host "✓ Rol 'Storage Blob Data Contributor' asignado a la Managed Identity del App Service"
+```
+
+**Roles disponibles:**
+- `Storage Blob Data Contributor`: Lectura, escritura y eliminación de blobs (recomendado para backups)
+- `Storage Blob Data Reader`: Solo lectura
+- `Storage Blob Data Owner`: Control total incluyendo ACLs
+
+**Paso 3: Configurar App Settings con URI del Storage Account**
+
+```bash
+# Opción A: Usar StorageBlobServiceUri directamente
+az webapp config appsettings set \
+  --resource-group $resourceGroup \
+  --name $appServiceName \
+  --settings Azure__StorageBlobServiceUri="https://$storageAccountName.blob.core.windows.net/"
+
+# O Opción B: Usar StorageAccountName (el URI se construye automáticamente)
+az webapp config appsettings set \
+  --resource-group $resourceGroup \
+  --name $appServiceName \
+  --settings Azure__StorageAccountName="$storageAccountName"
+
+Write-Host "✓ App Settings configurado con URI de Storage Account"
+```
+
+**Verificar asignación de roles:**
+
+```bash
+# Listar todas las asignaciones de roles para el Storage Account
+az role assignment list \
+  --scope $storageResourceId \
+  --query "[?principalId=='$principalId'].{Role:roleDefinitionName, Principal:principalId}" \
+  --output table
+
+# Resultado esperado:
+# Role                            Principal
+# Storage Blob Data Contributor   xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+### 6.3.1 Alternativa: Usar Connection String (No Recomendado)
+
+> **⚠️ DEPRECADO:** Solo usar si Managed Identity no está disponible.
+> Requiere rotación periódica de claves y almacenamiento seguro de secretos.
+
+<details>
+<summary>Click para ver instrucciones de connection string (legacy)</summary>
 
 **En Azure Portal:**
 1. En Storage Account `lamaprodstorage2025` → **Security + networking** → **Access keys**
@@ -372,6 +457,8 @@ az keyvault secret set \
 Write-Host "✓ Secreto 'Azure--StorageConnectionString' guardado en Key Vault"
 ```
 
+</details>
+
 ### 6.4 Verificar Configuración en la Aplicación
 
 **Endpoint de diagnóstico (después de redeployar):**
@@ -388,10 +475,11 @@ curl -H "Authorization: Bearer <YOUR_AUTH_TOKEN>" \
 #     "keyVaultEnabled": true,
 #     "keyVaultConfigured": true,
 #     "blobStorageEnabled": true,
-#     "blobStorageConfigured": true,      <-- DEBE SER: true
+#     "blobStorageConfigured": true,           <-- DEBE SER: true
+#     "blobStorageAuthMethod": "ManagedIdentity", <-- NUEVO: Indica uso de Managed Identity
 #     "backupContainerName": "sql-backups",
-#     "storageConfigured": true,           <-- NUEVO CAMPO: true
-#     "backupReady": true,                 <-- NUEVO CAMPO: true (si Backup también está habilitado)
+#     "storageConfigured": true,                <-- NUEVO CAMPO: true
+#     "backupReady": true,                      <-- NUEVO CAMPO: true (si Backup también está habilitado)
 #     "appInsightsConfigured": true
 #   }
 # }
@@ -400,13 +488,15 @@ curl -H "Authorization: Bearer <YOUR_AUTH_TOKEN>" \
 **Si `backupReady = true`:**
 - ✅ Storage Account está creado
 - ✅ Contenedor `sql-backups` existe
-- ✅ Connection string está en Key Vault y se cargó correctamente
+- ✅ Managed Identity tiene permisos RBAC (Storage Blob Data Contributor)
+- ✅ URI de Storage Account configurado en App Settings
 - ✅ BackupHostedService está habilitado
 - ✅ Backups automáticos estarán activos
 
 **Si `backupReady = false`:**
 - ❌ Falta alguno de los pasos anteriores
 - ❌ Verifica los logs del App Service para ver el error específico
+- ❌ Verifica asignación de rol RBAC con `az role assignment list`
 - ❌ El BackupHostedService no iniciará
 
 ### 6.5 Verificar Backups Automáticos
@@ -460,7 +550,7 @@ $resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
 $storageAccountName = "lamaprodstorage2025"  # Ejemplo - validar disponibilidad primero
 $containerName = "sql-backups"
 $region = "centralus"  # Región confirmada de todos los recursos
-$keyVaultName = "kvtesorerialamamdln"
+$appServiceName = "app-tesorerialamamedellin-prod"
 ```
 
 **Ejecutar:**
@@ -504,37 +594,57 @@ az storage container list \
 Write-Host "✓ Contenedor '$containerName' creado"
 ```
 
-### 7.3 Paso 3: Obtener Connection String y Guardar en Key Vault
+### 7.3 Paso 3: Configurar RBAC y App Settings con Managed Identity
+
+> **⭐ Paso crítico:** Asignar permisos RBAC y configurar URI (sin connection string)
 
 ```bash
-# Obtener connection string
-$connectionString = $(az storage account show-connection-string \
+Write-Host "=== Configurar RBAC con Managed Identity ==="
+
+# Obtener Principal ID de la System Assigned MI del App Service
+$principalId = $(az webapp identity show \
+  --resource-group $resourceGroup \
+  --name $appServiceName \
+  --query principalId -o tsv)
+
+Write-Host "System Assigned MI Principal ID: $principalId"
+
+# Obtener Resource ID del Storage Account
+$storageResourceId = $(az storage account show \
   --resource-group $resourceGroup \
   --name $storageAccountName \
-  --query connectionString -o tsv)
+  --query id -o tsv)
 
-Write-Host "Connection String (primeros 60 chars): $($connectionString.Substring(0, 60))..."
+Write-Host "Storage Account Resource ID: $storageResourceId"
 
-# Guardar en Key Vault con nombre exacto: Azure--StorageConnectionString
-az keyvault secret set \
-  --vault-name $keyVaultName \
-  --name "Azure--StorageConnectionString" \
-  --value $connectionString
+# Asignar rol "Storage Blob Data Contributor" a la Managed Identity
+az role assignment create \
+  --assignee $principalId \
+  --role "Storage Blob Data Contributor" \
+  --scope $storageResourceId
 
-Write-Host "✓ Secreto 'Azure--StorageConnectionString' guardado en Key Vault"
+Write-Host "✓ Rol 'Storage Blob Data Contributor' asignado a la Managed Identity"
 
-# Verificar que se guardó
-az keyvault secret show \
-  --vault-name $keyVaultName \
-  --name "Azure--StorageConnectionString" \
-  --query id
+# Verificar asignación de roles
+az role assignment list \
+  --scope $storageResourceId \
+  --query "[?principalId=='$principalId'].{Role:roleDefinitionName, Principal:principalId}" \
+  --output table
+
+# Configurar App Settings con URI de Storage Account (Managed Identity no requiere secreto)
+az webapp config appsettings set \
+  --resource-group $resourceGroup \
+  --name $appServiceName \
+  --settings Azure__StorageBlobServiceUri="https://$storageAccountName.blob.core.windows.net/"
+
+Write-Host "✓ App Settings configurado con URI de Storage Account (Managed Identity)"
 ```
 
 ### 7.4 Paso 4: Reiniciar App Service
 
 ```bash
-# Reiniciar para que cargue el secreto actualizado
-$appServiceName = "app-tesorerialamamedellin-prod"
+# Reiniciar para aplicar cambios de configuración
+Write-Host "=== Reiniciar App Service ==="
 
 az webapp restart \
   --resource-group $resourceGroup \

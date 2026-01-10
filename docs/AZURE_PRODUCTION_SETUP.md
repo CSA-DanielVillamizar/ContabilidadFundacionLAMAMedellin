@@ -444,9 +444,242 @@ az storage blob list \
 
 ---
 
-## 7. Checklist de Validación de Producción
+## 7. Validación Post-Configuración (Storage Account y Backups)
 
-### 7.1 Health Checks
+> **Importante:** Esta sección cubre la validación completa después de crear Storage Account y habilitar backups.
+
+### 7.1 Paso 1: Crear Storage Account
+
+**Variables (personaliza según tu entorno):**
+```bash
+$resourceGroup = "RG-TesoreriaLAMAMedellin-Prod"
+$storageAccountName = "lamaprodstorage2025"
+$containerName = "sql-backups"
+$region = "eastus"
+$keyVaultName = "kvtesorerialamamdln"
+```
+
+**Ejecutar:**
+```bash
+# Crear Storage Account
+az storage account create \
+  --resource-group $resourceGroup \
+  --name $storageAccountName \
+  --location $region \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --access-tier Hot \
+  --https-only true \
+  --min-tls-version TLS1_2 \
+  --default-action Deny
+
+Write-Host "✓ Storage Account '$storageAccountName' creado"
+```
+
+### 7.2 Paso 2: Crear Contenedor sql-backups
+
+```bash
+# Crear contenedor
+az storage container create \
+  --name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --public-access off
+
+# Verificar
+az storage container list \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --output table
+
+Write-Host "✓ Contenedor '$containerName' creado"
+```
+
+### 7.3 Paso 3: Obtener Connection String y Guardar en Key Vault
+
+```bash
+# Obtener connection string
+$connectionString = $(az storage account show-connection-string \
+  --resource-group $resourceGroup \
+  --name $storageAccountName \
+  --query connectionString -o tsv)
+
+Write-Host "Connection String (primeros 60 chars): $($connectionString.Substring(0, 60))..."
+
+# Guardar en Key Vault con nombre exacto: Azure--StorageConnectionString
+az keyvault secret set \
+  --vault-name $keyVaultName \
+  --name "Azure--StorageConnectionString" \
+  --value $connectionString
+
+Write-Host "✓ Secreto 'Azure--StorageConnectionString' guardado en Key Vault"
+
+# Verificar que se guardó
+az keyvault secret show \
+  --vault-name $keyVaultName \
+  --name "Azure--StorageConnectionString" \
+  --query id
+```
+
+### 7.4 Paso 4: Reiniciar App Service
+
+```bash
+# Reiniciar para que cargue el secreto actualizado
+$appServiceName = "app-tesorerialamamedellin-prod"
+
+az webapp restart \
+  --resource-group $resourceGroup \
+  --name $appServiceName
+
+Write-Host "✓ App Service '$appServiceName' reiniciado"
+
+# Esperar a que inicie (unos 30-60 segundos)
+Start-Sleep -Seconds 45
+```
+
+### 7.5 Paso 5: Validar /api/diagnostico (backupReady=true)
+
+```bash
+# Nota: Requiere estar autenticado como admin
+# Primero, obtén un token de acceso válido (auth con tu identidad admin)
+
+# Llamar endpoint de diagnóstico
+$diagnosticoUrl = "https://app-tesorerialamamedellin-prod.azurewebsites.net/api/diagnostico"
+
+# Ejemplo con curl (reemplaza $TOKEN con tu token JWT)
+curl -H "Authorization: Bearer $TOKEN" `
+  -H "Content-Type: application/json" `
+  $diagnosticoUrl | ConvertFrom-Json | ConvertTo-Json -Depth 3
+
+# Busca esta sección en la respuesta:
+# "azure": {
+#   "blobStorageEnabled": true,
+#   "blobStorageConfigured": true,   <-- DEBE SER: true
+#   "storageConfigured": true,       <-- DEBE SER: true (validación segura)
+#   "backupReady": true,             <-- DEBE SER: true (indica que todo está listo)
+#   "backupContainerName": "sql-backups"
+# },
+# "backup": {
+#   "enabled": true,
+#   "schedule": "0 2 * * *",
+#   "retentionDays": 30
+# }
+
+Write-Host "✓ Endpoint /api/diagnostico validado"
+```
+
+**Si `backupReady = false`:**
+- Verifica que el secreto se guardó correctamente en Key Vault
+- Revisa los logs de App Service en Application Insights
+- Asegúrate que el contenedor `sql-backups` existe
+- Re-ejecuta el restart del App Service
+
+### 7.6 Paso 6: Validar /health/ready
+
+```bash
+# Health check (sin autenticación)
+$healthUrl = "https://app-tesorerialamamedellin-prod.azurewebsites.net/health/ready"
+
+curl $healthUrl | ConvertFrom-Json | ConvertTo-Json -Depth 2
+
+# Resultado esperado:
+# {
+#   "status": "Healthy",
+#   "checks": {
+#     "database": {
+#       "status": "Healthy",
+#       "description": "Entity Framework Core database health check"
+#     }
+#   },
+#   "totalDuration": "00:00:xx.xxxxxx"
+# }
+
+Write-Host "✓ Health check /health/ready validado (DB conectada)"
+```
+
+### 7.7 Paso 7: Verificar Logs en Application Insights
+
+```bash
+# Ejecutar query en Application Insights para ver inicialización
+# Azure Portal → Application Insights → Logs (Analytics)
+
+# Query KQL:
+traces
+| where timestamp > ago(10m)
+| where severityLevel >= 1
+| project timestamp, severityLevel, message, customDimensions
+| order by timestamp desc
+| take 50
+
+# Busca mensajes como:
+# - "✓ Key Vault configurado"
+# - "✓ Azure Blob Storage configurado"
+# - "Backup automático iniciado"
+```
+
+### 7.8 Paso 8: Verificar Primer Backup (o Esperar a las 2 AM)
+
+```bash
+# Listar blobs en el contenedor sql-backups
+$storageAccountName = "lamaprodstorage2025"
+$containerName = "sql-backups"
+
+az storage blob list \
+  --container-name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --output table
+
+# Resultado esperado (después de que BackupHostedService ejecute a las 2 AM):
+# Name                               Blob Type     Length
+# Backup_20250110_020000.bak         BlockBlob     1073741824
+# Backup_20250109_020000.bak         BlockBlob     1073741824
+
+# Para obtener más detalles:
+az storage blob list \
+  --container-name $containerName \
+  --account-name $storageAccountName \
+  --auth-mode login \
+  --query "[].{Name:name, LastModified:properties.lastModified, Size:properties.contentLength}" \
+  --output table
+
+Write-Host "✓ Blobs en contenedor sql-backups listados"
+```
+
+### 7.9 Comando Rápido: Validación Completa (One-Liner)
+
+```bash
+# Ejecuta todos los checks en secuencia
+Write-Host "========== VALIDACIÓN COMPLETA BACKUPS ==========="
+
+# 1. Storage Account existe
+$sa = az storage account show --resource-group RG-TesoreriaLAMAMedellin-Prod --name lamaprodstorage2025 --query "{Name:name, Status:provisioningState}"
+Write-Host "✓ Storage Account: $($sa | ConvertFrom-Json | Select-Object -ExpandProperty Name)"
+
+# 2. Contenedor existe
+$cont = az storage container exists --account-name lamaprodstorage2025 --name sql-backups --auth-mode login --query exists
+Write-Host "✓ Contenedor sql-backups existe: $cont"
+
+# 3. Key Vault tiene secreto
+$secret = az keyvault secret show --vault-name kvtesorerialamamdln --name "Azure--StorageConnectionString" --query id
+Write-Host "✓ Secreto 'Azure--StorageConnectionString' guardado"
+
+# 4. App Service está ejecutando
+$status = az webapp show --resource-group RG-TesoreriaLAMAMedellin-Prod --name app-tesorerialamamedellin-prod --query state
+Write-Host "✓ App Service status: $status"
+
+# 5. Blobs en contenedor
+$blobs = az storage blob list --container-name sql-backups --account-name lamaprodstorage2025 --auth-mode login --query "length(@)"
+Write-Host "✓ Backups en contenedor: $blobs"
+
+Write-Host "========== ✓ VALIDACIÓN COMPLETADA ==========="
+```
+
+---
+
+## 8. Checklist de Validación de Producción
+
+### 8.1 Health Checks
 
 Ejecuta después del deployment:
 
@@ -471,7 +704,7 @@ curl https://app-tesorerialamamedellin-prod.azurewebsites.net/health/live
 }
 ```
 
-### 7.2 Security Headers
+### 8.2 Security Headers
 
 Verifica que los headers de seguridad estén presentes:
 
@@ -485,7 +718,7 @@ curl -I https://app-tesorerialamamedellin-prod.azurewebsites.net/
 # Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-### 7.3 Rate Limiting
+### 8.3 Rate Limiting
 
 Valida rate limiting realizando múltiples requests:
 
@@ -498,7 +731,7 @@ done
 # El request 101+ deberá retornar 429 (Too Many Requests)
 ```
 
-### 7.4 Endpoint de Diagnóstico (Admin Only)
+### 8.4 Endpoint de Diagnóstico (Admin Only)
 
 ```bash
 # Autentícate como admin y accede a:
@@ -523,7 +756,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 }
 ```
 
-### 7.5 Logs en Application Insights
+### 8.5 Logs en Application Insights
 
 1. Navega a Application Insights → **Logs**
 2. Ejecuta esta query:
@@ -537,7 +770,7 @@ traces
 
 **Resultado esperado:** Logs de inicialización y operaciones registradas.
 
-### 7.6 Migración de Base de Datos
+### 8.6 Migración de Base de Datos
 
 Verifica que las migraciones se ejecutaron:
 

@@ -14,14 +14,71 @@ using Microsoft.AspNetCore.Authorization;
 using Server.Security;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.OutputCaching;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
+using Azure.Storage.Blobs;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
+using Microsoft.AspNetCore.RateLimiting;
+using Server.Infrastructure;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 // Habilitar Static Web Assets (necesario para servir _content/* de paquetes como MudBlazor en cualquier entorno)
 builder.WebHost.UseStaticWebAssets();
 
-// Configuración de logging mejorada
+// ========== INTEGRACIÓN DE AZURE KEY VAULT ==========
+// En producción, usar Managed Identity de Azure para autenticarse sin credenciales hardcodeadas
+if (builder.Environment.IsProduction())
+{
+    try
+    {
+        var azureOptions = new AzureOptions();
+        builder.Configuration.GetSection("Azure").Bind(azureOptions);
+        
+        if (!string.IsNullOrEmpty(azureOptions.KeyVaultEndpoint) && azureOptions.EnableKeyVault)
+        {
+            var keyVaultUri = new Uri(azureOptions.KeyVaultEndpoint);
+            var credential = new DefaultAzureCredential();
+            builder.Configuration.AddAzureKeyVault(keyVaultUri, credential);
+            Log.Logger.Information("✓ Key Vault configurado: {KeyVaultEndpoint}", azureOptions.KeyVaultEndpoint);
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Logger.Warning(ex, "⚠️ Warning: No se pudo conectar a Key Vault");
+        // Continuará usando appsettings en lugar de Key Vault
+    }
+}
+
+// Registrar opciones de configuración (antes de usarlas)
+builder.Services.Configure<AzureOptions>(
+    builder.Configuration.GetSection("Azure"));
+builder.Services.Configure<SerilogOptions>(
+    builder.Configuration.GetSection("Serilog"));
+builder.Services.Configure<RateLimitingOptions>(
+    builder.Configuration.GetSection("RateLimiting"));
+
+// ========== CONFIGURACIÓN DE SERILOG (Structured Logging) ==========
+var serilogOptions = new SerilogOptions();
+builder.Configuration.GetSection("Serilog").Bind(serilogOptions);
+
+var loggerConfig = new LoggerConfiguration()
+    .MinimumLevel.Is(Enum.Parse<LogEventLevel>(serilogOptions.MinimumLevel ?? "Information"))
+    .WriteTo.Console(outputTemplate: serilogOptions.OutputTemplate)
+    .WriteTo.File(
+        serilogOptions.FilePath ?? "Logs/app-.txt",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: serilogOptions.RetainedFileCountLimit,
+        fileSizeLimitBytes: serilogOptions.FileSizeLimitBytes, // 100 MB
+        outputTemplate: serilogOptions.OutputTemplate);
+
+Log.Logger = loggerConfig.CreateLogger();
+builder.Host.UseSerilog();
+
+// Configuración de logging mejorada (legacy - compatible con ILogger)
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
 if (builder.Environment.IsDevelopment())
 {
     builder.Logging.AddDebug();
@@ -39,12 +96,49 @@ builder.Services.Configure<BackupOptions>(
     builder.Configuration.GetSection("Backup"));
 builder.Services.Configure<TwoFactorEnforcementOptions>(
     builder.Configuration.GetSection("TwoFactorEnforcement"));
+
+// ========== REGISTRAR AZURE BLOB STORAGE CLIENT (Opcional con Fallback) ==========
+// Si AzureOptions.UseAzureBlobBackup = true y tenemos StorageConnectionString, registrar BlobServiceClient
+var azureOpts = builder.Configuration.GetSection("Azure").Get<AzureOptions>();
+if (azureOpts?.UseAzureBlobBackup == true && !string.IsNullOrEmpty(azureOpts.StorageConnectionString))
+{
+    try
+    {
+        var blobServiceClient = new BlobServiceClient(azureOpts.StorageConnectionString);
+        builder.Services.AddSingleton(blobServiceClient);
+        Log.Logger.Information("✓ Azure Blob Storage configurado (contenedor: {ContainerName})", azureOpts.BackupContainerName);
+    }
+    catch (Exception ex)
+    {
+        Log.Logger.Warning(ex, "⚠️ Warning: No se pudo configurar Azure Blob Storage");
+        // BackupService usará fallback a almacenamiento local
+    }
+}
+else
+{
+    // Registrar factory que retorna null para permitir fallback local en BackupService
+    builder.Services.AddSingleton<BlobServiceClient>(_ => null!);
+    Log.Logger.Information("ℹ️ Azure Blob Storage deshabilitado - Se usará almacenamiento local");
+}
 builder.Services.AddSingleton<ToastService>();
 builder.Services.AddSingleton<ModalService>();
 
+// ========== CONFIGURAR DbContext CON MANAGED IDENTITY EN PRODUCCIÓN ==========
+// En producción, usar Managed Identity (DefaultAzureCredential) en lugar de Trusted_Connection
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (builder.Environment.IsProduction() && !string.IsNullOrEmpty(connectionString))
+{
+    // En producción, si la connection string no especifica autenticación, usar Managed Identity
+    if (!connectionString.Contains("Authentication=", StringComparison.OrdinalIgnoreCase))
+    {
+        connectionString += ";Authentication=Active Directory Default;";
+    }
+    Console.WriteLine("✓ DbContext configurado para Managed Identity");
+}
+
 // Usar únicamente la factory para evitar conflicto de lifetimes entre DbContextOptions Scoped y Factory Singleton
 builder.Services.AddDbContextFactory<AppDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost;Database=LamaMedellin;Trusted_Connection=True;TrustServerCertificate=True;"));
+    opt.UseSqlServer(connectionString ?? "Server=localhost;Database=LamaMedellin;Trusted_Connection=True;TrustServerCertificate=True;"));
 // Permitir inyección directa de AppDbContext a partir de la factory (scoped por request/circuito)
 builder.Services.AddScoped<AppDbContext>(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
@@ -66,6 +160,69 @@ builder.Services.AddOutputCache(options =>
 {
     options.AddBasePolicy(b => b.Expire(TimeSpan.FromMinutes(5)));
 });
+
+// ========== HEALTH CHECKS ==========
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>(
+        name: "database",
+        tags: new[] { "ready", "live" });
+
+// ========== RATE LIMITING ==========
+var rateLimitingOpts = builder.Configuration.GetSection("RateLimiting").Get<RateLimitingOptions>() 
+    ?? new RateLimitingOptions();
+builder.Services.AddRateLimiter(options =>
+{
+    // Política global: X solicitudes por minuto por IP
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = rateLimitingOpts.GlobalRequestsPerMinute,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            }));
+    
+    // Política de login: X intentos cada Y minutos por IP
+    options.AddPolicy("login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = rateLimitingOpts.LoginMaxAttempts,
+                Window = TimeSpan.FromMinutes(rateLimitingOpts.LoginLimitWindowMinutes),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            }));
+    
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync("Demasiadas solicitudes. Intenta más tarde.", cancellationToken);
+    };
+});
+
+// ========== APPLICATION INSIGHTS & TELEMETRY ==========
+// Se lee de appsettings (ApplicationInsights:ConnectionString) o Key Vault en producción
+var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+if (!string.IsNullOrEmpty(appInsightsConnectionString))
+{
+    builder.Services.AddApplicationInsightsTelemetry(new Microsoft.ApplicationInsights.AspNetCore.Extensions.ApplicationInsightsServiceOptions
+    {
+        ConnectionString = appInsightsConnectionString,
+        EnableAdaptiveSampling = builder.Environment.IsProduction(),
+        EnableDependencyTrackingTelemetryModule = true
+    });
+    var logger = Log.Logger;
+    logger.Information("✓ Application Insights configurado para telemetría en {Environment}", builder.Environment.EnvironmentName);
+}
+else
+{
+    var logger = Log.Logger;
+    logger.Warning("⚠️ Application Insights no configurado - No se enviarán telemetrías a Azure");
+}
+
 // MudBlazor servicios (dialog, snackbar, resize, etc.)
 builder.Services.AddMudServices();
 builder.Services.AddHttpContextAccessor();
@@ -165,6 +322,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminTesorero", policy => policy.RequireRole("Admin", "Tesorero"));
     options.AddPolicy("AdminGerente", policy => policy.RequireRole("Admin", "Gerente"));
     options.AddPolicy("AdminGerenteTesorero", policy => policy.RequireRole("Admin", "Gerente", "Tesorero"));
+    
+    // Política para diagnóstico: solo Admin
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     
     // Policy unificada para Gerencia de Negocios: admite el rol histórico "Gerente" y el rol actual "gerentenegocios"; Admin también tiene acceso
     options.AddPolicy("GerenciaNegocios", policy =>
@@ -267,18 +427,18 @@ if (!app.Environment.IsEnvironment("Testing"))
                                    !string.Equals(Environment.GetEnvironmentVariable("DISABLE_2FA_SEED"), "true", StringComparison.OrdinalIgnoreCase) &&
                                    !string.Equals(Environment.GetEnvironmentVariable("DISABLE_2FA_SEED"), "1", StringComparison.OrdinalIgnoreCase);
             await IdentitySeed.SeedAsync(userManager, roleManager, enable2FAForSeed);
-            Console.WriteLine($"✓ Seed completado exitosamente (producción: octubre 2025) - 2FASeed={(enable2FAForSeed ? "ON" : "OFF")}");
+            Log.Logger.Information("✓ Seed completado exitosamente (producción: octubre 2025) - 2FASeed={TwoFaStatus}", 
+                enable2FAForSeed ? "ON" : "OFF");
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ ERROR en seed: {ex.Message}");
-        Console.WriteLine($"Stack: {ex.StackTrace}");
+        Log.Logger.Error(ex, "❌ ERROR en seed");
         // No relanzar la excepción para permitir que la app continúe
     }
 }
 
-    Console.WriteLine("🚀 Iniciando aplicación...");
+    Log.Logger.Information("🚀 Iniciando aplicación en ambiente {Environment}", builder.Environment.EnvironmentName);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -305,6 +465,15 @@ app.UseStaticFiles();
 app.UseRouting();
 // Output cache (antes de mapear endpoints)
 app.UseOutputCache();
+
+// ========== SECURITY HEADERS MIDDLEWARE (Solo en Producción) ==========
+if (!app.Environment.IsDevelopment())
+{
+    app.UseSecurityHeaders();
+}
+
+// ========== RATE LIMITING MIDDLEWARE ==========
+app.UseRateLimiter();
 // Asegurar carpeta para logs de import
 var importLogsPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "data", "import_logs");
 Directory.CreateDirectory(importLogsPath);
@@ -316,6 +485,54 @@ app.UseAuthorization();
 app.MapBlazorHub();
 app.MapRazorPages();
 app.MapControllers();
+
+// ========== HEALTH CHECKS ENDPOINTS ==========
+// /health - General health status
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString() })
+        };
+        await context.Response.WriteAsJsonAsync(result);
+    }
+}).AllowAnonymous();
+
+// /health/ready - Readiness probe (includes database check)
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = healthCheck => healthCheck.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString() })
+        };
+        await context.Response.WriteAsJsonAsync(result);
+    }
+}).AllowAnonymous();
+
+// /health/live - Liveness probe (basic system health)
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = healthCheck => healthCheck.Tags.Contains("live"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString() })
+        };
+        await context.Response.WriteAsJsonAsync(result);
+    }
+}).AllowAnonymous();
 
 // Endpoint para descargar PDF del recibo
 // PDF endpoint is provided by RecibosController to avoid duplicate route mappings

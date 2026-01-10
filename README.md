@@ -46,11 +46,13 @@ Aplicación web completa para la gestión administrativa, contable y financiera 
 - Página de auditoría con timeline y filtros avanzados
 
 ### 🛠️ Administración
-- Backups automáticos programables
+- Backups automáticos programables en Azure Blob Storage con Managed Identity
+- Health Checks (`/health`, `/health/ready`, `/health/live`)
 - Configuración de entidad RTE
 - Actualización masiva de deudores
 - Corrección de datos históricos
 - Panel de administración completo
+- Endpoint de diagnóstico con información de configuración
 
 ## 📋 Requisitos previos
 
@@ -266,7 +268,443 @@ tests/
     └── [otros tests E2E]
 ```
 
-## 🔐 Roles y permisos
+## 🔐 Seguridad
+
+### Autenticación y Autorización
+- **ASP.NET Core Identity** con roles (Admin, Tesorero, Junta, Consulta)
+- **Managed Identity** para Azure SQL Database (sin credenciales expuestas)
+- **Two-Factor Authentication (2FA)** configurable por usuario
+- **Authorization policies** por rol y funcionalidad
+
+### Protección de datos
+- **Azure Key Vault** para gestión de secretos (configuración, connection strings)
+- **HTTPS obligatorio** en producción (TLS 1.2+)
+- **Endpoint de diagnóstico protegido** (`/api/diagnostico` - Admin only)
+- **SQL Injection prevention** mediante Entity Framework Core y Parameterized Queries
+- **CSRF tokens** en formularios Blazor
+
+### Auditoría y Logging
+- **Registro completo de auditoría** (AuditLog) con:
+  - Usuario que realizó la acción
+  - Timestamp exacto
+  - Tipo de operación (Create, Update, Delete)
+  - Valores anteriores y nuevos
+- **Structured logging** con Serilog
+- **Application Insights** para monitoreo en producción
+
+### Rate Limiting
+- **Limitación de tasa de solicitudes** (100 req/min por IP globalmente)
+- **Protección en login** (máximo 5 intentos fallidos en 15 minutos)
+
+### Security Headers
+- **Content-Security-Policy (CSP)**
+- **X-Frame-Options** contra clickjacking
+- **X-Content-Type-Options** para prevenir MIME sniffing
+- **Strict-Transport-Security** para HTTPS
+
+---
+
+## ☁️ Deployement en Azure
+
+### Infraestructura recomendada
+
+- **App Service** (B2 o superior) - Linux con .NET 8 runtime
+- **Azure SQL Database** - Managed, con Entra ID authentication
+- **Azure Blob Storage** - Para backups automáticos
+- **Application Insights** - Monitoreo y diagnósticos
+- **Azure Key Vault** - Gestión de secretos
+- **App Service Plan** - Standard o Premium
+
+### Backups automáticos en Azure Blob Storage
+
+Los backups se almacenan automáticamente en Azure Blob Storage con **Managed Identity** (sin connection strings):
+
+```json
+{
+  "Azure": {
+    "StorageBlobServiceUri": "https://<storage-account>.blob.core.windows.net/",
+    "BackupContainerName": "sql-backups",
+    "UseAzureBlobBackup": true,
+    "EnableKeyVault": true,
+    "KeyVaultEndpoint": "https://<keyvault>.vault.azure.net/"
+  },
+  "Backup": {
+    "Enabled": true,
+    "CronSchedule": "0 2 * * *",
+    "RetentionDays": 30
+  }
+}
+```
+
+**Configuración requerida:**
+1. System Assigned Managed Identity habilitada en App Service
+2. Rol "Storage Blob Data Contributor" asignado a la MI
+3. App Setting: `Azure__StorageBlobServiceUri`
+4. App Setting: `Azure__BackupContainerName=sql-backups`
+
+Ver guía completa: [docs/AZURE_PRODUCTION_SETUP.md](docs/AZURE_PRODUCTION_SETUP.md)
+
+### Health Checks
+
+Endpoints de verificación disponibles:
+
+- **`GET /health`** - Estado general de la aplicación
+- **`GET /health/ready`** - Aplicación lista (incluye verificación de BD)
+- **`GET /health/live`** - Aplicación viva (health check ligero)
+
+Ejemplo de respuesta en `/health/ready`:
+
+```json
+{
+  "status": "Healthy",
+  "checks": {
+    "database": {
+      "status": "Healthy",
+      "description": "Entity Framework Core database health check"
+    }
+  },
+  "totalDuration": "00:00:00.1234567"
+}
+```
+
+### Diagnóstico y monitoreo
+
+**Endpoint protegido** (requiere rol Admin):
+
+```bash
+GET /api/diagnostico
+
+# Respuesta:
+{
+  "timestamp": "2026-01-10T15:30:00Z",
+  "environment": "Production",
+  "version": "2.0.0",
+  "azure": {
+    "keyVaultEnabled": true,
+    "keyVaultConfigured": true,
+    "blobStorageEnabled": true,
+    "blobStorageConfigured": true,
+    "blobStorageAuthMethod": "ManagedIdentity",
+    "storageConfigured": true,
+    "backupReady": true,
+    "appInsightsConfigured": true
+  },
+  "database": {
+    "authenticationType": "ManagedIdentity",
+    "connectionStringSet": true
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retentionDays": 30
+  }
+}
+```
+
+---
+
+## � Health Checks
+
+Monitorear la salud de la aplicación en producción:
+
+```bash
+# Estado general
+curl https://tesorerialamamedellin.azurewebsites.net/health
+
+# Listos para servir (readiness)
+curl https://tesorerialamamedellin.azurewebsites.net/health/ready
+
+# Vivo/responsivo (liveness)
+curl https://tesorerialamamedellin.azurewebsites.net/health/live
+
+# Diagnóstico completo (requiere Admin)
+curl -H "Authorization: Bearer <token>" \
+  https://tesorerialamamedellin.azurewebsites.net/api/diagnostico
+```
+
+**Ejemplo de respuesta `/health/ready`:**
+
+```json
+{
+  "status": "Healthy",
+  "checks": {
+    "database": "Healthy",
+    "keyVault": "Healthy",
+    "blobStorage": "Healthy"
+  },
+  "totalDuration": "125ms"
+}
+```
+
+**Configurar en Azure Monitor:**
+
+1. En Azure Portal → App Service → Health Check
+2. Ruta: `/health/ready`
+3. Intervalo: 60 segundos
+4. Umbral de error: 3
+
+---
+
+## 🔐 Seguridad
+
+### Autenticación y Autorización
+
+La aplicación implementa múltiples capas de seguridad:
+
+**Identidad Administrada (Managed Identity):**
+- ✅ Acceso a Azure SQL Database sin credentials
+- ✅ Acceso a Azure Blob Storage (backups) sin connection strings
+- ✅ Acceso a Azure Key Vault sin secrets en código
+- ✅ Basado en RBAC (Role-Based Access Control)
+
+```csharp
+// En Program.cs
+builder.Services.AddAzureClients(clientBuilder =>
+{
+    clientBuilder.AddBlobServiceClient(storageBlobServiceUri)
+        .WithCredential(new DefaultAzureCredential());
+});
+```
+
+**ASP.NET Core Identity:**
+- ✅ Usuarios y contraseñas hasheadas (PBKDF2)
+- ✅ Autenticación de 2 factores (2FA)
+- ✅ Confirmación de email requerida
+- ✅ Lockout temporal tras intentos fallidos
+
+**Control de Acceso Basado en Roles (RBAC):**
+
+| Rol | Permisos |
+|-----|----------|
+| **Admin** | Acceso completo, auditoría, diagnósticos, backups |
+| **Tesorero** | Crear/editar recibos, consultas financieras |
+| **Junta** | Consultas de reportes, estados financieros |
+| **Consulta** | Lectura de datos públicos, reportes básicos |
+
+### Protección de Datos
+
+**Key Vault Integration:**
+- Secretos almacenados en Azure Key Vault
+- Acceso mediante Managed Identity
+- Rotación automática de secretos
+
+```bash
+# Recuperar secreto (el app usa MI automáticamente)
+az keyvault secret show \
+  --vault-name kvtesorerialamamdln \
+  --name ConnectionString-LamaMedellin
+```
+
+**HTTPS obligatorio:**
+```csharp
+// En Program.cs
+app.UseHttpsRedirection();
+```
+
+**Protección contra CSRF:**
+```html
+<!-- Cada formulario genera token automáticamente -->
+<form method="post" action="/api/recibos">
+    @Html.AntiForgeryToken()
+    <!-- ... -->
+</form>
+```
+
+**Prevención de inyección SQL:**
+```csharp
+// ✅ SEGURO: Parámetros con Entity Framework Core
+var miembros = await _context.Miembros
+    .FromSqlInterpolated($"SELECT * FROM Miembros WHERE NumeroSocio = {numero}")
+    .ToListAsync();
+
+// ❌ INSEGURO (nunca hacer esto)
+var sql = $"SELECT * FROM Miembros WHERE NumeroSocio = {numero}";
+```
+
+**Encabezados de Seguridad:**
+
+```csharp
+// En Program.cs
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Add("X-Frame-Options", "DENY");
+    context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Add("Content-Security-Policy", 
+        "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'");
+    await next();
+});
+```
+
+### Auditoría y Logging
+
+**Tabla de Auditoría:**
+```sql
+SELECT TOP 10 
+    Id,
+    Usuario,
+    Accion,
+    Tabla,
+    Valores,
+    FechaHora
+FROM AuditLog
+ORDER BY FechaHora DESC;
+```
+
+**Logging Estructurado (Serilog):**
+```json
+{
+  "Serilog": {
+    "MinimumLevel": "Information",
+    "WriteTo": [
+      {
+        "Name": "ApplicationInsights",
+        "Args": { "connectionString": "InstrumentationKey=..." }
+      }
+    ]
+  }
+}
+```
+
+**Monitoreo en Application Insights:**
+- Rastreo de excepciones
+- Métricas de rendimiento
+- Eventos personalizados de negocio
+
+### Rate Limiting
+
+Protección contra abuso y ataques de fuerza bruta:
+
+```csharp
+// Límite global: 100 solicitudes por minuto
+// Límite de login: 5 intentos por 15 minutos
+// Por IP y usuario
+
+app.UseRateLimiter();
+```
+
+---
+
+## ☁️ Deployment en Azure
+
+### Arquitectura Recomendada
+
+```
+┌─────────────────────────────────────────────┐
+│ Azure App Service (Blazor Server)           │
+│ SKU: B2 o superior                          │
+│ Runtime: .NET 8                             │
+│ Managed Identity: System Assigned           │
+└──────────────┬──────────────────────────────┘
+               │
+    ┌──────────┼──────────┬──────────────┐
+    │          │          │              │
+    ▼          ▼          ▼              ▼
+┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│Azure   │ │Azure SQL │ │Azure     │ │Azure App │
+│Key     │ │Database  │ │Blob      │ │Insights  │
+│Vault   │ │          │ │Storage   │ │          │
+└────────┘ └──────────┘ └──────────┘ └──────────┘
+```
+
+### Configuración de Backups con Managed Identity
+
+**Archivo `appsettings.json` (Production):**
+
+```json
+{
+  "Azure": {
+    "StorageBlobServiceUri": "https://lamaprodstorage2025.blob.core.windows.net/",
+    "StorageAccountName": "lamaprodstorage2025",
+    "BackupContainerName": "sql-backups",
+    "UseAzureBlobBackup": true,
+    "EnableKeyVault": true,
+    "KeyVaultEndpoint": "https://kvtesorerialamamdln.vault.azure.net/"
+  },
+  "Backup": {
+    "Enabled": true,
+    "CronSchedule": "0 2 * * *",
+    "RetentionDays": 30,
+    "Server": "sql-tesorerialamamedellin-prod.database.windows.net",
+    "Database": "sqldb-tesorerialamamedellin-prod"
+  }
+}
+```
+
+**Configuración de RBAC (Role-Based Access Control):**
+
+```bash
+# 1. Obtener el Principal ID de la Managed Identity
+PRINCIPAL_ID=$(az webapp identity show \
+  --resource-group rg-tesorerialamamedellin-prod \
+  --name tesorerialamamedellin \
+  --query principalId -o tsv)
+
+# 2. Asignar rol "Storage Blob Data Contributor"
+az role assignment create \
+  --assignee $PRINCIPAL_ID \
+  --role "Storage Blob Data Contributor" \
+  --scope /subscriptions/{subscription-id}/resourceGroups/rg-tesorerialamamedellin-prod/providers/Microsoft.Storage/storageAccounts/lamaprodstorage2025
+
+# 3. Verificar la asignación
+az role assignment list \
+  --assignee $PRINCIPAL_ID \
+  --output table
+```
+
+**Método de Autenticación:** `DefaultAzureCredential()`
+- Búsqueda automática de Managed Identity
+- Sin almacenamiento de credenciales
+- Fallback: Variables de entorno, CLI, Visual Studio
+
+Ver guía detallada: [docs/AZURE_PRODUCTION_SETUP.md](docs/AZURE_PRODUCTION_SETUP.md)
+
+### Endpoints de Health Check
+
+```
+GET /health                    → Estado general (público)
+GET /health/ready             → Listos para servir (público)
+GET /health/live              → Vivo/responsivo (público)
+GET /api/diagnostico          → Diagnósticos completos (requiere Admin)
+```
+
+**Ejemplo de respuesta `/api/diagnostico` (requiere rol Admin):**
+
+```json
+{
+  "applicationVersion": "1.0.0",
+  "environment": "AzureProduction",
+  "aspNetCoreEnvironment": "Production",
+  "databaseConnected": true,
+  "databaseName": "sqldb-tesorerialamamedellin-prod",
+  "keyVaultEnabled": true,
+  "keyVaultConnected": true,
+  "storageConfigured": true,
+  "backupReady": true,
+  "blobStorageAuthMethod": "ManagedIdentity",
+  "healthChecksPassed": 5,
+  "lastBackup": "2025-01-13T02:15:30Z",
+  "timestamp": "2025-01-13T10:45:22Z"
+}
+```
+
+### Tabla de Configuración Requerida
+
+| Configuración | Valor Ejemplo | Requerido | Notas |
+|---------------|---------------|-----------|-------|
+| `StorageBlobServiceUri` | `https://lamaprodstorage2025.blob.core.windows.net/` | Sí (Prod) | URI de Storage Account |
+| `StorageAccountName` | `lamaprodstorage2025` | Alternativo | Si no se proporciona URI |
+| `BackupContainerName` | `sql-backups` | Sí (Prod) | Debe ser exacto |
+| `UseAzureBlobBackup` | `true` | Sí (Prod) | Falla en Prod si es false |
+| `KeyVaultEndpoint` | `https://kvtesorerialamamdln.vault.azure.net/` | Sí (Prod) | Para secrets rotables |
+| `EnableKeyVault` | `true` | Sí (Prod) | Requiere Key Vault |
+| **RBAC Role** | `Storage Blob Data Contributor` | Sí | Asignado a System Assigned MI |
+| **Managed Identity** | System Assigned | Sí | En App Service |
+
+---
+
+## �🔐 Roles y permisos
 
 | Rol | Permisos |
 |-----|----------|
@@ -338,14 +776,43 @@ Configurar en `appsettings.json`:
 
 ```json
 {
+  "Azure": {
+    "StorageBlobServiceUri": "https://lamaprodstorage2025.blob.core.windows.net/",
+    "BackupContainerName": "sql-backups",
+    "UseAzureBlobBackup": true,
+    "EnableKeyVault": true,
+    "KeyVaultEndpoint": "https://kvtesorerialamamdln.vault.azure.net/"
+  },
   "Backup": {
     "Enabled": true,
-    "Schedule": "0 2 * * *",
-    "Path": "C:\\Backups\\LamaMedellin",
-    "RetentionDays": 30
+    "CronSchedule": "0 2 * * *",
+    "Path": "Backups",
+    "RetentionDays": 30,
+    "Server": "sql-tesorerialamamedellin-prod.database.windows.net",
+    "Database": "sqldb-tesorerialamamedellin-prod"
   }
 }
 ```
+
+**Características:**
+- ✅ Backups automáticos diarios a las 2 AM UTC
+- ✅ Autenticación con Managed Identity (sin credentials)
+- ✅ Retención configurable (default 30 días)
+- ✅ Compresión de archivos .bak
+- ✅ Limpieza automática de backups antiguos
+
+**Verificar backups:**
+
+```bash
+# Listar backups en Azure Blob Storage
+az storage blob list \
+  --container-name sql-backups \
+  --account-name lamaprodstorage2025 \
+  --auth-mode login \
+  --output table
+```
+
+Ver guía rápida: [GUIA_RAPIDA_BACKUPS.md](GUIA_RAPIDA_BACKUPS.md)
 
 ## 📝 Convenciones de código
 

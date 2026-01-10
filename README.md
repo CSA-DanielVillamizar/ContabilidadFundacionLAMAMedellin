@@ -755,7 +755,7 @@ Editar en `appsettings.json`:
     "Port": 587,
     "Username": "tu-correo@gmail.com",
     "Password": "tu-contraseña-app",
-    "FromEmail": "noreply@fundacionlamemedellin.org",
+    "FromEmail": "noreply@fundacionlamamedellin.org",
     "FromName": "L.A.M.A. Medellín"
   }
 }

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Server.Data;
 using Server.Models;
+using Server.Services.MovimientosTesoreria;
 
 namespace Server.Services.Import;
 
@@ -24,17 +25,20 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
     private readonly ILogger<ExcelTreasuryImportService> _logger;
     private readonly ImportOptions _options;
     private readonly CierreContable.CierreContableService _cierreService;
+    private readonly MovimientosTesoreriaService _movimientosService;
 
     public ExcelTreasuryImportService(
         IDbContextFactory<AppDbContext> dbFactory,
         ILogger<ExcelTreasuryImportService> logger,
         IOptions<ImportOptions> options,
-        CierreContable.CierreContableService cierreService)
+        CierreContable.CierreContableService cierreService,
+        MovimientosTesoreriaService movimientosService)
     {
         _dbFactory = dbFactory;
         _logger = logger;
         _options = options.Value;
         _cierreService = cierreService;
+        _movimientosService = movimientosService;
     }
 
     public async Task<ImportSummary> ImportAsync(string? filePath = null, bool dryRun = false)
@@ -189,10 +193,25 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
                 summary.MovimientosImported += movimientosNuevos.Count;
                 summary.MovimientosSkipped += movimientos.Count - movimientosNuevos.Count;
 
+                // ✅ BLINDAJE CRÍTICO: Usar MovimientosTesoreriaService para cada movimiento
+                // Esto asegura que la validación de cierre contable se aplique a cada creación
                 if (movimientosNuevos.Count > 0)
                 {
-                    db.MovimientosTesoreria.AddRange(movimientosNuevos);
-                    await db.SaveChangesAsync();
+                    var usuarioImport = "import-system";
+                    foreach (var movimiento in movimientosNuevos)
+                    {
+                        try
+                        {
+                            // El servicio valida que el mes NO esté cerrado
+                            await _movimientosService.CreateAsync(movimiento, usuarioImport);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            // Si un mes está cerrado, registrar el error y continuar
+                            summary.Errors.Add($"❌ {ex.Message} (Movimiento: {movimiento.NumeroMovimiento})");
+                            summary.MovimientosImported--; // Revertir contador
+                        }
+                    }
                 }
             }
             else

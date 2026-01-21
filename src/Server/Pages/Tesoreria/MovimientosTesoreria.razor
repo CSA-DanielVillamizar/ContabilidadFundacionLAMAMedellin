@@ -7,7 +7,284 @@
 
 <PageTitle>Movimientos de Tesorería</PageTitle>
 
-<h3>Movimientos de Tesorería</h3>
+<h3>Movimientos de Tesorería - Ledger Oficial</h3>
+
+<div class="alerts" style="margin-bottom:1rem;">
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>❌ Error:</strong> @errorMessage
+            <button type="button" class="btn-close" @onclick="ClearErrors"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong>✅ Éxito:</strong> @successMessage
+            <button type="button" class="btn-close" @onclick="ClearSuccess"></button>
+        </div>
+    }
+</div>
+
+<!-- FILTROS -->
+<div class="card" style="padding:1rem; margin-bottom:1rem;">
+    <h5>Filtros</h5>
+    <div class="row">
+        <div class="col-md-2">
+            <label>Inicio:</label>
+            <input type="date" @bind="filtroInicio" class="form-control form-control-sm" />
+        </div>
+        <div class="col-md-2">
+            <label>Fin:</label>
+            <input type="date" @bind="filtroFin" class="form-control form-control-sm" />
+        </div>
+        <div class="col-md-2">
+            <label>Cuenta:</label>
+            <select @bind="filtroCuenta" class="form-control form-control-sm">
+                <option value="">(Todas)</option>
+                @foreach (var c in cuentas)
+                {
+                    <option value="@c.Id">@c.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Tipo:</label>
+            <select @bind="filtroTipo" class="form-control form-control-sm">
+                <option value="">(Todos)</option>
+                <option value="@TipoMovimientoTesoreria.Ingreso">Ingreso</option>
+                <option value="@TipoMovimientoTesoreria.Egreso">Egreso</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Estado:</label>
+            <select @bind="filtroEstado" class="form-control form-control-sm">
+                <option value="">(Todos)</option>
+                <option value="@EstadoMovimientoTesoreria.Borrador">Borrador</option>
+                <option value="@EstadoMovimientoTesoreria.Aprobado">Aprobado</option>
+                <option value="@EstadoMovimientoTesoreria.Anulado">Anulado</option>
+            </select>
+        </div>
+        <div class="col-md-2" style="padding-top:1.5rem;">
+            <button @onclick="CargarMovimientos" class="btn btn-primary btn-sm">🔍 Filtrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- BOTÓN NUEVO MOVIMIENTO -->
+<button @onclick="PrepararNuevo" class="btn btn-success btn-sm" style="margin-bottom:1rem;">
+    ➕ Nuevo Movimiento
+</button>
+
+<!-- FORMULARIO NUEVO/EDITAR/ANULAR -->
+@if (modo != "list")
+{
+    <div class="card" style="padding:1rem; margin-bottom:1rem; border-left: 4px solid #007bff;">
+        <h5>@(modo == "create" ? "Nuevo Movimiento" : modo == "edit" ? $"Editar: {formularioMovimiento?.NumeroMovimiento}" : $"Anular: {formularioMovimiento?.NumeroMovimiento}")</h5>
+        
+        @if (modo == "create" || modo == "edit")
+        {
+            <div class="row" style="margin-bottom:0.5rem;">
+                <div class="col-md-3">
+                    <label><strong>Número:</strong></label>
+                    <input type="text" @bind="formularioMovimiento.NumeroMovimiento" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-3">
+                    <label><strong>Fecha:</strong></label>
+                    <input type="datetime-local" @bind="formularioMovimiento.Fecha" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-3">
+                    <label><strong>Cuenta:</strong></label>
+                    <select @bind="formularioMovimiento.CuentaFinancieraId" class="form-control form-control-sm">
+                        <option value="">-- Seleccionar --</option>
+                        @foreach (var c in cuentas)
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label><strong>Tipo:</strong></label>
+                    <select @bind="formularioMovimiento.Tipo" class="form-control form-control-sm">
+                        <option value="@TipoMovimientoTesoreria.Ingreso">Ingreso</option>
+                        <option value="@TipoMovimientoTesoreria.Egreso">Egreso</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row" style="margin-bottom:0.5rem;">
+                <div class="col-md-3">
+                    <label><strong>Valor:</strong></label>
+                    <input type="number" step="0.01" @bind="formularioMovimiento.Valor" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-3">
+                    <label><strong>Medio Pago:</strong></label>
+                    <select @bind="formularioMovimiento.Medio" class="form-control form-control-sm">
+                        @foreach (var m in Enum.GetValues<MedioPagoTesoreria>())
+                        {
+                            <option value="@m">@m</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label><strong>Fuente Ingreso:</strong></label>
+                    <select @bind="formularioMovimiento.FuenteIngresoId" class="form-control form-control-sm">
+                        <option value="">(N/A)</option>
+                        @foreach (var f in fuentes)
+                        {
+                            <option value="@f.Id">@f.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label><strong>Categoría Egreso:</strong></label>
+                    <select @bind="formularioMovimiento.CategoriaEgresoId" class="form-control form-control-sm">
+                        <option value="">(N/A)</option>
+                        @foreach (var cat in categorias)
+                        {
+                            <option value="@cat.Id">@cat.Nombre</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="row" style="margin-bottom:1rem;">
+                <div class="col-md-6">
+                    <label><strong>Descripción:</strong></label>
+                    <textarea @bind="formularioMovimiento.Descripcion" class="form-control form-control-sm" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label><strong>Referencia Transacción:</strong></label>
+                    <input type="text" @bind="formularioMovimiento.ReferenciaTransaccion" class="form-control form-control-sm" />
+                </div>
+            </div>
+        }
+
+        @if (modo == "anular")
+        {
+            <div style="margin-bottom:1rem;">
+                <div class="alert alert-warning">
+                    <strong>⚠️ Anulando:</strong> @formularioMovimiento.NumeroMovimiento
+                    <br />Valor: $@formularioMovimiento.Valor:N0
+                    <br />Fecha: @formularioMovimiento.Fecha:g
+                </div>
+                <label><strong>Motivo de Anulación:</strong></label>
+                <textarea @bind="motivoAnulacion" class="form-control form-control-sm" rows="3" placeholder="Explicar por qué se anula este movimiento..."></textarea>
+            </div>
+        }
+
+        <div>
+            @if (modo == "create")
+            {
+                <button @onclick="GuardarNuevo" class="btn btn-success btn-sm">✅ Crear</button>
+            }
+            else if (modo == "edit")
+            {
+                <button @onclick="GuardarEdicion" class="btn btn-warning btn-sm">✏️ Actualizar</button>
+            }
+            else if (modo == "anular")
+            {
+                <button @onclick="GuardarAnulacion" class="btn btn-danger btn-sm">🛑 Anular Movimiento</button>
+            }
+            <button @onclick="CancelarFormulario" class="btn btn-secondary btn-sm">Cancelar</button>
+        </div>
+    </div>
+}
+
+<!-- TABLA MOVIMIENTOS -->
+<div style="overflow-x: auto;">
+    <table class="table table-striped table-hover" style="font-size:0.9rem; margin-top:1rem;">
+        <thead class="table-dark">
+            <tr>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Valor</th>
+                <th>Cuenta</th>
+                <th>Estado</th>
+                <th>Creado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (movimientos.Count > 0)
+            {
+                @foreach (var m in movimientos)
+                {
+                    <tr>
+                        <td><strong>@m.NumeroMovimiento</strong></td>
+                        <td>@m.Fecha:d</td>
+                        <td>
+                            @if (m.Tipo == TipoMovimientoTesoreria.Ingreso)
+                            {
+                                <span class="badge bg-success">↓ Ingreso</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">↑ Egreso</span>
+                            }
+                        </td>
+                        <td class="text-end"><strong>${@m.Valor:N0}</strong></td>
+                        <td>@cuentas.FirstOrDefault(c => c.Id == m.CuentaFinancieraId)?.Nombre</td>
+                        <td>
+                            @if (m.Estado == EstadoMovimientoTesoreria.Borrador)
+                            {
+                                <span class="badge bg-secondary">Borrador</span>
+                            }
+                            else if (m.Estado == EstadoMovimientoTesoreria.Aprobado)
+                            {
+                                <span class="badge bg-success">Aprobado</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Anulado</span>
+                            }
+                        </td>
+                        <td>@m.CreatedBy<br />@m.CreatedAt:g</td>
+                        <td>
+                            <button @onclick="() => PrepararEdicion(m.Id)" class="btn btn-warning btn-sm btn-sm" style="padding:2px 6px; font-size:0.8rem;" title="Editar">✏️</button>
+                            @if (m.Estado != EstadoMovimientoTesoreria.Anulado)
+                            {
+                                <button @onclick="() => PrepararAnulacion(m.Id)" class="btn btn-danger btn-sm" style="padding:2px 6px; font-size:0.8rem;" title="Anular">🛑</button>
+                            }
+                            <button @onclick="() => MostrarDetalle(m)" class="btn btn-info btn-sm" style="padding:2px 6px; font-size:0.8rem;" title="Detalle">👁️</button>
+                        </td>
+                    </tr>
+
+                    @if (detalleMovimientoId == m.Id)
+                    {
+                        <tr class="table-info">
+                            <td colspan="8" style="padding:1rem;">
+                                <strong>Descripción:</strong> @m.Descripcion<br />
+                                <strong>Medio Pago:</strong> @m.Medio<br />
+                                @if (!string.IsNullOrEmpty(m.ReferenciaTransaccion))
+                                {
+                                    <strong>Referencia:</strong> @m.ReferenciaTransaccion<br />
+                                }
+                                @if (m.Estado == EstadoMovimientoTesoreria.Anulado && !string.IsNullOrEmpty(m.MotivoAnulacion))
+                                {
+                                    <div class="alert alert-danger" style="margin-top:0.5rem; margin-bottom:0;">
+                                        <strong>⚠️ Motivo Anulación:</strong> @m.MotivoAnulacion<br />
+                                        <strong>Anulado por:</strong> @m.UsuarioAnulacion<br />
+                                        <strong>Fecha Anulación:</strong> @m.FechaAnulacion:g
+                                    </div>
+                                }
+                                <button @onclick="OcultarDetalle" class="btn btn-sm btn-secondary" style="margin-top:0.5rem;">Cerrar</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="8" class="text-center text-muted">No hay movimientos que coincidan con los filtros</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
 
 @code {
     [Inject] AppDbContext Db { get; set; } = default!;
@@ -15,7 +292,15 @@
     [Inject] IHttpContextAccessor HttpContext { get; set; } = default!;
 
     private List<MovimientoTesoreria> movimientos = new();
-    private MovimientoTesoreria nuevo = new();
+    private List<CuentaFinanciera> cuentas = new();
+    private List<FuenteIngreso> fuentes = new();
+    private List<CategoriaEgreso> categorias = new();
+
+    private MovimientoTesoreria formularioMovimiento = new();
+    private string modo = "list"; // list, create, edit, anular
+    private Guid? detalleMovimientoId;
+    private string motivoAnulacion = "";
+    
     private string? errorMessage;
     private string? successMessage;
 
@@ -24,10 +309,6 @@
     private Guid? filtroCuenta;
     private TipoMovimientoTesoreria? filtroTipo;
     private EstadoMovimientoTesoreria? filtroEstado;
-
-    private List<CuentaFinanciera> cuentas = new();
-    private List<FuenteIngreso> fuentes = new();
-    private List<CategoriaEgreso> categorias = new();
 
     private string CurrentUser => HttpContext.HttpContext?.User?.Identity?.Name ?? "system";
 
@@ -41,7 +322,6 @@
 
     private async Task CargarMovimientos()
     {
-        errorMessage = null;
         try
         {
             movimientos = await MovimientosService.ListAsync(
@@ -50,7 +330,7 @@
                 cuentaId: filtroCuenta,
                 tipo: filtroTipo,
                 estado: filtroEstado,
-                maxResults: 200
+                maxResults: 500
             );
         }
         catch (Exception ex)
@@ -59,38 +339,28 @@
         }
     }
 
+    // CREATE
     private void PrepararNuevo()
     {
-        errorMessage = null;
-        successMessage = null;
-        nuevo = new MovimientoTesoreria
+        ClearMessages();
+        modo = "create";
+        formularioMovimiento = new MovimientoTesoreria
         {
             NumeroMovimiento = $"MV-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Fecha = DateTime.UtcNow,
             Tipo = TipoMovimientoTesoreria.Ingreso,
             Medio = MedioPagoTesoreria.Transferencia,
-            Descripcion = string.Empty,
-            Valor = 0m
+            CuentaFinancieraId = Guid.Empty
         };
     }
 
     private async Task GuardarNuevo()
     {
-        errorMessage = null;
-        successMessage = null;
-
-        if (nuevo.CuentaFinancieraId == Guid.Empty || string.IsNullOrWhiteSpace(nuevo.NumeroMovimiento))
-        {
-            errorMessage = "Complete todos los campos obligatorios.";
-            return;
-        }
-
         try
         {
-            // ✅ El servicio valida automáticamente si el mes está cerrado
-            await MovimientosService.CreateAsync(nuevo, CurrentUser);
-            successMessage = $"✅ Movimiento {nuevo.NumeroMovimiento} creado exitosamente.";
-            nuevo = new MovimientoTesoreria(); // Limpiar formulario
+            await MovimientosService.CreateAsync(formularioMovimiento, CurrentUser);
+            successMessage = $"✅ Movimiento {formularioMovimiento.NumeroMovimiento} creado exitosamente.";
+            modo = "list";
             await CargarMovimientos();
         }
         catch (InvalidOperationException ex)
@@ -99,139 +369,126 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error al guardar: {ex.Message}";
+            errorMessage = $"Error: {ex.Message}";
         }
-        
-        StateHasChanged();
     }
-}
 
-<!-- UI básica sin MudBlazor para MVP -->
-
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger" role="alert" style="margin-bottom:1rem;">
-        @errorMessage
-    </div>
-}
-
-@if (!string.IsNullOrEmpty(successMessage))
-{
-    <div class="alert alert-success" role="alert" style="margin-bottom:1rem;">
-        @successMessage
-    </div>
-}
-
-<div class="filters" style="margin-bottom:1rem;">
-    <label>Inicio: <input type="date" @bind="filtroInicio" /></label>
-    <label>Fin: <input type="date" @bind="filtroFin" /></label>
-    <label>Cuenta:
-        <select @bind="filtroCuenta">
-            <option value="">(Todas)</option>
-            @foreach (var c in cuentas)
-            {
-                <option value="@c.Id">@c.Nombre</option>
-            }
-        </select>
-    </label>
-    <label>Tipo:
-        <select @bind="filtroTipo">
-            <option value="">(Todos)</option>
-            <option value="@TipoMovimientoTesoreria.Ingreso">Ingreso</option>
-            <option value="@TipoMovimientoTesoreria.Egreso">Egreso</option>
-        </select>
-    </label>
-    <label>Estado:
-        <select @bind="filtroEstado">
-            <option value="">(Todos)</option>
-            <option value="@EstadoMovimientoTesoreria.Borrador">Borrador</option>
-            <option value="@EstadoMovimientoTesoreria.Aprobado">Aprobado</option>
-            <option value="@EstadoMovimientoTesoreria.Anulado">Anulado</option>
-        </select>
-    </label>
-    <button @onclick="CargarMovimientos">Filtrar</button>
-</div>
-
-<button @onclick="PrepararNuevo">Nuevo Movimiento</button>
-
-@if (!string.IsNullOrEmpty(nuevo.NumeroMovimiento))
-{
-    <div class="card" style="padding:1rem; margin-top:1rem;">
-        <label>Número: <input @bind="nuevo.NumeroMovimiento" /></label><br />
-        <label>Fecha: <input type="datetime-local" @bind="nuevo.Fecha" /></label><br />
-        <label>Cuenta:
-            <select @bind="nuevo.CuentaFinancieraId">
-                @foreach (var c in cuentas)
-                {
-                    <option value="@c.Id">@c.Nombre</option>
-                }
-            </select>
-        </label><br />
-        <label>Tipo:
-            <select @bind="nuevo.Tipo">
-                <option value="@TipoMovimientoTesoreria.Ingreso">Ingreso</option>
-                <option value="@TipoMovimientoTesoreria.Egreso">Egreso</option>
-            </select>
-        </label><br />
-        <label>Fuente ingreso:
-            <select @bind="nuevo.FuenteIngresoId">
-                <option value="">(N/A)</option>
-                @foreach (var f in fuentes)
-                {
-                    <option value="@f.Id">@f.Nombre</option>
-                }
-            </select>
-        </label><br />
-        <label>Categoría egreso:
-            <select @bind="nuevo.CategoriaEgresoId">
-                <option value="">(N/A)</option>
-                @foreach (var cat in categorias)
-                {
-                    <option value="@cat.Id">@cat.Nombre</option>
-                }
-            </select>
-        </label><br />
-        <label>Medio:
-            <select @bind="nuevo.Medio">
-                <option value="@MedioPagoTesoreria.Transferencia">Transferencia</option>
-                <option value="@MedioPagoTesoreria.Consignacion">Consignación</option>
-                <option value="@MedioPagoTesoreria.Efectivo">Efectivo</option>
-                <option value="@MedioPagoTesoreria.Cheque">Cheque</option>
-                <option value="@MedioPagoTesoreria.Nequi">Nequi</option>
-                <option value="@MedioPagoTesoreria.Daviplata">Daviplata</option>
-                <option value="@MedioPagoTesoreria.Tarjeta">Tarjeta</option>
-            </select>
-        </label><br />
-        <label>Valor: <input type="number" step="0.01" @bind="nuevo.Valor" /></label><br />
-        <label>Descripción: <input @bind="nuevo.Descripcion" /></label><br />
-        <button @onclick="GuardarNuevo">Guardar</button>
-    </div>
-}
-
-<table class="table" style="margin-top:1rem;">
-    <thead>
-        <tr>
-            <th>Número</th>
-            <th>Fecha</th>
-            <th>Cuenta</th>
-            <th>Tipo</th>
-            <th>Estado</th>
-            <th>Valor</th>
-            <th>Descripción</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var m in movimientos)
+    // EDIT
+    private async Task PrepararEdicion(Guid id)
+    {
+        ClearMessages();
+        try
         {
-            <tr>
-                <td>@m.NumeroMovimiento</td>
-                <td>@m.Fecha</td>
-                <td>@cuentas.FirstOrDefault(c => c.Id == m.CuentaFinancieraId)?.Nombre</td>
-                <td>@m.Tipo</td>
-                <td>@m.Estado</td>
-                <td>@m.Valor.ToString("N0")</td>
-                <td>@m.Descripcion</td>
-            </tr>
+            var movimiento = await MovimientosService.GetByIdAsync(id);
+            if (movimiento != null)
+            {
+                formularioMovimiento = movimiento;
+                modo = "edit";
+            }
+            else
+            {
+                errorMessage = "Movimiento no encontrado";
+            }
         }
-    </tbody>
-</table>
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task GuardarEdicion()
+    {
+        try
+        {
+            await MovimientosService.UpdateAsync(formularioMovimiento.Id, formularioMovimiento, CurrentUser);
+            successMessage = $"✅ Movimiento {formularioMovimiento.NumeroMovimiento} actualizado exitosamente.";
+            modo = "list";
+            await CargarMovimientos();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    // ANULAR
+    private async Task PrepararAnulacion(Guid id)
+    {
+        ClearMessages();
+        try
+        {
+            var movimiento = await MovimientosService.GetByIdAsync(id);
+            if (movimiento != null)
+            {
+                formularioMovimiento = movimiento;
+                modo = "anular";
+                motivoAnulacion = "";
+            }
+            else
+            {
+                errorMessage = "Movimiento no encontrado";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task GuardarAnulacion()
+    {
+        if (string.IsNullOrWhiteSpace(motivoAnulacion))
+        {
+            errorMessage = "El motivo de anulación es obligatorio";
+            return;
+        }
+
+        try
+        {
+            await MovimientosService.AnularAsync(formularioMovimiento.Id, motivoAnulacion, CurrentUser);
+            successMessage = $"✅ Movimiento {formularioMovimiento.NumeroMovimiento} anulado exitosamente.";
+            modo = "list";
+            await CargarMovimientos();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    // DETALLES
+    private void MostrarDetalle(MovimientoTesoreria m)
+    {
+        detalleMovimientoId = m.Id == detalleMovimientoId ? null : m.Id;
+    }
+
+    private void OcultarDetalle()
+    {
+        detalleMovimientoId = null;
+    }
+
+    private void CancelarFormulario()
+    {
+        modo = "list";
+        formularioMovimiento = new();
+        motivoAnulacion = "";
+        ClearMessages();
+    }
+
+    private void ClearMessages()
+    {
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void ClearErrors() => errorMessage = null;
+    private void ClearSuccess() => successMessage = null;
+}

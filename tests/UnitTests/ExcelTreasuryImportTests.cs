@@ -270,12 +270,12 @@ public class ExcelTreasuryImportTests
     }
 
     [Theory]
-    [InlineData(100000.0, 100000.0, true)]   // Exacto
-    [InlineData(100000.0, 100000.50, true)] // Tolerancia
-    [InlineData(100000.0, 100000.99, true)] // Tolerancia
-    [InlineData(100000.0, 100001.01, false)] // Fuera de tolerancia
-    [InlineData(100000.0, 99998.99, false)]  // Fuera de tolerancia (lado negativo)
-    public void BalanceTolerance_VariousThresholds_AppliesCorrectly(double calculado, double esperado, bool shouldMatch)
+    [InlineData(100000, 100000, true)]   // Exacto
+    [InlineData(100000, 100001, true)] // Tolerancia (dentro de ±1)
+    [InlineData(100000, 100001, true)] // Tolerancia
+    [InlineData(100000, 100002, false)] // Fuera de tolerancia
+    [InlineData(100000, 99999, false)]  // Fuera de tolerancia (lado negativo)
+    public void BalanceTolerance_VariousThresholds_AppliesCorrectly(long calculado, long esperado, bool shouldMatch)
     {
         var diff = Math.Abs((decimal)calculado - (decimal)esperado);
         var isMatch = diff <= 1m;

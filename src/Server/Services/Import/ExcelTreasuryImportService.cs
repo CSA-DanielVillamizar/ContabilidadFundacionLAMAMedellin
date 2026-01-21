@@ -175,43 +175,27 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
             // Registrar saldo final calculado para auditoría por periodo
             summary.SaldoFinalCalculadoPorHoja[sheet.Name] = saldoAcumulado;
 
-            // Importar movimientos con idempotencia (consulta única por hashes)
+            // Importar movimientos con idempotencia usando servicio transaccional
             if (!dryRun)
             {
-                // Obtener todos los hashes existentes en DB
-                var existingHashes = (await db.MovimientosTesoreria
-                    .Where(m => m.ImportHash != null)
-                    .Select(m => m.ImportHash)
-                    .ToListAsync())
-                    .ToHashSet();
+                var usuarioImport = "import-system";
+                
+                // ✅ OPTIMIZACIÓN CRÍTICA: Usar CreateManyAsync para batch import transaccional
+                // Esto asegura:
+                // 1. Validación de cierre contable por mes (eficiente)
+                // 2. Idempotencia basada en ImportHash y NumeroMovimiento
+                // 3. Una sola transacción para todos los movimientos
+                // 4. Rollback automático si algo falla
+                var (created, duplicates, closedErrors) = await _movimientosService.CreateManyAsync(movimientos, usuarioImport);
 
-                // Separar movimientos nuevos y existentes
-                var movimientosNuevos = movimientos
-                    .Where(m => !existingHashes.Contains(m.ImportHash))
-                    .ToList();
-
-                summary.MovimientosImported += movimientosNuevos.Count;
-                summary.MovimientosSkipped += movimientos.Count - movimientosNuevos.Count;
-
-                // ✅ BLINDAJE CRÍTICO: Usar MovimientosTesoreriaService para cada movimiento
-                // Esto asegura que la validación de cierre contable se aplique a cada creación
-                if (movimientosNuevos.Count > 0)
+                // Actualizar summary con resultados
+                summary.MovimientosImported += created.Count;
+                summary.MovimientosSkipped += duplicates.Count;
+                
+                // Agregar errores de mes cerrado a summary
+                foreach (var error in closedErrors)
                 {
-                    var usuarioImport = "import-system";
-                    foreach (var movimiento in movimientosNuevos)
-                    {
-                        try
-                        {
-                            // El servicio valida que el mes NO esté cerrado
-                            await _movimientosService.CreateAsync(movimiento, usuarioImport);
-                        }
-                        catch (InvalidOperationException ex)
-                        {
-                            // Si un mes está cerrado, registrar el error y continuar
-                            summary.Errors.Add($"❌ {ex.Message} (Movimiento: {movimiento.NumeroMovimiento})");
-                            summary.MovimientosImported--; // Revertir contador
-                        }
-                    }
+                    summary.Errors.Add(error);
                 }
             }
             else

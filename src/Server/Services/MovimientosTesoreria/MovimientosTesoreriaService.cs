@@ -94,6 +94,157 @@ public class MovimientosTesoreriaService
     }
 
     /// <summary>
+    /// Crea múltiples movimientos de tesorería en una sola transacción (para imports).
+    /// Valida que cada mes NO esté cerrado antes de insertar.
+    /// Implementa idempotencia: omite duplicados basados en ImportHash o NumeroMovimiento.
+    /// </summary>
+    /// <param name="movimientos">Lista de movimientos a crear</param>
+    /// <param name="usuario">Usuario que ejecuta la operación</param>
+    /// <returns>Tupla con (movimientos creados exitosamente, movimientos omitidos por duplicado, errores por mes cerrado)</returns>
+    public async Task<(
+        List<MovimientoTesoreria> created,
+        List<string> duplicates,
+        List<string> closedMonthErrors
+    )> CreateManyAsync(IEnumerable<MovimientoTesoreria> movimientos, string usuario)
+    {
+        var created = new List<MovimientoTesoreria>();
+        var duplicates = new List<string>();
+        var closedMonthErrors = new List<string>();
+
+        if (!movimientos.Any())
+            return (created, duplicates, closedMonthErrors);
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        try
+        {
+            // Paso 1: Obtener hashes e IDs existentes para idempotencia
+            var hashes = movimientos
+                .Where(m => !string.IsNullOrEmpty(m.ImportHash))
+                .Select(m => m.ImportHash!)
+                .ToHashSet();
+
+            var numeros = movimientos
+                .Select(m => m.NumeroMovimiento)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToHashSet();
+
+            var existingHashes = (await context.MovimientosTesoreria
+                .Where(m => m.ImportHash != null && hashes.Contains(m.ImportHash))
+                .Select(m => m.ImportHash!)
+                .ToListAsync())
+                .ToHashSet();
+
+            var existingNumeros = (await context.MovimientosTesoreria
+                .Where(m => numeros.Contains(m.NumeroMovimiento))
+                .Select(m => m.NumeroMovimiento)
+                .ToListAsync())
+                .ToHashSet();
+
+            // Paso 2: Validar cierres de mes para movimientos no duplicados
+            var movimientosNuevos = movimientos
+                .Where(m =>
+                    !existingHashes.Contains(m.ImportHash ?? string.Empty) &&
+                    !existingNumeros.Contains(m.NumeroMovimiento))
+                .ToList();
+
+            var movimientosDuplicados = movimientos
+                .Where(m =>
+                    existingHashes.Contains(m.ImportHash ?? string.Empty) ||
+                    existingNumeros.Contains(m.NumeroMovimiento))
+                .ToList();
+
+            // Registrar duplicados
+            foreach (var dup in movimientosDuplicados)
+            {
+                duplicates.Add($"Movimiento {dup.NumeroMovimiento} ya existe (omitido)");
+            }
+
+            // Agrupar por mes para validar cierre eficientemente
+            var mesesPorValidar = movimientosNuevos
+                .Select(m => new DateTime(m.Fecha.Year, m.Fecha.Month, 1))
+                .Distinct()
+                .ToList();
+
+            // Verificar estado de cierre para cada mes
+            var mesesCerrados = new HashSet<DateTime>();
+            foreach (var mes in mesesPorValidar)
+            {
+                var esCerrado = await _cierreService.EsFechaCerradaAsync(mes);
+                if (esCerrado)
+                {
+                    mesesCerrados.Add(mes);
+                }
+            }
+
+            // Paso 3: Filtrar movimientos por mes cerrado
+            var movimientosValidos = new List<MovimientoTesoreria>();
+            foreach (var movimiento in movimientosNuevos)
+            {
+                var mesMovimiento = new DateTime(movimiento.Fecha.Year, movimiento.Fecha.Month, 1);
+                if (mesesCerrados.Contains(mesMovimiento))
+                {
+                    closedMonthErrors.Add($"❌ Mes {movimiento.Fecha:MM/yyyy} cerrado - {movimiento.NumeroMovimiento} no importado");
+                }
+                else
+                {
+                    movimientosValidos.Add(movimiento);
+                }
+            }
+
+            // Paso 4: Insertar movimientos válidos en una sola transacción
+            if (movimientosValidos.Any())
+            {
+                foreach (var movimiento in movimientosValidos)
+                {
+                    // Validación individual
+                    if (string.IsNullOrWhiteSpace(movimiento.NumeroMovimiento))
+                        throw new ArgumentException("El número de movimiento es obligatorio.");
+
+                    if (movimiento.CuentaFinancieraId == Guid.Empty)
+                        throw new ArgumentException($"La cuenta financiera es obligatoria para {movimiento.NumeroMovimiento}.");
+
+                    // Auditoría
+                    movimiento.CreatedAt = DateTime.UtcNow;
+                    movimiento.CreatedBy = usuario;
+                    if (movimiento.Id == Guid.Empty)
+                        movimiento.Id = Guid.NewGuid();
+                }
+
+                context.MovimientosTesoreria.AddRange(movimientosValidos);
+                await context.SaveChangesAsync();
+                created.AddRange(movimientosValidos);
+
+                // Log de auditoría agregada (batch)
+                await _auditService.LogAsync(
+                    "MovimientoTesoreria",
+                    "BULK_CREATE",
+                    "CREATE_MANY",
+                    usuario,
+                    null,
+                    new
+                    {
+                        Count = created.Count,
+                        TotalValor = created.Sum(m => m.Valor),
+                        Duplicates = duplicates.Count,
+                        ClosedMonthErrors = closedMonthErrors.Count
+                    },
+                    $"Import batch: {created.Count} creados, {duplicates.Count} duplicados, {closedMonthErrors.Count} rechazados (mes cerrado)");
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+
+        return (created, duplicates, closedMonthErrors);
+    }
+
+    /// <summary>
     /// Actualiza un movimiento de tesorería existente.
     /// Valida que AMBAS fechas (original y nueva) NO estén en meses cerrados.
     /// </summary>

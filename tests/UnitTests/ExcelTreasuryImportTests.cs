@@ -270,14 +270,14 @@ public class ExcelTreasuryImportTests
     }
 
     [Theory]
-    [InlineData(100000m, 100000m, true)]   // Exacto
-    [InlineData(100000m, 100000.50m, true)] // Tolerancia
-    [InlineData(100000m, 100000.99m, true)] // Tolerancia
-    [InlineData(100000m, 100001.01m, false)] // Fuera de tolerancia
-    [InlineData(100000m, 99998.99m, false)]  // Fuera de tolerancia (lado negativo)
-    public void BalanceTolerance_VariousThresholds_AppliesCorrectly(decimal calculado, decimal esperado, bool shouldMatch)
+    [InlineData(100000.0, 100000.0, true)]   // Exacto
+    [InlineData(100000.0, 100000.50, true)] // Tolerancia
+    [InlineData(100000.0, 100000.99, true)] // Tolerancia
+    [InlineData(100000.0, 100001.01, false)] // Fuera de tolerancia
+    [InlineData(100000.0, 99998.99, false)]  // Fuera de tolerancia (lado negativo)
+    public void BalanceTolerance_VariousThresholds_AppliesCorrectly(double calculado, double esperado, bool shouldMatch)
     {
-        var diff = Math.Abs(calculado - esperado);
+        var diff = Math.Abs((decimal)calculado - (decimal)esperado);
         var isMatch = diff <= 1m;
 
         if (shouldMatch)
@@ -334,4 +334,6 @@ public class ExcelTreasuryImportTests
             var isResumen = keywords.Any(k => row.ToUpper().Contains(k));
             Assert.False(isResumen, $"'{row}' NO debe ser detectado como fila resumen");
         }
+        }
     }
+}

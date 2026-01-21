@@ -29,7 +29,7 @@
     <div class="card-body">
         <div class="mb-3">
             <label for="fileInput" class="form-label">Archivo .xlsx:</label>
-            <InputFile id="fileInput" @ref="fileInput" accept=".xlsx" class="form-control" />
+            <InputFile id="fileInput" @ref="fileInput" accept=".xlsx" class="form-control" OnChange="OnFileSelected" />
             @if (selectedFile != null)
             {
                 <small class="text-muted d-block mt-2">
@@ -70,7 +70,7 @@
                 }
             </button>
             <button class="btn btn-success" @onclick="RunImport" 
-                    disabled="@(isProcessing || selectedFile == null || !understandsRisk || confirmText != "IMPORTAR HISTORICO")">
+                    disabled="@(isProcessing || selectedFile == null || !understandsRisk || !IsConfirmed)">
                 @if (isProcessing && !isDryRun)
                 {
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -227,6 +227,8 @@
 </div>
 
 @code {
+    private const string ConfirmPhrase = "IMPORTAR HISTORICO";
+    
     private InputFile? fileInput;
     private IBrowserFile? selectedFile;
     private ImportSummary? summary;
@@ -235,6 +237,16 @@
     private bool isDryRun;
     private bool understandsRisk;
     private string confirmText = "";
+
+    private bool IsConfirmed => string.Equals(confirmText?.Trim(), ConfirmPhrase, StringComparison.OrdinalIgnoreCase);
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        summary = null;
+        errorMessage = null;
+        confirmText = "";
+    }
 
     private string FormatFileSize(long bytes)
     {
@@ -254,7 +266,7 @@
 
     private async Task RunImport()
     {
-        if (selectedFile == null || !understandsRisk || confirmText != "IMPORTAR HISTORICO")
+        if (selectedFile == null || !understandsRisk || !IsConfirmed)
             return;
         
         isDryRun = false;
@@ -268,6 +280,7 @@
         summary = null;
         StateHasChanged();
 
+        Stream? fileStream = null;
         try
         {
             if (selectedFile == null)
@@ -279,15 +292,13 @@
             // Crear contenido multipart/form-data
             using var content = new MultipartFormDataContent();
             
-            // Leer archivo y agregarlo al contenido
-            using (var stream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)) // 10 MB max
-            {
-                var streamContent = new StreamContent(stream);
-                streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                content.Add(streamContent, "file", selectedFile.Name);
-            }
+            // Leer archivo y agregarlo al contenido (NO usar using para el stream aquí)
+            fileStream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10 MB max
+            var streamContent = new StreamContent(fileStream);
+            streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            content.Add(streamContent, "file", selectedFile.Name);
 
-            // Hacer POST al endpoint
+            // Hacer POST al endpoint (el stream sigue vivo)
             var response = await Http.PostAsync($"/api/admin/import/tesoreria/excel?dryRun={dryRun}", content);
             
             if (response.IsSuccessStatusCode)
@@ -309,6 +320,7 @@
         }
         finally
         {
+            fileStream?.Dispose();
             isProcessing = false;
             StateHasChanged();
         }

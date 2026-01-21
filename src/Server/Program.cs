@@ -679,6 +679,51 @@ app.MapGet("/api/health/perf", async (IDbContextFactory<AppDbContext> dbFactory)
     });
 }).AllowAnonymous();
 
+// ========== ADMIN ENDPOINTS - IMPORTACIÓN TESORERÍA ==========
+app.MapPost("/api/admin/import/tesoreria/excel", async (
+    [FromForm] IFormFile file,
+    Server.Services.Import.IExcelTreasuryImportService importService,
+    IOptions<Server.Services.Import.ImportOptions> options,
+    bool dryRun = false) =>
+{
+    // Verificar que la importación esté habilitada
+    if (!options.Value.Enabled)
+    {
+        return Results.Json(new { success = false, message = "Importación deshabilitada por configuración (Import:Enabled=false)" }, statusCode: 403);
+    }
+
+    if (file == null || file.Length == 0)
+    {
+        return Results.Json(new { success = false, message = "Debe proporcionar un archivo Excel (.xlsx)" }, statusCode: 400);
+    }
+
+    // Validar extensión .xlsx
+    var extension = Path.GetExtension(file.FileName);
+    if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Json(new { success = false, message = $"Formato de archivo no válido. Se esperaba .xlsx, se recibió {extension}" }, statusCode: 400);
+    }
+
+    try
+    {
+        // Validar tamaño del archivo (10 MB máximo)
+        if (file.Length > 10 * 1024 * 1024)
+        {
+            return Results.Json(new { success = false, message = "El archivo excede el tamaño máximo permitido de 10 MB" }, statusCode: 400);
+        }
+
+        // Abrir stream del archivo
+        using var stream = file.OpenReadStream();
+        var summary = await importService.ImportAsync(stream, file.FileName, dryRun);
+        return Results.Ok(summary);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { success = false, message = $"Error al procesar archivo: {ex.Message}" }, statusCode: 400);
+    }
+}).RequireAuthorization("AdminOnly")
+  .Accepts<IFormFile>("multipart/form-data");
+
 app.MapFallbackToPage("/_Host");
 
 // Endpoints espejo (solo Development) para validar performance sin autenticación
@@ -797,37 +842,6 @@ if (app.Environment.IsDevelopment())
         return Results.Ok(productos);
     }).AllowAnonymous();
 
-    // ========== ADMIN ENDPOINTS - IMPORTACIÓN TESORERÍA ==========
-    app.MapPost("/api/admin/import/tesoreria/excel", async (
-        [FromForm] IFormFile file,
-        Server.Services.Import.IExcelTreasuryImportService importService,
-        IOptions<Server.Services.Import.ImportOptions> options,
-        bool dryRun = false) =>
-    {
-        // Verificar que la importación esté habilitada
-        if (!options.Value.Enabled)
-        {
-            return Results.Json(new { success = false, message = "Importación deshabilitada por configuración (Import:Enabled=false)" }, statusCode: 403);
-        }
-
-        if (file == null || file.Length == 0)
-        {
-            return Results.BadRequest("Debe proporcionar un archivo Excel (.xlsx)");
-        }
-
-        try
-        {
-            // Abrir stream del archivo y pasar al servicio
-            using var stream = file.OpenReadStream();
-            var summary = await importService.ImportAsync(stream, file.FileName, dryRun);
-            return Results.Ok(summary);
-        }
-        catch (Exception ex)
-        {
-            return Results.BadRequest($"Error al procesar archivo: {ex.Message}");
-        }
-    }).RequireAuthorization("RequireAdmin")
-      .Accepts<IFormFile>("multipart/form-data");
 }
 
 app.Run();

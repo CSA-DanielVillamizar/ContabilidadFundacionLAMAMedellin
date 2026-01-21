@@ -199,9 +199,11 @@ public class MovimientosTesoreriaService
 
         var estadoAnterior = dbMovimiento.Estado;
 
-        // Cambiar estado
+        // Cambiar estado y registrar trazabilidad completa
         dbMovimiento.Estado = EstadoMovimientoTesoreria.Anulado;
         dbMovimiento.MotivoAnulacion = motivo;
+        dbMovimiento.FechaAnulacion = DateTime.UtcNow;
+        dbMovimiento.UsuarioAnulacion = usuario;
         dbMovimiento.UpdatedAt = DateTime.UtcNow;
         dbMovimiento.UpdatedBy = usuario;
 

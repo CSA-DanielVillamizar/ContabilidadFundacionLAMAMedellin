@@ -1806,6 +1806,9 @@ namespace Server.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("FechaAnulacion")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("FechaAprobacion")
                         .HasColumnType("datetime2");
 
@@ -1878,6 +1881,10 @@ namespace Server.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("UsuarioAnulacion")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 

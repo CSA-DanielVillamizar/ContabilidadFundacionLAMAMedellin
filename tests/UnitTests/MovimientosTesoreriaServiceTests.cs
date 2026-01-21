@@ -371,4 +371,48 @@ public class MovimientosTesoreriaServiceTests
             conn.Close();
         }
     }
+
+    [Fact]
+    public async Task AnularAsync_SetsAllCancellationFields()
+    {
+        // Arrange: Crear movimiento en mes abierto
+        var (db, conn, cierreService, service) = CreateInMemoryDb();
+        try
+        {
+            var cuenta = new CuentaFinanciera { Id = Guid.NewGuid(), Nombre = "Cuenta Test", Tipo = TipoCuenta.Bancaria };
+            db.CuentasFinancieras.Add(cuenta);
+            await db.SaveChangesAsync();
+
+            var movimiento = new MovimientoTesoreria
+            {
+                NumeroMovimiento = "MV-2026-TEST007",
+                Fecha = DateTime.UtcNow,
+                CuentaFinancieraId = cuenta.Id,
+                Tipo = TipoMovimientoTesoreria.Ingreso,
+                Valor = 100000m,
+                Descripcion = "Test anulación",
+                Medio = MedioPagoTesoreria.Transferencia
+            };
+
+            var created = await service.CreateAsync(movimiento, "creador");
+
+            // Act: Anular el movimiento
+            var motivoAnulacion = "Error en el registro del valor";
+            var usuarioAnulacion = "supervisor";
+            var resultado = await service.AnularAsync(created.Id, motivoAnulacion, usuarioAnulacion);
+
+            // Assert: Verificar que todos los campos de anulación están seteados
+            Assert.Equal(EstadoMovimientoTesoreria.Anulado, resultado.Estado);
+            Assert.Equal(motivoAnulacion, resultado.MotivoAnulacion);
+            Assert.NotNull(resultado.FechaAnulacion);
+            Assert.Equal(usuarioAnulacion, resultado.UsuarioAnulacion);
+            
+            // Verificar que la fecha de anulación es reciente (dentro del último minuto)
+            Assert.True((DateTime.UtcNow - resultado.FechaAnulacion.Value).TotalMinutes < 1);
+        }
+        finally
+        {
+            conn.Close();
+        }
+    }
 }

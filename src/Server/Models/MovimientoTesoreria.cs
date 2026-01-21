@@ -44,6 +44,8 @@ public class MovimientoTesoreria
     public DateTime? FechaAprobacion { get; set; }
     public string? UsuarioAprobacion { get; set; }
     public string? MotivoAnulacion { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
+    public string? UsuarioAnulacion { get; set; }
 
     // Relación con Recibo (opcional)
     public Guid? ReciboId { get; set; }

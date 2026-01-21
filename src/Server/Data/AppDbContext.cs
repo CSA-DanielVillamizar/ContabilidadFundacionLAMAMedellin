@@ -434,6 +434,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             b.Property(m => m.SoporteUrl).HasMaxLength(500);
             b.Property(m => m.UsuarioAprobacion).HasMaxLength(256);
             b.Property(m => m.MotivoAnulacion).HasMaxLength(500);
+            b.Property(m => m.UsuarioAnulacion).HasMaxLength(256);
             b.Property(m => m.Valor).HasPrecision(18, 2);
             b.Property(m => m.CreatedBy).HasMaxLength(256);
             b.Property(m => m.UpdatedBy).HasMaxLength(256);

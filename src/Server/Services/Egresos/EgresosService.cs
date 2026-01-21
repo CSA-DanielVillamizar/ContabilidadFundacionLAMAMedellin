@@ -146,6 +146,19 @@ public class EgresosService : IEgresosService
         var dbEgreso = await db.Egresos.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (dbEgreso is null) return null;
 
+        // ✅ VALIDACIÓN CRÍTICA: Verificar que el mes NO está cerrado (ni el antiguo ni el nuevo)
+        var esCerradoAnterior = await _cierreService.EsFechaCerradaAsync(dbEgreso.Fecha);
+        if (esCerradoAnterior)
+            throw new InvalidOperationException($"No se puede actualizar el egreso porque el mes original {dbEgreso.Fecha:MM/yyyy} está cerrado");
+
+        // Si la fecha cambió, validar que el nuevo mes tampoco esté cerrado
+        if (egreso.Fecha != dbEgreso.Fecha)
+        {
+            var esCerradoNuevo = await _cierreService.EsFechaCerradaAsync(egreso.Fecha);
+            if (esCerradoNuevo)
+                throw new InvalidOperationException($"No se puede mover el egreso al mes {egreso.Fecha:MM/yyyy} porque ese mes está cerrado");
+        }
+
         // Capturar valores anteriores para auditoría
         var valoresAnteriores = $"Fecha: {dbEgreso.Fecha:yyyy-MM-dd}, Categoría: {dbEgreso.Categoria}, Proveedor: {dbEgreso.Proveedor}, Valor: {dbEgreso.ValorCop:N0}";
 
@@ -199,6 +212,19 @@ public class EgresosService : IEgresosService
         var dbEgreso = await db.Egresos.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (dbEgreso is null) return null;
 
+        // ✅ VALIDACIÓN CRÍTICA: Verificar que el mes NO está cerrado (ni el antiguo ni el nuevo)
+        var esCerradoAnterior = await _cierreService.EsFechaCerradaAsync(dbEgreso.Fecha);
+        if (esCerradoAnterior)
+            throw new InvalidOperationException($"No se puede actualizar el egreso porque el mes original {dbEgreso.Fecha:MM/yyyy} está cerrado");
+
+        // Si la fecha cambió, validar que el nuevo mes tampoco esté cerrado
+        if (egreso.Fecha != dbEgreso.Fecha)
+        {
+            var esCerradoNuevo = await _cierreService.EsFechaCerradaAsync(egreso.Fecha);
+            if (esCerradoNuevo)
+                throw new InvalidOperationException($"No se puede mover el egreso al mes {egreso.Fecha:MM/yyyy} porque ese mes está cerrado");
+        }
+
         // Capturar valores anteriores para auditoría
         var valoresAnteriores = $"Fecha: {dbEgreso.Fecha:yyyy-MM-dd}, Categoría: {dbEgreso.Categoria}, Proveedor: {dbEgreso.Proveedor}, Valor: {dbEgreso.ValorCop:N0}";
 
@@ -251,6 +277,11 @@ public class EgresosService : IEgresosService
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var dbEgreso = await db.Egresos.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (dbEgreso is null) return false;
+
+        // ✅ VALIDACIÓN CRÍTICA: Verificar que el mes NO está cerrado
+        var esCerrado = await _cierreService.EsFechaCerradaAsync(dbEgreso.Fecha);
+        if (esCerrado)
+            throw new InvalidOperationException($"No se puede eliminar el egreso porque el mes {dbEgreso.Fecha:MM/yyyy} está cerrado");
 
         // Capturar información antes de eliminar
         var descripcion = dbEgreso.Descripcion;

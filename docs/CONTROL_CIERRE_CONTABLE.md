@@ -254,6 +254,46 @@ Este control cierre contribuye a:
 
 ---
 
+## 14. REAPERTURA DE PERÍODOS CERRADOS (EXCEPCIONES)
+
+En casos excepcionales donde se detectan errores en un período ya cerrado, existe un procedimiento **controlado** de reapertura:
+
+### ¿Cuándo se reabre un período?
+
+✅ **Motivos válidos:**
+- Error detectado en importación de datos históricos
+- Recibos o egresos NO grabados por falla técnica
+- Corrección de fecha/monto en documentos originales (con evidencia)
+- Auditoría externa solicitando ajustes
+
+❌ **Motivos inválidos:**
+- "Cambié de opinión sobre un monto"
+- Querer modificar transacciones sin justificación
+- Omisión de transacciones que debieron estar en el mes
+
+### Procedimiento de reapertura:
+
+1. **Revisión:** Revisor Fiscal documenta el error con evidencia
+2. **Solicitud:** Admin recibe solicitud con:
+   - Período exacto (año/mes)
+   - Motivo detallado del error
+   - Documento que respalda (comprobante, email, etc.)
+3. **Reapertura:** Admin ejecuta reapertura en sistema (acción auditada)
+4. **Corrección:** Tesorero hace ajustes (cada ajuste es auditado)
+5. **Cierre nuevo:** Se cierra nuevamente con nota de corrección
+
+### Auditoría obligatoria:
+
+Cada reapertura genera un registro que incluye:
+- **Quién:** Usuario admin que reabrió
+- **Cuándo:** Fecha y hora exacta
+- **Por qué:** Motivo registrado en sistema
+- **Impacto:** Qué transacciones fueron ajustadas
+
+**Nota:** Las reaperturas son muy infrecuentes. Si ocurren regularmente, indica problemas de control.
+
+---
+
 ## RESUMEN EJECUTIVO
 
 | Aspecto | Detalle |
@@ -264,7 +304,7 @@ Este control cierre contribuye a:
 | **Qué bloquea** | Ediciones de transacciones, nuevos movimientos, importaciones |
 | **Qué permite** | Consulta, auditoría, generación de reportes |
 | **Cómo se audita** | Registro automático de usuario, hora, saldos |
-| **Cómo se corrige** | Movimientos de ajuste el mes siguiente |
+| **Cómo se corrige** | Reapertura controlada + movimientos de ajuste (excepcional) |
 | **Impacto normativo** | Cumple DIAN, supervisores, estándares de control |
 
 ---

@@ -190,4 +190,167 @@ public class EgresosServiceTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task CrearAsync_MesCerrado_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var (db, conn, root, env, cierreService) = CreateInMemoryDb();
+        
+        // Cerrar octubre 2025
+        var cierre = new CierreMensual
+        {
+            Id = Guid.NewGuid(),
+            Ano = 2025,
+            Mes = 10,
+            FechaCierre = DateTime.UtcNow,
+            UsuarioCierre = "admin@test.com",
+            SaldoInicialCalculado = 100000m,
+            TotalIngresos = 50000m,
+            TotalEgresos = 30000m,
+            SaldoFinal = 120000m,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "admin@test.com"
+        };
+        db.CierresMensuales.Add(cierre);
+        await db.SaveChangesAsync();
+
+        var audit = new FakeAuditService();
+        var factory = new TestDbFactory(conn);
+        try
+        {
+            var svc = new EgresosService(factory, env, cierreService, audit);
+            var eg = new Egreso
+            {
+                Fecha = new DateTime(2025, 10, 15), // Dentro del mes cerrado
+                Categoria = "Operativo",
+                Proveedor = "Proveedor Test",
+                Descripcion = "Intento en mes cerrado",
+                ValorCop = 5000
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await svc.CrearAsync(eg, null, "tester")
+            );
+        }
+        finally
+        {
+            conn.Dispose();
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_MesCerrado_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var (db, conn, root, env, cierreService) = CreateInMemoryDb();
+        var audit = new FakeAuditService();
+        var factory = new TestDbFactory(conn);
+        try
+        {
+            var svc = new EgresosService(factory, env, cierreService, audit);
+
+            // Crear egreso en mes abierto
+            var eg = new Egreso
+            {
+                Fecha = new DateTime(2025, 9, 15),
+                Categoria = "Operativo",
+                Proveedor = "Proveedor A",
+                Descripcion = "Egreso original",
+                ValorCop = 1000
+            };
+            var creado = await svc.CrearAsync(eg, null, "tester");
+
+            // Cerrar el mes
+            var cierre = new CierreMensual
+            {
+                Id = Guid.NewGuid(),
+                Ano = 2025,
+                Mes = 9,
+                FechaCierre = DateTime.UtcNow,
+                UsuarioCierre = "admin@test.com",
+                SaldoInicialCalculado = 100000m,
+                TotalIngresos = 50000m,
+                TotalEgresos = 30000m,
+                SaldoFinal = 120000m,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "admin@test.com"
+            };
+            db.CierresMensuales.Add(cierre);
+            await db.SaveChangesAsync();
+
+            var update = new Egreso
+            {
+                Fecha = new DateTime(2025, 9, 16),
+                Categoria = "Actualizado",
+                Proveedor = "Proveedor B",
+                Descripcion = "Intento actualizar en mes cerrado",
+                ValorCop = 2000
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await svc.ActualizarAsync(creado.Id, update, null, "tester")
+            );
+        }
+        finally
+        {
+            conn.Dispose();
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task EliminarAsync_MesCerrado_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var (db, conn, root, env, cierreService) = CreateInMemoryDb();
+        var audit = new FakeAuditService();
+        var factory = new TestDbFactory(conn);
+        try
+        {
+            var svc = new EgresosService(factory, env, cierreService, audit);
+
+            // Crear egreso
+            var eg = new Egreso
+            {
+                Fecha = new DateTime(2025, 11, 20),
+                Categoria = "Operativo",
+                Proveedor = "Proveedor Test",
+                Descripcion = "Egreso a eliminar",
+                ValorCop = 3000
+            };
+            var creado = await svc.CrearAsync(eg, null, "tester");
+
+            // Cerrar el mes
+            var cierre = new CierreMensual
+            {
+                Id = Guid.NewGuid(),
+                Ano = 2025,
+                Mes = 11,
+                FechaCierre = DateTime.UtcNow,
+                UsuarioCierre = "admin@test.com",
+                SaldoInicialCalculado = 100000m,
+                TotalIngresos = 50000m,
+                TotalEgresos = 30000m,
+                SaldoFinal = 120000m,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "admin@test.com"
+            };
+            db.CierresMensuales.Add(cierre);
+            await db.SaveChangesAsync();
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await svc.EliminarAsync(creado.Id)
+            );
+        }
+        finally
+        {
+            conn.Dispose();
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
 }

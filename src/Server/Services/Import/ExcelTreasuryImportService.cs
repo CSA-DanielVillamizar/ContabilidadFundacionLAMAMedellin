@@ -76,7 +76,21 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
         var hojas = DetectTreasurySheets(workbook).OrderBy(h => h.fecha).ToList();
         if (hojas.Count == 0)
         {
-            summary.Warnings.Add("No se encontraron hojas con formato reconocible (CORTE)");
+            summary.Errors.Add("❌ FALLO CRÍTICO: No se encontraron hojas con formato reconocible. " +
+                "Las hojas deben tener nombre como 'CORTE A OCTUBRE 31-25' o 'CORTE NOVIEMBRE 30-25'");
+            summary.Success = false;
+            return summary;
+        }
+
+        // ✅ VALIDACIÓN: Verificar que todas las hojas se identificaron correctamente
+        var hojasNoIdentificadas = workbook.Worksheets
+            .Where(s => !s.Name.Contains("RESUMEN") && !hojas.Any(h => h.sheet.Name == s.Name))
+            .ToList();
+
+        if (hojasNoIdentificadas.Count > 0)
+        {
+            summary.Errors.Add($"❌ FALLO CRÍTICO: {hojasNoIdentificadas.Count} hojas no tienen formato de fecha válido: {string.Join(", ", hojasNoIdentificadas.Select(h => h.Name))}");
+            summary.Success = false;
             return summary;
         }
 

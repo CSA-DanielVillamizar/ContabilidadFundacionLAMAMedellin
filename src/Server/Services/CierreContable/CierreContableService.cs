@@ -166,4 +166,54 @@ public class CierreContableService
             .ThenByDescending(c => c.Mes)
             .FirstOrDefaultAsync();
     }
+
+    /// <summary>
+    /// Reabre un mes cerrado (solo para Admin).
+    /// Registra auditoría obligatoria del motivo de reapertura.
+    /// </summary>
+    /// <param name="ano">Año del período a reabrir</param>
+    /// <param name="mes">Mes del período a reabrir</param>
+    /// <param name="motivo">Motivo de reapertura (obligatorio para auditoría)</param>
+    /// <param name="usuarioAdmin">Usuario Admin que autoriza la reapertura</param>
+    /// <returns>El registro de cierre que se reabrió (con FechaCierre anulada en auditoría)</returns>
+    public async Task<CierreMensual?> ReabrirMesAsync(int ano, int mes, string motivo, string usuarioAdmin)
+    {
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new ArgumentException("Debe proporcionar un motivo de reapertura para auditoría", nameof(motivo));
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cierre = await context.CierresMensuales
+            .FirstOrDefaultAsync(c => c.Ano == ano && c.Mes == mes);
+
+        if (cierre is null)
+            throw new InvalidOperationException($"No existe cierre registrado para {mes:D2}/{ano}");
+
+        // ✅ AUDITORÍA OBLIGATORIA: Registrar antes de eliminar
+        await _auditService.LogAsync(
+            entityType: "CierreMensual",
+            entityId: cierre.Id.ToString(),
+            action: "CIERRE_REABIERTO",
+            userName: usuarioAdmin,
+            oldValues: new
+            {
+                Ano = cierre.Ano,
+                Mes = cierre.Mes,
+                FechaCierre = cierre.FechaCierre.ToString("yyyy-MM-dd HH:mm:ss"),
+                UsuarioCierre = cierre.UsuarioCierre,
+                SaldoFinal = cierre.SaldoFinal
+            },
+            newValues: new
+            {
+                Estado = "REABIERTO",
+                MotivoReapertura = motivo
+            },
+            additionalInfo: $"REAPERTURA CRÍTICA: El período {mes:D2}/{ano} fue reabierto por {usuarioAdmin}. Motivo: {motivo}"
+        );
+
+        // Eliminar el cierre para permitir que el período sea editable nuevamente
+        context.CierresMensuales.Remove(cierre);
+        await context.SaveChangesAsync();
+
+        return cierre;
+    }
 }

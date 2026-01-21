@@ -334,6 +334,5 @@ public class ExcelTreasuryImportTests
             var isResumen = keywords.Any(k => row.ToUpper().Contains(k));
             Assert.False(isResumen, $"'{row}' NO debe ser detectado como fila resumen");
         }
-        }
     }
 }

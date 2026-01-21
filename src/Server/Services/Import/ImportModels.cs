@@ -15,6 +15,8 @@ public class ImportSummary
     public List<string> Warnings { get; set; } = new();
     public List<string> Errors { get; set; } = new();
     public Dictionary<string, int> MovimientosPorHoja { get; set; } = new();
+    public Dictionary<string, decimal?> SaldoMesAnteriorPorHoja { get; set; } = new();
+    public Dictionary<string, decimal?> SaldoFinalEsperadoPorHoja { get; set; } = new();
     public string Message { get; set; } = string.Empty;
 }
 

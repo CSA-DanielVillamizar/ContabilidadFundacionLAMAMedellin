@@ -16,8 +16,7 @@ namespace Server.Services.Import;
 /// </summary>
 public interface IExcelTreasuryImportService
 {
-    Task<ImportSummary> ImportAsync(string? filePath = null, bool dryRun = false);
-}
+    Task<ImportSummary> ImportAsync(string? filePath = null, bool dryRun = false);    Task<ImportSummary> ImportAsync(Stream excelStream, string sourceName, bool dryRun = false);}
 
 public class ExcelTreasuryImportService : IExcelTreasuryImportService
 {
@@ -37,16 +36,22 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
 
     public async Task<ImportSummary> ImportAsync(string? filePath = null, bool dryRun = false)
     {
-        var summary = new ImportSummary();
         filePath ??= _options.TreasuryExcelPath;
-
         if (!File.Exists(filePath))
         {
+            var summary = new ImportSummary();
             summary.Errors.Add($"Archivo no encontrado: {filePath}");
             return summary;
         }
+        
+        using var stream = File.OpenRead(filePath);
+        return await ImportAsync(stream, Path.GetFileName(filePath), dryRun);
+    }
 
-        using var workbook = new XLWorkbook(filePath);
+    public async Task<ImportSummary> ImportAsync(Stream excelStream, string sourceName, bool dryRun = false)
+    {
+        var summary = new ImportSummary();
+        using var workbook = new XLWorkbook(excelStream);
         using var db = await _dbFactory.CreateDbContextAsync();
 
         // Obtener o crear cuenta Bancolombia
@@ -74,7 +79,7 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
 
         foreach (var (sheet, fecha) in hojas)
         {
-            var movimientos = ParseMovimientosFromSheet(sheet, cuenta.Id, fuentes, categorias, summary);
+            var movimientos = ParseMovimientosFromSheet(sheet, cuenta.Id, fuentes, categorias, summary, sourceName);
             summary.MovimientosPorHoja[sheet.Name] = movimientos.Count;
 
             // Validar saldo por fila
@@ -99,27 +104,45 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
                 }
             }
 
-            // Importar movimientos con idempotencia
+            // Importar movimientos con idempotencia (consulta única por hashes)
             if (!dryRun)
             {
-                foreach (var mov in movimientos)
+                // Obtener todos los hashes existentes en DB
+                var existingHashes = (await db.MovimientosTesoreria
+                    .Where(m => m.ImportHash != null)
+                    .Select(m => m.ImportHash)
+                    .ToListAsync())
+                    .ToHashSet();
+
+                // Separar movimientos nuevos y existentes
+                var movimientosNuevos = movimientos
+                    .Where(m => !existingHashes.Contains(m.ImportHash))
+                    .ToList();
+
+                summary.MovimientosImported += movimientosNuevos.Count;
+                summary.MovimientosSkipped += movimientos.Count - movimientosNuevos.Count;
+
+                if (movimientosNuevos.Count > 0)
                 {
-                    var exists = await db.MovimientosTesoreria.AnyAsync(m => m.ImportHash == mov.ImportHash);
-                    if (!exists)
-                    {
-                        db.MovimientosTesoreria.Add(mov);
-                        summary.MovimientosImported++;
-                    }
-                    else
-                    {
-                        summary.MovimientosSkipped++;
-                    }
+                    db.MovimientosTesoreria.AddRange(movimientosNuevos);
+                    await db.SaveChangesAsync();
                 }
-                await db.SaveChangesAsync();
             }
             else
             {
-                summary.MovimientosImported += movimientos.Count;
+                // En DryRun: reportar solo los que serían importados (no existentes)
+                var existingHashes = (await db.MovimientosTesoreria
+                    .Where(m => m.ImportHash != null)
+                    .Select(m => m.ImportHash)
+                    .ToListAsync())
+                    .ToHashSet();
+
+                var movimientosNuevos = movimientos
+                    .Where(m => !existingHashes.Contains(m.ImportHash))
+                    .Count();
+
+                summary.MovimientosImported += movimientosNuevos;
+                summary.MovimientosSkipped += movimientos.Count - movimientosNuevos;
             }
 
             summary.TotalRowsProcessed += movimientos.Count;
@@ -187,14 +210,15 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
     }
 
     /// <summary>
-    /// Lee movimientos de una hoja, detectando encabezado y excluyendo filas resumen
+    /// Lee movimientos de una hoja, detectando encabezado, excluyendo filas resumen, y capturando saldos
     /// </summary>
     private List<MovimientoTesoreria> ParseMovimientosFromSheet(
         IXLWorksheet sheet, 
         Guid cuentaId, 
         Dictionary<string, FuenteIngreso> fuentes,
         Dictionary<string, CategoriaEgreso> categorias,
-        ImportSummary summary)
+        ImportSummary summary,
+        string sourceName)
     {
         var movimientos = new List<MovimientoTesoreria>();
 
@@ -231,6 +255,8 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
         // Leer filas hasta encontrar filas resumen o vacías
         var startRow = headerRow.RowNumber() + 1;
         var lastRow = sheet.LastRowUsed()?.RowNumber() ?? startRow;
+        decimal? saldoMesAnteriorEnHoja = null;
+        decimal? saldoEnTesoreriaEnHoja = null;
 
         for (int r = startRow; r <= lastRow; r++)
         {
@@ -241,9 +267,33 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
             var egresosCell = row.Cell(colEgresos);
             var saldoCell = colSaldo > 0 ? row.Cell(colSaldo) : null;
 
-            // Detectar fila resumen (SALDO EFECTIVO, TOTAL INGRESOS, etc)
+            // Detectar fila resumen y capturar saldos
             var concepto = conceptoCell.GetString().Trim();
-            if (string.IsNullOrWhiteSpace(concepto) || IsResumenRow(concepto))
+            if (string.IsNullOrWhiteSpace(concepto))
+                continue;
+
+            // Capturar SALDO EFECTIVO MES ANTERIOR
+            if (concepto.Contains("SALDO EFECTIVO MES ANTERIOR", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Contains("SALDO MES ANTERIOR", StringComparison.OrdinalIgnoreCase))
+            {
+                var val = saldoCell != null ? ParseDecimal(saldoCell) : ParseDecimal(ingresosCell);
+                if (val != 0)
+                    saldoMesAnteriorEnHoja = val;
+                continue;
+            }
+
+            // Capturar SALDO EN TESORERIA A LA FECHA
+            if (concepto.Contains("SALDO EN TESORERIA A LA FECHA", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Contains("SALDO EN TESORERIA", StringComparison.OrdinalIgnoreCase))
+            {
+                var val = saldoCell != null ? ParseDecimal(saldoCell) : ParseDecimal(ingresosCell);
+                if (val != 0)
+                    saldoEnTesoreriaEnHoja = val;
+                continue;
+            }
+
+            // Descartar otras filas resumen
+            if (IsResumenRow(concepto))
                 continue;
 
             // Parsear fecha
@@ -284,7 +334,7 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "import",
                 ImportHash = ComputeHash(fecha, concepto, tipo, valor, saldo, sheet.Name),
-                ImportSource = "INFORME TESORERIA.xlsx",
+                ImportSource = sourceName,
                 ImportSheet = sheet.Name,
                 ImportRowNumber = r,
                 ImportedAtUtc = DateTime.UtcNow,
@@ -293,6 +343,12 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
 
             movimientos.Add(mov);
         }
+
+        // Registrar saldos detectados en la hoja
+        if (saldoMesAnteriorEnHoja.HasValue)
+            summary.SaldoMesAnteriorPorHoja[sheet.Name] = saldoMesAnteriorEnHoja.Value;
+        if (saldoEnTesoreriaEnHoja.HasValue)
+            summary.SaldoFinalEsperadoPorHoja[sheet.Name] = saldoEnTesoreriaEnHoja.Value;
 
         return movimientos;
     }
@@ -311,7 +367,7 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
     }
 
     /// <summary>
-    /// Intenta parsear fecha desde celda (puede ser DateTime o texto)
+    /// Intenta parsear fecha desde celda (puede ser DateTime o texto), con soporte para es-CO
     /// </summary>
     private bool TryParseDate(IXLCell cell, out DateTime fecha)
     {
@@ -324,6 +380,16 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
                 return true;
             }
             var str = cell.GetString().Trim();
+            
+            // Intentar con CultureInfo es-CO primero
+            var esCO = new CultureInfo("es-CO");
+            if (DateTime.TryParse(str, esCO, System.Globalization.DateTimeStyles.None, out dt))
+            {
+                fecha = dt;
+                return true;
+            }
+            
+            // Fallback a parse invariante
             if (DateTime.TryParse(str, out dt))
             {
                 fecha = dt;
@@ -425,11 +491,17 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
     }
 
     /// <summary>
-    /// Calcula hash SHA256 para idempotencia
+    /// Calcula hash SHA256 para idempotencia (concepto normalizado: upper + colapsar espacios)
     /// </summary>
     private string ComputeHash(DateTime fecha, string concepto, TipoMovimientoTesoreria tipo, decimal valor, decimal? saldo, string sheet)
     {
-        var data = $"{fecha:yyyy-MM-dd}|{concepto.Trim()}|{tipo}|{valor}|{saldo}|{sheet}";
+        // Normalizar concepto: mayúsculas + colapsar espacios múltiples
+        var conceptoNorm = System.Text.RegularExpressions.Regex.Replace(
+            concepto.Trim().ToUpper(),
+            @"\s+",
+            " "
+        );
+        var data = $"{fecha:yyyy-MM-dd}|{conceptoNorm}|{tipo}|{valor}|{saldo}|{sheet}";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(data));
         return Convert.ToHexString(bytes);
     }

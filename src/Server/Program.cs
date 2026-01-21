@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication;
 using Server.Configuration;
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Server.Security;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.OutputCaching;
@@ -798,6 +799,7 @@ if (app.Environment.IsDevelopment())
 
     // ========== ADMIN ENDPOINTS - IMPORTACIÓN TESORERÍA ==========
     app.MapPost("/api/admin/import/tesoreria/excel", async (
+        [FromForm] IFormFile file,
         Server.Services.Import.IExcelTreasuryImportService importService,
         IOptions<Server.Services.Import.ImportOptions> options,
         bool dryRun = false) =>
@@ -808,9 +810,24 @@ if (app.Environment.IsDevelopment())
             return Results.Json(new { success = false, message = "Importación deshabilitada por configuración (Import:Enabled=false)" }, statusCode: 403);
         }
 
-        var summary = await importService.ImportAsync(filePath: null, dryRun: dryRun);
-        return Results.Ok(summary);
-    }).RequireAuthorization("RequireAdmin");
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest("Debe proporcionar un archivo Excel (.xlsx)");
+        }
+
+        try
+        {
+            // Abrir stream del archivo y pasar al servicio
+            using var stream = file.OpenReadStream();
+            var summary = await importService.ImportAsync(stream, file.FileName, dryRun);
+            return Results.Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Error al procesar archivo: {ex.Message}");
+        }
+    }).RequireAuthorization("RequireAdmin")
+      .Accepts<IFormFile>("multipart/form-data");
 }
 
 app.Run();

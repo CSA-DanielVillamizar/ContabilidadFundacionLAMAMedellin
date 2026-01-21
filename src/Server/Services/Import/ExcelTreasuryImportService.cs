@@ -23,15 +23,18 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ILogger<ExcelTreasuryImportService> _logger;
     private readonly ImportOptions _options;
+    private readonly CierreContable.CierreContableService _cierreService;
 
     public ExcelTreasuryImportService(
         IDbContextFactory<AppDbContext> dbFactory,
         ILogger<ExcelTreasuryImportService> logger,
-        IOptions<ImportOptions> options)
+        IOptions<ImportOptions> options,
+        CierreContable.CierreContableService cierreService)
     {
         _dbFactory = dbFactory;
         _logger = logger;
         _options = options.Value;
+        _cierreService = cierreService;
     }
 
     public async Task<ImportSummary> ImportAsync(string? filePath = null, bool dryRun = false)
@@ -74,6 +77,25 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
         if (hojas.Count == 0)
         {
             summary.Warnings.Add("No se encontraron hojas con formato reconocible (CORTE)");
+            return summary;
+        }
+
+        // ✅ VALIDACIÓN CRÍTICA: Verificar que NINGÚN mes a importar esté cerrado
+        var mesesCerrados = new List<string>();
+        foreach (var (sheet, fecha) in hojas)
+        {
+            var esMesCerrado = await _cierreService.EsMesCerradoAsync(fecha.Year, fecha.Month);
+            if (esMesCerrado)
+            {
+                mesesCerrados.Add($"{fecha:MMMM yyyy}");
+            }
+        }
+
+        if (mesesCerrados.Count > 0)
+        {
+            summary.Errors.Add($"❌ BLOQUEO: No se puede importar. Los siguientes meses ya están CERRADOS: {string.Join(", ", mesesCerrados)}. " +
+                $"Para re-importar, contacte al Admin para reabrir el período.");
+            summary.Success = false;
             return summary;
         }
 

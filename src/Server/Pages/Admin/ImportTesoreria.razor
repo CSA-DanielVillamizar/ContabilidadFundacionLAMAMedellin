@@ -2,9 +2,11 @@
 @using System.Net.Http.Json
 @using System.Net.Http.Headers
 @using Server.Services.Import
+@using Server.Services.CierreContable
 @attribute [Authorize(Roles = "Admin")]
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject CierreContableService CierreService
 
 <PageTitle>Importar Histórico Tesorería</PageTitle>
 
@@ -37,6 +39,20 @@
                 </small>
             }
         </div>
+
+        @if (cierresMensuales.Any())
+        {
+            <div class="alert alert-warning mt-3" role="alert">
+                <strong>🔒 Meses Cerrados:</strong> Los siguientes períodos ya están cerrados y no pueden ser importados:
+                <ul class="mb-0 mt-2">
+                    @foreach (var cierre in cierresMensuales)
+                    {
+                        <li>@($"{ObtenerNombreMes(cierre.Mes)} {cierre.Ano} - Cerrado por {cierre.UsuarioCierre} el {cierre.FechaCierre:dd/MM/yyyy}")</li>
+                    }
+                </ul>
+                <small class="d-block mt-2">Si necesita re-importar un mes cerrado, contacte a un administrador para reabrirlo.</small>
+            </div>
+        }
 
         <div class="form-check mb-3">
             <InputCheckbox id="understandsCheckbox" @bind-Value="understandsRisk" class="form-check-input" />
@@ -237,8 +253,15 @@
     private bool isDryRun;
     private bool understandsRisk;
     private string confirmText = "";
+    private List<CierreMensual> cierresMensuales = new();
 
     private bool IsConfirmed => string.Equals(confirmText?.Trim(), ConfirmPhrase, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cargar lista de cierres una sola vez
+        cierresMensuales = await CierreService.ObtenerCierresAsync();
+    }
 
     private void OnFileSelected(InputFileChangeEventArgs e)
     {
@@ -325,4 +348,21 @@
             StateHasChanged();
         }
     }
+
+    private string ObtenerNombreMes(int mes) => mes switch
+    {
+        1 => "Enero",
+        2 => "Febrero",
+        3 => "Marzo",
+        4 => "Abril",
+        5 => "Mayo",
+        6 => "Junio",
+        7 => "Julio",
+        8 => "Agosto",
+        9 => "Septiembre",
+        10 => "Octubre",
+        11 => "Noviembre",
+        12 => "Diciembre",
+        _ => mes.ToString()
+    };
 }

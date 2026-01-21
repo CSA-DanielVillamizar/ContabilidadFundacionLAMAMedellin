@@ -149,6 +149,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cRWplY3V0YXJBY3R1YWxpemFjaW9uRGV1ZG9yZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Admin/ImportTesoreria.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWRtaW5cSW1wb3J0VGVzb3JlcmlhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Configuracion/Parametros.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uZmlndXJhY2lvblxQYXJhbWV0cm9zLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
@@ -293,6 +297,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGFzYXNDYW1iaW8ucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/AportesMensuales.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXEFwb3J0ZXNNZW5zdWFsZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/CertificadosDonacion.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENlcnRpZmljYWRvc0RvbmFjaW9uLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
@@ -317,6 +325,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXENvbmNpbGlhY2lvbkZvcm0ucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/CuentasFinancieras.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXEN1ZW50YXNGaW5hbmNpZXJhcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/DeudorDetalle.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXERldWRvckRldGFsbGUucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -327,6 +339,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/Egresos.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXEVncmVzb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/MovimientosTesoreria.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVGVzb3JlcmlhXE1vdmltaWVudG9zVGVzb3JlcmlhLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/DanielVillamizar/ContabilidadLAMAMedellin/src/Server/Pages/Tesoreria/PresupuestoDetalle.razor]

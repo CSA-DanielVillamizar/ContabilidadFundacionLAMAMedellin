@@ -46,6 +46,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Sistema transversal
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
 
+    // Tesorería - Fase 1.0
+    public DbSet<CuentaFinanciera> CuentasFinancieras => Set<CuentaFinanciera>();
+    public DbSet<MovimientoTesoreria> MovimientosTesoreria => Set<MovimientoTesoreria>();
+    public DbSet<FuenteIngreso> FuentesIngreso => Set<FuenteIngreso>();
+    public DbSet<CategoriaEgreso> CategoriasEgreso => Set<CategoriaEgreso>();
+    public DbSet<AporteMensual> AportesMensuales => Set<AporteMensual>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -394,6 +401,155 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             b.Property(n => n.Url).HasMaxLength(500);
             b.HasOne(n => n.Usuario).WithMany().HasForeignKey(n => n.UsuarioId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        // =============================
+        // TESORERÍA - FASE 1.0 (NUEVO)
+        // =============================
+
+        // CuentaFinanciera
+        modelBuilder.Entity<CuentaFinanciera>(b =>
+        {
+            b.HasIndex(c => c.Codigo).IsUnique();
+            b.Property(c => c.Codigo).HasMaxLength(50).IsRequired();
+            b.Property(c => c.Nombre).HasMaxLength(200).IsRequired();
+            b.Property(c => c.Banco).HasMaxLength(100);
+            b.Property(c => c.NumeroCuenta).HasMaxLength(50);
+            b.Property(c => c.TitularCuenta).HasMaxLength(200);
+            b.Property(c => c.Observaciones).HasMaxLength(1000);
+            b.Property(c => c.SaldoInicial).HasPrecision(18, 2);
+            b.Property(c => c.SaldoActual).HasPrecision(18, 2);
+            b.Property(c => c.CreatedBy).HasMaxLength(256);
+            b.Property(c => c.UpdatedBy).HasMaxLength(256);
+        });
+
+        // MovimientoTesoreria
+        modelBuilder.Entity<MovimientoTesoreria>(b =>
+        {
+            b.HasIndex(m => m.NumeroMovimiento).IsUnique();
+            b.HasIndex(m => new { m.Fecha, m.Tipo, m.CuentaFinancieraId, m.Estado });
+            b.Property(m => m.NumeroMovimiento).HasMaxLength(50).IsRequired();
+            b.Property(m => m.Descripcion).HasMaxLength(1000).IsRequired();
+            b.Property(m => m.ReferenciaTransaccion).HasMaxLength(200);
+            b.Property(m => m.TerceroNombre).HasMaxLength(200);
+            b.Property(m => m.SoporteUrl).HasMaxLength(500);
+            b.Property(m => m.UsuarioAprobacion).HasMaxLength(256);
+            b.Property(m => m.MotivoAnulacion).HasMaxLength(500);
+            b.Property(m => m.Valor).HasPrecision(18, 2);
+            b.Property(m => m.CreatedBy).HasMaxLength(256);
+            b.Property(m => m.UpdatedBy).HasMaxLength(256);
+            b.HasOne(m => m.CuentaFinanciera)
+                .WithMany()
+                .HasForeignKey(m => m.CuentaFinancieraId)
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(m => m.FuenteIngreso)
+                .WithMany()
+                .HasForeignKey(m => m.FuenteIngresoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(m => m.CategoriaEgreso)
+                .WithMany()
+                .HasForeignKey(m => m.CategoriaEgresoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(m => m.Recibo)
+                .WithMany()
+                .HasForeignKey(m => m.ReciboId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+            // Campos de trazabilidad de importación
+            b.HasIndex(m => m.ImportHash).IsUnique(false);
+            b.Property(m => m.ImportHash).HasMaxLength(64);
+            b.Property(m => m.ImportSource).HasMaxLength(500);
+            b.Property(m => m.ImportSheet).HasMaxLength(200);
+            b.Property(m => m.ImportBalanceExpected).HasPrecision(18, 2);
+            b.Property(m => m.ImportBalanceFound).HasPrecision(18, 2);
+        });
+
+        // FuenteIngreso
+        modelBuilder.Entity<FuenteIngreso>(b =>
+        {
+            b.HasIndex(f => f.Codigo).IsUnique();
+            b.Property(f => f.Codigo).HasMaxLength(50).IsRequired();
+            b.Property(f => f.Nombre).HasMaxLength(150).IsRequired();
+            b.Property(f => f.Descripcion).HasMaxLength(500);
+            b.Property(f => f.CreatedBy).HasMaxLength(256);
+        });
+
+        // CategoriaEgreso
+        modelBuilder.Entity<CategoriaEgreso>(b =>
+        {
+            b.HasIndex(c => c.Codigo).IsUnique();
+            b.Property(c => c.Codigo).HasMaxLength(60).IsRequired();
+            b.Property(c => c.Nombre).HasMaxLength(150).IsRequired();
+            b.Property(c => c.Descripcion).HasMaxLength(500);
+            b.Property(c => c.CreatedBy).HasMaxLength(256);
+        });
+
+        // AporteMensual
+        modelBuilder.Entity<AporteMensual>(b =>
+        {
+            b.HasIndex(a => new { a.MiembroId, a.Ano, a.Mes }).IsUnique();
+            b.Property(a => a.ValorEsperado).HasPrecision(18, 2);
+            b.Property(a => a.Observaciones).HasMaxLength(500);
+            b.Property(a => a.CreatedBy).HasMaxLength(256);
+            b.Property(a => a.UpdatedBy).HasMaxLength(256);
+            b.HasOne(a => a.Miembro)
+                .WithMany()
+                .HasForeignKey(a => a.MiembroId)
+                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(a => a.MovimientoTesoreria)
+                .WithMany()
+                .HasForeignKey(a => a.MovimientoTesoreriaId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Seeds iniciales (Bancolombia y catálogos)
+        var seedNow = new DateTime(2025, 1, 1);
+
+        modelBuilder.Entity<CuentaFinanciera>().HasData(new CuentaFinanciera
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Codigo = "BANCO-BCOL-001",
+            Nombre = "Bancolombia Cuenta Corriente Principal",
+            Tipo = TipoCuenta.Bancaria,
+            Banco = "Bancolombia",
+            NumeroCuenta = "****5678",
+            SaldoInicial = 0m,
+            SaldoActual = 0m,
+            FechaApertura = seedNow,
+            Activa = true,
+            CreatedAt = seedNow,
+            CreatedBy = "seed"
+        });
+
+        modelBuilder.Entity<FuenteIngreso>().HasData(
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000001"), Codigo = "APORTE-MEN", Nombre = "Aporte Mensual Miembro", Descripcion = "$20.000 COP recurrente", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000002"), Codigo = "VENTA-MERCH", Nombre = "Venta Mercancía", Descripcion = "Souvenirs, jerseys, parches, gorras", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000003"), Codigo = "VENTA-CLUB-ART", Nombre = "Venta Casa Club - Artículos Moteros", Descripcion = "Artículos moteros vendidos en casa club", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000004"), Codigo = "VENTA-CLUB-CAFE", Nombre = "Venta Casa Club - Café", Descripcion = "Café vendido en casa club", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000005"), Codigo = "VENTA-CLUB-CERV", Nombre = "Venta Casa Club - Cerveza", Descripcion = "Cerveza vendida en casa club", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000006"), Codigo = "VENTA-CLUB-COMI", Nombre = "Venta Casa Club - Comida", Descripcion = "Emparedados, snacks, comida ligera", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000007"), Codigo = "DONACION", Nombre = "Donación", Descripcion = "Donaciones recibidas (RTE)", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000008"), Codigo = "EVENTO", Nombre = "Evento", Descripcion = "Ingresos por eventos organizados", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000009"), Codigo = "RENOVACION-MEM", Nombre = "Renovación Membresía", Descripcion = "Renovación anual de membresía", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new FuenteIngreso { Id = Guid.Parse("20000000-0000-0000-0000-000000000010"), Codigo = "OTROS", Nombre = "Otros Ingresos", Descripcion = "Ingresos misceláneos", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" }
+        );
+
+        modelBuilder.Entity<CategoriaEgreso>().HasData(
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000001"), Codigo = "AYUDA-SOCIAL", Nombre = "Ayuda Social", Descripcion = "Proyectos de ayuda social (RTE)", EsGastoSocial = true, Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000002"), Codigo = "EVENTO-LOG", Nombre = "Logística de Eventos", Descripcion = "Gastos de organización de eventos", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000003"), Codigo = "COMPRA-MERCH", Nombre = "Compra Inventario Mercancía", Descripcion = "Parches, souvenirs, jerseys", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000004"), Codigo = "COMPRA-CLUB-CAFE", Nombre = "Compra Insumos Casa Club - Café", Descripcion = "Café, capuchino, etc.", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000005"), Codigo = "COMPRA-CLUB-CERV", Nombre = "Compra Insumos Casa Club - Cerveza", Descripcion = "Cerveza, bebidas alcohólicas", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000006"), Codigo = "COMPRA-CLUB-COMI", Nombre = "Compra Insumos Casa Club - Comida", Descripcion = "Alimentos para emparedados, snacks", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000007"), Codigo = "COMPRA-CLUB-OTROS", Nombre = "Compra Insumos Casa Club - Otros", Descripcion = "Artículos moteros para venta", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000008"), Codigo = "ADMIN-PAPEL", Nombre = "Gastos Administrativos - Papelería", Descripcion = "Papelería, oficina", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000009"), Codigo = "ADMIN-TRANSP", Nombre = "Gastos Administrativos - Transporte", Descripcion = "Transporte, combustible", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000010"), Codigo = "ADMIN-SERVICIOS", Nombre = "Gastos Administrativos - Servicios", Descripcion = "Internet, telefonía, servicios públicos", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000011"), Codigo = "MANTENIMIENTO", Nombre = "Mantenimiento", Descripcion = "Mantenimiento de infraestructura", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" },
+            new CategoriaEgreso { Id = Guid.Parse("30000000-0000-0000-0000-000000000012"), Codigo = "OTROS-GASTOS", Nombre = "Otros Gastos", Descripcion = "Gastos misceláneos", Activa = true, CreatedAt = seedNow, CreatedBy = "seed" }
+        );
 
     }
 }

@@ -1,0 +1,103 @@
+@page "/tesoreria/cuentas-financieras"
+@using Server.Data
+@using Server.Models
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Admin,Tesorero")]
+
+<PageTitle>Cuentas Financieras</PageTitle>
+
+<h3>Cuentas Financieras</h3>
+
+@code {
+    [Inject] AppDbContext Db { get; set; } = default!;
+
+    private List<CuentaFinanciera> cuentas = new();
+    private CuentaFinanciera nueva = new();
+    private bool creando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cuentas = await Db.CuentasFinancieras.OrderBy(c => c.Codigo).ToListAsync();
+    }
+
+    private void MostrarCrear()
+    {
+        creando = true;
+        nueva = new CuentaFinanciera
+        {
+            Codigo = string.Empty,
+            Nombre = string.Empty,
+            Tipo = TipoCuenta.Bancaria,
+            Banco = "Bancolombia",
+            NumeroCuenta = "****",
+            SaldoInicial = 0m,
+            SaldoActual = 0m,
+            Activa = true
+        };
+    }
+
+    private async Task GuardarNueva()
+    {
+        if (string.IsNullOrWhiteSpace(nueva.Codigo) || string.IsNullOrWhiteSpace(nueva.Nombre))
+            return;
+
+        // Evitar duplicados por Codigo
+        var existe = await Db.CuentasFinancieras.AnyAsync(c => c.Codigo == nueva.Codigo);
+        if (existe) return;
+
+        nueva.CreatedBy = "ui";
+        nueva.CreatedAt = DateTime.UtcNow;
+        Db.CuentasFinancieras.Add(nueva);
+        await Db.SaveChangesAsync();
+
+        cuentas.Add(nueva);
+        creando = false;
+        StateHasChanged();
+    }
+}
+
+<!-- UI básica sin MudBlazor para MVP -->
+<button @onclick="MostrarCrear">Nueva Cuenta</button>
+
+@if (creando)
+{
+    <div class="card" style="padding:1rem; margin-top:1rem;">
+        <label>Código: <input @bind="nueva.Codigo" /></label><br />
+        <label>Nombre: <input @bind="nueva.Nombre" /></label><br />
+        <label>Banco: <input @bind="nueva.Banco" /></label><br />
+        <label>Número (enmascarado): <input @bind="nueva.NumeroCuenta" /></label><br />
+        <label>Tipo:
+            <select @bind="nueva.Tipo">
+                <option value="@TipoCuenta.Bancaria">Bancaria</option>
+                <option value="@TipoCuenta.Caja">Caja</option>
+            </select>
+        </label><br />
+        <button @onclick="GuardarNueva">Guardar</button>
+    </div>
+}
+
+<table class="table" style="margin-top:1rem;">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Banco</th>
+            <th>Número</th>
+            <th>Saldo</th>
+            <th>Activa</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var c in cuentas)
+        {
+            <tr>
+                <td>@c.Codigo</td>
+                <td>@c.Nombre</td>
+                <td>@c.Banco</td>
+                <td>@c.NumeroCuenta</td>
+                <td>@c.SaldoActual.ToString("N0")</td>
+                <td>@(c.Activa ? "Sí" : "No")</td>
+            </tr>
+        }
+    </tbody>
+</table>

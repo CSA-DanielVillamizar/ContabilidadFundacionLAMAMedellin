@@ -1,0 +1,85 @@
+@page "/tesoreria/aportes"
+@using Server.Data
+@using Server.Models
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Admin,Tesorero")]
+
+<PageTitle>Aportes Mensuales</PageTitle>
+
+<h3>Aportes Mensuales</h3>
+
+@code {
+    [Inject] AppDbContext Db { get; set; } = default!;
+
+    private List<AporteMensual> aportes = new();
+    private int filtroAno = DateTime.UtcNow.Year;
+    private int filtroMes = DateTime.UtcNow.Month;
+    private EstadoAporte? filtroEstado;
+    private Guid? filtroMiembroId;
+
+    private List<Miembro> miembros = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        miembros = await Db.Miembros.OrderBy(m => m.NombreCompleto).ToListAsync();
+        await CargarAportes();
+    }
+
+    private async Task CargarAportes()
+    {
+        var query = Db.AportesMensuales.AsQueryable().Where(a => a.Ano == filtroAno && a.Mes == filtroMes);
+        if (filtroEstado.HasValue) query = query.Where(a => a.Estado == filtroEstado.Value);
+        if (filtroMiembroId.HasValue) query = query.Where(a => a.MiembroId == filtroMiembroId.Value);
+        aportes = await query.OrderBy(a => a.MiembroId).ToListAsync();
+    }
+}
+
+<div class="filters" style="margin-bottom:1rem;">
+    <label>Año: <input type="number" @bind="filtroAno" /></label>
+    <label>Mes: <input type="number" @bind="filtroMes" /></label>
+    <label>Estado:
+        <select @bind="filtroEstado">
+            <option value="">(Todos)</option>
+            <option value="@EstadoAporte.Pendiente">Pendiente</option>
+            <option value="@EstadoAporte.Pagado">Pagado</option>
+            <option value="@EstadoAporte.Exonerado">Exonerado</option>
+        </select>
+    </label>
+    <label>Miembro:
+        <select @bind="filtroMiembroId">
+            <option value="">(Todos)</option>
+            @foreach (var m in miembros)
+            {
+                <option value="@m.Id">@m.NombreCompleto (@m.NumeroSocio)</option>
+            }
+        </select>
+    </label>
+    <button @onclick="CargarAportes">Filtrar</button>
+</div>
+
+<table class="table" style="margin-top:1rem;">
+    <thead>
+        <tr>
+            <th>Miembro</th>
+            <th>Año</th>
+            <th>Mes</th>
+            <th>Valor</th>
+            <th>Estado</th>
+            <th>Fecha Pago</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var a in aportes)
+        {
+            var miembro = miembros.FirstOrDefault(m => m.Id == a.MiembroId)?.NombreCompleto ?? "(N/A)";
+            <tr>
+                <td>@miembro</td>
+                <td>@a.Ano</td>
+                <td>@a.Mes</td>
+                <td>@a.ValorEsperado.ToString("N0")</td>
+                <td>@a.Estado</td>
+                <td>@(a.FechaPago.HasValue ? a.FechaPago.Value.ToString() : "-")</td>
+            </tr>
+        }
+    </tbody>
+</table>

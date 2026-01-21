@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Server.Security;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.Extensions.Options;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Azure.Storage.Blobs;
@@ -409,6 +410,10 @@ builder.Services.AddScoped<Server.Services.Audit.IAuditService, Server.Services.
 builder.Services.AddScoped<Server.Services.Export.ICsvExportService, Server.Services.Export.CsvExportService>();
 builder.Services.AddScoped<Server.Services.Backup.IBackupService, Server.Services.Backup.BackupService>();
 
+// Configuración y servicio de importación Excel
+builder.Services.Configure<Server.Services.Import.ImportOptions>(builder.Configuration.GetSection("Import"));
+builder.Services.AddScoped<Server.Services.Import.IExcelTreasuryImportService, Server.Services.Import.ExcelTreasuryImportService>();
+
 // Servicios de UI
 builder.Services.AddScoped<Server.Services.UI.IThemeService, Server.Services.UI.ThemeService>();
 
@@ -790,6 +795,22 @@ if (app.Environment.IsDevelopment())
             .ToListAsync();
         return Results.Ok(productos);
     }).AllowAnonymous();
+
+    // ========== ADMIN ENDPOINTS - IMPORTACIÓN TESORERÍA ==========
+    app.MapPost("/api/admin/import/tesoreria/excel", async (
+        Server.Services.Import.IExcelTreasuryImportService importService,
+        IOptions<Server.Services.Import.ImportOptions> options,
+        bool dryRun = false) =>
+    {
+        // Verificar que la importación esté habilitada
+        if (!options.Value.Enabled)
+        {
+            return Results.Json(new { success = false, message = "Importación deshabilitada por configuración (Import:Enabled=false)" }, statusCode: 403);
+        }
+
+        var summary = await importService.ImportAsync(filePath: null, dryRun: dryRun);
+        return Results.Ok(summary);
+    }).RequireAuthorization("RequireAdmin");
 }
 
 app.Run();

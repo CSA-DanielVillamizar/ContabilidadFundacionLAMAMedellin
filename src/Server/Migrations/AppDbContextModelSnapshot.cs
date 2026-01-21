@@ -155,6 +155,63 @@ namespace Server.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Server.Models.AporteMensual", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Ano")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FechaPago")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Mes")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("MiembroId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("MovimientoTesoreriaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal>("ValorEsperado")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MovimientoTesoreriaId");
+
+                    b.HasIndex("MiembroId", "Ano", "Mes")
+                        .IsUnique();
+
+                    b.ToTable("AportesMensuales");
+                });
+
             modelBuilder.Entity("Server.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -272,6 +329,185 @@ namespace Server.Migrations
                     b.HasIndex("EntityType", "EntityId");
 
                     b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("Server.Models.CategoriaEgreso", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("CuentaContableId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("EsGastoSocial")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("CategoriasEgreso");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000001"),
+                            Activa = true,
+                            Codigo = "AYUDA-SOCIAL",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Proyectos de ayuda social (RTE)",
+                            EsGastoSocial = true,
+                            Nombre = "Ayuda Social"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000002"),
+                            Activa = true,
+                            Codigo = "EVENTO-LOG",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Gastos de organización de eventos",
+                            EsGastoSocial = false,
+                            Nombre = "Logística de Eventos"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000003"),
+                            Activa = true,
+                            Codigo = "COMPRA-MERCH",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Parches, souvenirs, jerseys",
+                            EsGastoSocial = false,
+                            Nombre = "Compra Inventario Mercancía"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000004"),
+                            Activa = true,
+                            Codigo = "COMPRA-CLUB-CAFE",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Café, capuchino, etc.",
+                            EsGastoSocial = false,
+                            Nombre = "Compra Insumos Casa Club - Café"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000005"),
+                            Activa = true,
+                            Codigo = "COMPRA-CLUB-CERV",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Cerveza, bebidas alcohólicas",
+                            EsGastoSocial = false,
+                            Nombre = "Compra Insumos Casa Club - Cerveza"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000006"),
+                            Activa = true,
+                            Codigo = "COMPRA-CLUB-COMI",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Alimentos para emparedados, snacks",
+                            EsGastoSocial = false,
+                            Nombre = "Compra Insumos Casa Club - Comida"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000007"),
+                            Activa = true,
+                            Codigo = "COMPRA-CLUB-OTROS",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Artículos moteros para venta",
+                            EsGastoSocial = false,
+                            Nombre = "Compra Insumos Casa Club - Otros"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000008"),
+                            Activa = true,
+                            Codigo = "ADMIN-PAPEL",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Papelería, oficina",
+                            EsGastoSocial = false,
+                            Nombre = "Gastos Administrativos - Papelería"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000009"),
+                            Activa = true,
+                            Codigo = "ADMIN-TRANSP",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Transporte, combustible",
+                            EsGastoSocial = false,
+                            Nombre = "Gastos Administrativos - Transporte"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000010"),
+                            Activa = true,
+                            Codigo = "ADMIN-SERVICIOS",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Internet, telefonía, servicios públicos",
+                            EsGastoSocial = false,
+                            Nombre = "Gastos Administrativos - Servicios"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000011"),
+                            Activa = true,
+                            Codigo = "MANTENIMIENTO",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Mantenimiento de infraestructura",
+                            EsGastoSocial = false,
+                            Nombre = "Mantenimiento"
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000012"),
+                            Activa = true,
+                            Codigo = "OTROS-GASTOS",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Gastos misceláneos",
+                            EsGastoSocial = false,
+                            Nombre = "Otros Gastos"
+                        });
                 });
 
             modelBuilder.Entity("Server.Models.CertificadoDonacion", b =>
@@ -827,6 +1063,95 @@ namespace Server.Migrations
                     b.ToTable("Cotizaciones");
                 });
 
+            modelBuilder.Entity("Server.Models.CuentaFinanciera", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Banco")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("FechaApertura")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NumeroCuenta")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("SaldoActual")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SaldoInicial")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TitularCuenta")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("CuentasFinancieras");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            Activa = true,
+                            Banco = "Bancolombia",
+                            Codigo = "BANCO-BCOL-001",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            FechaApertura = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Nombre = "Bancolombia Cuenta Corriente Principal",
+                            NumeroCuenta = "****5678",
+                            SaldoActual = 0m,
+                            SaldoInicial = 0m,
+                            Tipo = 1
+                        });
+                });
+
             modelBuilder.Entity("Server.Models.DetalleCompraProducto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -988,6 +1313,150 @@ namespace Server.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Egresos");
+                });
+
+            modelBuilder.Entity("Server.Models.FuenteIngreso", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("CuentaContableId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("FuentesIngreso");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000001"),
+                            Activa = true,
+                            Codigo = "APORTE-MEN",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "$20.000 COP recurrente",
+                            Nombre = "Aporte Mensual Miembro"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000002"),
+                            Activa = true,
+                            Codigo = "VENTA-MERCH",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Souvenirs, jerseys, parches, gorras",
+                            Nombre = "Venta Mercancía"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000003"),
+                            Activa = true,
+                            Codigo = "VENTA-CLUB-ART",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Artículos moteros vendidos en casa club",
+                            Nombre = "Venta Casa Club - Artículos Moteros"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000004"),
+                            Activa = true,
+                            Codigo = "VENTA-CLUB-CAFE",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Café vendido en casa club",
+                            Nombre = "Venta Casa Club - Café"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000005"),
+                            Activa = true,
+                            Codigo = "VENTA-CLUB-CERV",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Cerveza vendida en casa club",
+                            Nombre = "Venta Casa Club - Cerveza"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000006"),
+                            Activa = true,
+                            Codigo = "VENTA-CLUB-COMI",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Emparedados, snacks, comida ligera",
+                            Nombre = "Venta Casa Club - Comida"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000007"),
+                            Activa = true,
+                            Codigo = "DONACION",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Donaciones recibidas (RTE)",
+                            Nombre = "Donación"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000008"),
+                            Activa = true,
+                            Codigo = "EVENTO",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Ingresos por eventos organizados",
+                            Nombre = "Evento"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000009"),
+                            Activa = true,
+                            Codigo = "RENOVACION-MEM",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Renovación anual de membresía",
+                            Nombre = "Renovación Membresía"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000010"),
+                            Activa = true,
+                            Codigo = "OTROS",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedBy = "seed",
+                            Descripcion = "Ingresos misceláneos",
+                            Nombre = "Otros Ingresos"
+                        });
                 });
 
             modelBuilder.Entity("Server.Models.HistorialPrecio", b =>
@@ -1304,6 +1773,140 @@ namespace Server.Migrations
                     b.HasIndex("VentaId");
 
                     b.ToTable("MovimientosInventario");
+                });
+
+            modelBuilder.Entity("Server.Models.MovimientoTesoreria", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CategoriaEgresoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("CuentaFinancieraId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaAprobacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("FuenteIngresoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("ImportBalanceExpected")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("ImportBalanceFound")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("ImportHasBalanceMismatch")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ImportHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int?>("ImportRowNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImportSheet")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ImportSource")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ImportedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Medio")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MotivoAnulacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NumeroMovimiento")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid?>("ReciboId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReferenciaTransaccion")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SoporteUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("TerceroId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TerceroNombre")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("UsuarioAprobacion")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoriaEgresoId");
+
+                    b.HasIndex("CuentaFinancieraId");
+
+                    b.HasIndex("FuenteIngresoId");
+
+                    b.HasIndex("ImportHash");
+
+                    b.HasIndex("NumeroMovimiento")
+                        .IsUnique();
+
+                    b.HasIndex("ReciboId");
+
+                    b.HasIndex("Fecha", "Tipo", "CuentaFinancieraId", "Estado");
+
+                    b.ToTable("MovimientosTesoreria");
                 });
 
             modelBuilder.Entity("Server.Models.Notificacion", b =>
@@ -1692,6 +2295,12 @@ namespace Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EsOficial")
+                        .HasColumnType("bit");
+
                     b.Property<DateOnly>("Fecha")
                         .HasColumnType("date");
 
@@ -1854,6 +2463,24 @@ namespace Server.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Server.Models.AporteMensual", b =>
+                {
+                    b.HasOne("Server.Models.Miembro", "Miembro")
+                        .WithMany()
+                        .HasForeignKey("MiembroId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Server.Models.MovimientoTesoreria", "MovimientoTesoreria")
+                        .WithMany()
+                        .HasForeignKey("MovimientoTesoreriaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Miembro");
+
+                    b.Navigation("MovimientoTesoreria");
+                });
+
             modelBuilder.Entity("Server.Models.CertificadoDonacion", b =>
                 {
                     b.HasOne("Server.Models.Recibo", "Recibo")
@@ -2001,6 +2628,38 @@ namespace Server.Migrations
                     b.Navigation("Producto");
 
                     b.Navigation("Venta");
+                });
+
+            modelBuilder.Entity("Server.Models.MovimientoTesoreria", b =>
+                {
+                    b.HasOne("Server.Models.CategoriaEgreso", "CategoriaEgreso")
+                        .WithMany()
+                        .HasForeignKey("CategoriaEgresoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Server.Models.CuentaFinanciera", "CuentaFinanciera")
+                        .WithMany()
+                        .HasForeignKey("CuentaFinancieraId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Server.Models.FuenteIngreso", "FuenteIngreso")
+                        .WithMany()
+                        .HasForeignKey("FuenteIngresoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Server.Models.Recibo", "Recibo")
+                        .WithMany()
+                        .HasForeignKey("ReciboId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CategoriaEgreso");
+
+                    b.Navigation("CuentaFinanciera");
+
+                    b.Navigation("FuenteIngreso");
+
+                    b.Navigation("Recibo");
                 });
 
             modelBuilder.Entity("Server.Models.Notificacion", b =>

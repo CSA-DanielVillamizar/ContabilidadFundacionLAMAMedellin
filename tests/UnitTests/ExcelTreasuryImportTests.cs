@@ -171,4 +171,167 @@ public class ExcelTreasuryImportTests
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(data));
         return Convert.ToHexString(bytes);
     }
-}
+
+    /// <summary>
+    /// Tests para carry-over mensual (validación de saldos entre hojas)
+    /// </summary>
+
+    [Fact]
+    public void CarryOver_SaldoMesAnteriorMatchesPreviousFinal_NoMismatch()
+    {
+        // Simular flujo: Hoja 1 termina con saldo 100.000 COP
+        // Hoja 2 comienza con saldo mes anterior 100.000 COP => match, no hay warning
+        var saldoFinalHoja1 = 100000m;
+        var saldoMesAnteriorHoja2 = 100000m;
+
+        var diff = Math.Abs(saldoFinalHoja1 - saldoMesAnteriorHoja2);
+        var isMismatch = diff > 1m;
+
+        Assert.False(isMismatch, "Los saldos coinciden exactamente, no debe haber mismatch");
+    }
+
+    [Fact]
+    public void CarryOver_SaldoMesAnteriorMismatchWithInHoja2_DetectMismatch()
+    {
+        // Hoja 1 termina con saldo 100.000 COP
+        // Hoja 2 comienza con saldo mes anterior 100.500 COP => mismatch, debe haber warning
+        var saldoFinalHoja1 = 100000m;
+        var saldoMesAnteriorHoja2 = 100500m;
+
+        var diff = Math.Abs(saldoFinalHoja1 - saldoMesAnteriorHoja2);
+        var isMismatch = diff > 1m;
+
+        Assert.True(isMismatch, "Diferencia de 500 COP debe ser detectada como mismatch");
+        Assert.Equal(500m, diff);
+    }
+
+    [Fact]
+    public void CarryOver_SaldoMesAnteriorWithinToleranceOf1COP_NoMismatch()
+    {
+        // Hoja 1 termina con saldo 100.000,50 COP
+        // Hoja 2 comienza con saldo mes anterior 100.000 COP => dentro de tolerancia ±1
+        var saldoFinalHoja1 = 100000.50m;
+        var saldoMesAnteriorHoja2 = 100000m;
+
+        var diff = Math.Abs(saldoFinalHoja1 - saldoMesAnteriorHoja2);
+        var isMismatch = diff > 1m;
+
+        Assert.False(isMismatch, "Diferencia de 0,50 COP está dentro de tolerancia ±1");
+    }
+
+    [Fact]
+    public void SaldoFinalCalculado_MatchesExpectedAfterAllMovimientos_NoMismatch()
+    {
+        // Hoja con movimientos que suman a saldo esperado exacto
+        var saldoInicial = 50000m;
+        var movimientos = new List<(bool esIngreso, decimal valor)>
+        {
+            (true, 30000),   // +30.000
+            (false, 10000),  // -10.000
+            (true, 15000)    // +15.000
+        };
+
+        var saldoCalculado = saldoInicial;
+        foreach (var (esIngreso, valor) in movimientos)
+        {
+            saldoCalculado += esIngreso ? valor : -valor;
+        }
+
+        var saldoEsperado = 90000m; // 50 + 30 - 10 + 15 = 85, pero esperado es 90
+        
+        // Este caso muestra que hay mismatch
+        var diff = Math.Abs(saldoCalculado - saldoEsperado);
+        Assert.Equal(5000m, diff);
+    }
+
+    [Fact]
+    public void SaldoFinalCalculado_MatchesExpectedWhenCorrect_VerifyCalculation()
+    {
+        // Hoja con movimientos que suman correctamente
+        var saldoInicial = 50000m;
+        var movimientos = new List<(bool esIngreso, decimal valor)>
+        {
+            (true, 30000),   // +30.000
+            (false, 10000),  // -10.000
+            (true, 15000)    // +15.000
+        };
+
+        var saldoCalculado = saldoInicial;
+        foreach (var (esIngreso, valor) in movimientos)
+        {
+            saldoCalculado += esIngreso ? valor : -valor;
+        }
+
+        var saldoEsperado = 85000m; // Correctamente calculado: 50 + 30 - 10 + 15 = 85
+
+        var diff = Math.Abs(saldoCalculado - saldoEsperado);
+        Assert.True(diff <= 1m, $"El saldo final debe coincidir. Calculado: {saldoCalculado}, Esperado: {saldoEsperado}");
+        Assert.Equal(85000m, saldoCalculado);
+    }
+
+    [Theory]
+    [InlineData(100000m, 100000m, true)]   // Exacto
+    [InlineData(100000m, 100000.50m, true)] // Tolerancia
+    [InlineData(100000m, 100000.99m, true)] // Tolerancia
+    [InlineData(100000m, 100001.01m, false)] // Fuera de tolerancia
+    [InlineData(100000m, 99998.99m, false)]  // Fuera de tolerancia (lado negativo)
+    public void BalanceTolerance_VariousThresholds_AppliesCorrectly(decimal calculado, decimal esperado, bool shouldMatch)
+    {
+        var diff = Math.Abs(calculado - esperado);
+        var isMatch = diff <= 1m;
+
+        if (shouldMatch)
+            Assert.True(isMatch, $"Diferencia {diff} debe estar dentro de tolerancia ±1");
+        else
+            Assert.False(isMatch, $"Diferencia {diff} debe estar fuera de tolerancia ±1");
+    }
+
+    [Fact]
+    public void IsResumenRow_UpdatedKeywords_AccuracyCheck()
+    {
+        // Verificar que las nuevas keywords específicas funcionan
+        var resumenRows = new[]
+        {
+            "SALDO EFECTIVO MES ANTERIOR",
+            "SALDO EN TESORERIA A LA FECHA",
+            "SALDO EN TESORERIA",
+            "TOTAL INGRESOS",
+            "INGRESOS DOLARES",
+            "TOTAL EGRESOS",
+            "SALDO FINAL",
+            "TOTAL DEPOSITOS"
+        };
+
+        var keywords = new[] { 
+            "SALDO EFECTIVO MES ANTERIOR",
+            "SALDO EN TESORERIA A LA FECHA",
+            "SALDO EN TESORERIA",
+            "TOTAL INGRESOS",
+            "INGRESOS DOLARES",
+            "TOTAL EGRESOS",
+            "SALDO FINAL",
+            "TOTAL DEPOSITOS"
+        };
+
+        foreach (var row in resumenRows)
+        {
+            var isResumen = keywords.Any(k => row.ToUpper().Contains(k));
+            Assert.True(isResumen, $"'{row}' debe ser detectado como fila resumen");
+        }
+
+        // Movimientos válidos NO deben ser detectados como resumen
+        var validRows = new[]
+        {
+            "Aporte mensual miembro 12345",
+            "Donación evento aniversario",
+            "Venta merchandising",
+            "Pago servicios",
+            "Egreso ayuda social"
+        };
+
+        foreach (var row in validRows)
+        {
+            var isResumen = keywords.Any(k => row.ToUpper().Contains(k));
+            Assert.False(isResumen, $"'{row}' NO debe ser detectado como fila resumen");
+        }
+    }

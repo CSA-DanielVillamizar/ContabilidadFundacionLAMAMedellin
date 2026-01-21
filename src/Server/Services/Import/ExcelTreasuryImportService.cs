@@ -82,7 +82,21 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
             var movimientos = ParseMovimientosFromSheet(sheet, cuenta.Id, fuentes, categorias, summary, sourceName);
             summary.MovimientosPorHoja[sheet.Name] = movimientos.Count;
 
-            // Validar saldo por fila
+            // 1) VALIDACIÓN DE ENTRADA: Comparar saldoMesAnterior con saldoAcumulado previo
+            if (summary.SaldoMesAnteriorPorHoja.TryGetValue(sheet.Name, out var saldoMesAnterior))
+            {
+                var diffEntrada = Math.Abs(saldoMesAnterior.Value - saldoAcumulado);
+                if (diffEntrada > 1m)
+                {
+                    summary.BalanceMismatches++;
+                    summary.Warnings.Add(
+                        $"Carry-over mismatch: Hoja '{sheet.Name}' saldo mes anterior {saldoMesAnterior:N0} != " +
+                        $"saldo acumulado previo {saldoAcumulado:N0} (diferencia: {diffEntrada:N0} COP)"
+                    );
+                }
+            }
+
+            // Procesar movimientos y calcular saldo acumulado
             var saldoInicio = saldoAcumulado;
             foreach (var mov in movimientos)
             {
@@ -103,6 +117,23 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
                     }
                 }
             }
+
+            // 2) VALIDACIÓN DE SALIDA: Comparar saldoFinalEsperado con saldoAcumulado final
+            if (summary.SaldoFinalEsperadoPorHoja.TryGetValue(sheet.Name, out var saldoEsperado))
+            {
+                var diffSalida = Math.Abs(saldoEsperado.Value - saldoAcumulado);
+                if (diffSalida > 1m)
+                {
+                    summary.BalanceMismatches++;
+                    summary.Warnings.Add(
+                        $"Saldo fin de mes mismatch: Hoja '{sheet.Name}' saldo esperado {saldoEsperado:N0} != " +
+                        $"saldo calculado {saldoAcumulado:N0} (diferencia: {diffSalida:N0} COP)"
+                    );
+                }
+            }
+
+            // Registrar saldo final calculado para auditoría por periodo
+            summary.SaldoFinalCalculadoPorHoja[sheet.Name] = saldoAcumulado;
 
             // Importar movimientos con idempotencia (consulta única por hashes)
             if (!dryRun)
@@ -272,7 +303,7 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
             if (string.IsNullOrWhiteSpace(concepto))
                 continue;
 
-            // Capturar SALDO EFECTIVO MES ANTERIOR
+            // Capturar SALDO EFECTIVO MES ANTERIOR (exacto o fallback)
             if (concepto.Contains("SALDO EFECTIVO MES ANTERIOR", StringComparison.OrdinalIgnoreCase) ||
                 concepto.Contains("SALDO MES ANTERIOR", StringComparison.OrdinalIgnoreCase))
             {
@@ -282,9 +313,11 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
                 continue;
             }
 
-            // Capturar SALDO EN TESORERIA A LA FECHA
-            if (concepto.Contains("SALDO EN TESORERIA A LA FECHA", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Contains("SALDO EN TESORERIA", StringComparison.OrdinalIgnoreCase))
+            // Capturar SALDO EN TESORERIA (priorizar "A LA FECHA", luego fallback genérico)
+            var isExactMatch = concepto.Contains("SALDO EN TESORERIA A LA FECHA", StringComparison.OrdinalIgnoreCase);
+            var isFallbackMatch = !isExactMatch && concepto.Contains("SALDO EN TESORERIA", StringComparison.OrdinalIgnoreCase);
+            
+            if (isExactMatch || isFallbackMatch)
             {
                 var val = saldoCell != null ? ParseDecimal(saldoCell) : ParseDecimal(ingresosCell);
                 if (val != 0)
@@ -354,15 +387,23 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
     }
 
     /// <summary>
-    /// Detecta si una fila es resumen (no debe importarse como movimiento)
+    /// Detecta si una fila es resumen (no debe importarse como movimiento).
+    /// Usa frases específicas para evitar falsos positivos.
     /// </summary>
     private bool IsResumenRow(string concepto)
     {
-        var keywords = new[] { 
-            "SALDO EFECTIVO", "TOTAL INGRESOS", "INGRESOS DOLARES", "EGRESOS", 
-            "SALDO EN TESORERIA", "MES ANTERIOR", "TOTAL EGRESOS", "SALDO FINAL"
-        };
         var upper = concepto.ToUpper();
+        // Frases específicas de resumen
+        var keywords = new[] { 
+            "SALDO EFECTIVO MES ANTERIOR",
+            "SALDO EN TESORERIA A LA FECHA",
+            "SALDO EN TESORERIA",
+            "TOTAL INGRESOS",
+            "INGRESOS DOLARES",
+            "TOTAL EGRESOS",
+            "SALDO FINAL",
+            "TOTAL DEPOSITOS"
+        };
         return keywords.Any(k => upper.Contains(k));
     }
 

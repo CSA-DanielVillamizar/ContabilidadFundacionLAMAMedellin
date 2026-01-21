@@ -15,8 +15,16 @@ public class ImportSummary
     public List<string> Warnings { get; set; } = new();
     public List<string> Errors { get; set; } = new();
     public Dictionary<string, int> MovimientosPorHoja { get; set; } = new();
+    
+    /// <summary>Saldo inicial (mes anterior) detectado por hoja</summary>
     public Dictionary<string, decimal?> SaldoMesAnteriorPorHoja { get; set; } = new();
+    
+    /// <summary>Saldo final esperado (en tesorería a la fecha) detectado por hoja</summary>
     public Dictionary<string, decimal?> SaldoFinalEsperadoPorHoja { get; set; } = new();
+    
+    /// <summary>Saldo final calculado por movimientos para auditoría por periodo</summary>
+    public Dictionary<string, decimal?> SaldoFinalCalculadoPorHoja { get; set; } = new();
+    
     public string Message { get; set; } = string.Empty;
 }
 

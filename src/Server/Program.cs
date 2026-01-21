@@ -391,6 +391,7 @@ builder.Services.AddScoped<Server.Services.DashboardService>();
 builder.Services.AddScoped<Server.Services.Miembros.IMiembrosService, Server.Services.Miembros.MiembrosService>();
 builder.Services.AddScoped<Server.Services.Miembros.IMiembrosExportService, Server.Services.Miembros.MiembrosExportService>();
 builder.Services.AddScoped<Server.Services.CierreContable.CierreContableService>();
+builder.Services.AddScoped<Server.Services.MovimientosTesoreria.MovimientosTesoreriaService>();
 builder.Services.AddScoped<Server.Services.Exportaciones.ExportacionesService>();
 
 // Servicios de Gerencia de Negocios

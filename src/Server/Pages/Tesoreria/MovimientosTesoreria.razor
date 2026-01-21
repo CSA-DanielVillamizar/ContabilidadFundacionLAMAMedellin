@@ -1,6 +1,7 @@
 @page "/tesoreria/movimientos"
 @using Server.Data
 @using Server.Models
+@using Server.Services.MovimientosTesoreria
 @using Microsoft.EntityFrameworkCore
 @attribute [Authorize(Roles = "Admin,Tesorero")]
 
@@ -10,9 +11,13 @@
 
 @code {
     [Inject] AppDbContext Db { get; set; } = default!;
+    [Inject] MovimientosTesoreriaService MovimientosService { get; set; } = default!;
+    [Inject] IHttpContextAccessor HttpContext { get; set; } = default!;
 
     private List<MovimientoTesoreria> movimientos = new();
     private MovimientoTesoreria nuevo = new();
+    private string? errorMessage;
+    private string? successMessage;
 
     private DateTime? filtroInicio;
     private DateTime? filtroFin;
@@ -24,6 +29,8 @@
     private List<FuenteIngreso> fuentes = new();
     private List<CategoriaEgreso> categorias = new();
 
+    private string CurrentUser => HttpContext.HttpContext?.User?.Identity?.Name ?? "system";
+
     protected override async Task OnInitializedAsync()
     {
         cuentas = await Db.CuentasFinancieras.OrderBy(c => c.Nombre).ToListAsync();
@@ -34,17 +41,28 @@
 
     private async Task CargarMovimientos()
     {
-        var query = Db.MovimientosTesoreria.AsQueryable();
-        if (filtroInicio.HasValue) query = query.Where(m => m.Fecha >= filtroInicio.Value);
-        if (filtroFin.HasValue) query = query.Where(m => m.Fecha <= filtroFin.Value);
-        if (filtroCuenta.HasValue) query = query.Where(m => m.CuentaFinancieraId == filtroCuenta.Value);
-        if (filtroTipo.HasValue) query = query.Where(m => m.Tipo == filtroTipo.Value);
-        if (filtroEstado.HasValue) query = query.Where(m => m.Estado == filtroEstado.Value);
-        movimientos = await query.OrderByDescending(m => m.Fecha).Take(200).ToListAsync();
+        errorMessage = null;
+        try
+        {
+            movimientos = await MovimientosService.ListAsync(
+                inicio: filtroInicio,
+                fin: filtroFin,
+                cuentaId: filtroCuenta,
+                tipo: filtroTipo,
+                estado: filtroEstado,
+                maxResults: 200
+            );
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar movimientos: {ex.Message}";
+        }
     }
 
     private void PrepararNuevo()
     {
+        errorMessage = null;
+        successMessage = null;
         nuevo = new MovimientoTesoreria
         {
             NumeroMovimiento = $"MV-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
@@ -58,29 +76,52 @@
 
     private async Task GuardarNuevo()
     {
+        errorMessage = null;
+        successMessage = null;
+
         if (nuevo.CuentaFinancieraId == Guid.Empty || string.IsNullOrWhiteSpace(nuevo.NumeroMovimiento))
+        {
+            errorMessage = "Complete todos los campos obligatorios.";
             return;
+        }
 
-        // Bloqueo por período cerrado
-        var mes = nuevo.Fecha.Month; var ano = nuevo.Fecha.Year;
-        var cerrado = await Db.CierresMensuales.AnyAsync(c => c.Ano == ano && c.Mes == mes);
-        if (cerrado) return; // fail-fast si periodo cerrado
-
-        // Evitar duplicado de número
-        var existe = await Db.MovimientosTesoreria.AnyAsync(m => m.NumeroMovimiento == nuevo.NumeroMovimiento);
-        if (existe) return;
-
-        nuevo.CreatedBy = "ui";
-        nuevo.CreatedAt = DateTime.UtcNow;
-        Db.MovimientosTesoreria.Add(nuevo);
-        await Db.SaveChangesAsync();
-
-        await CargarMovimientos();
+        try
+        {
+            // ✅ El servicio valida automáticamente si el mes está cerrado
+            await MovimientosService.CreateAsync(nuevo, CurrentUser);
+            successMessage = $"✅ Movimiento {nuevo.NumeroMovimiento} creado exitosamente.";
+            nuevo = new MovimientoTesoreria(); // Limpiar formulario
+            await CargarMovimientos();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        
         StateHasChanged();
     }
 }
 
 <!-- UI básica sin MudBlazor para MVP -->
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert" style="margin-bottom:1rem;">
+        @errorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success" role="alert" style="margin-bottom:1rem;">
+        @successMessage
+    </div>
+}
+
 <div class="filters" style="margin-bottom:1rem;">
     <label>Inicio: <input type="date" @bind="filtroInicio" /></label>
     <label>Fin: <input type="date" @bind="filtroFin" /></label>

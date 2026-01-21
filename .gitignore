@@ -38,7 +38,7 @@ bld/
 *.db
 *.db-shm
 *.db-wal
-Migrations/
+# Migrations/ -- REMOVED: Migrations MUST be tracked in Git for production reproducibility
 
 # Local appsettings files (keep sample, but not actual)
 appsettings.AzureProd.json

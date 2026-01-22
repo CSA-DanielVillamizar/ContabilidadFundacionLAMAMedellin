@@ -270,20 +270,22 @@ public class ExcelTreasuryImportTests
     }
 
     [Theory]
-    [InlineData(100000, 100000, true)]   // Exacto
-    [InlineData(100000, 100001, true)] // Tolerancia (dentro de ±1)
-    [InlineData(100000, 100001, true)] // Tolerancia
-    [InlineData(100000, 100002, false)] // Fuera de tolerancia
-    [InlineData(100000, 99999, false)]  // Fuera de tolerancia (lado negativo)
+    [InlineData(100000, 100000, true)]   // Exacto: diferencia 0 < 1 ✓
+    [InlineData(100000, 100001, false)] // Diferencia 1 NO es aceptable (tolerancia estricta < 1)
+    [InlineData(100000, 99999, false)]  // Diferencia 1 NO es aceptable (lado negativo)
+    [InlineData(100000, 100002, false)] // Diferencia 2 está fuera
+    [InlineData(100000, 99998, false)]  // Diferencia 2 está fuera (lado negativo)
     public void BalanceTolerance_VariousThresholds_AppliesCorrectly(long calculado, long esperado, bool shouldMatch)
     {
+        // Regla de tolerancia: ESTRICTAMENTE menor a 1 (tolerancia exclusiva)
+        // Para software contable, cualquier diferencia >= 1 es rechazada
         var diff = Math.Abs((decimal)calculado - (decimal)esperado);
-        var isMatch = diff <= 1m;
+        var isMatch = diff < 1m;
 
         if (shouldMatch)
-            Assert.True(isMatch, $"Diferencia {diff} debe estar dentro de tolerancia ±1");
+            Assert.True(isMatch, $"Diferencia {diff} debe estar dentro de tolerancia estricta <1");
         else
-            Assert.False(isMatch, $"Diferencia {diff} debe estar fuera de tolerancia ±1");
+            Assert.False(isMatch, $"Diferencia {diff} debe estar fuera de tolerancia estricta <1");
     }
 
     [Fact]

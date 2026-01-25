@@ -1,0 +1,69 @@
+@using Server.Models
+@using MudBlazor
+
+<MudDialog>
+  <DialogContent>
+    <MudAlert Severity="Severity.Warning" Dense="true" ContentAlignment="HorizontalAlignment.Start">
+      ⚠️ Esta acción es irreversible. Se anulará completamente este movimiento del ledger.
+    </MudAlert>
+
+    <div class="lama-dialog-section">
+      <MudText Typo="Typo.subtitle2"><b>Detalles del Movimiento:</b></MudText>
+      <MudText Typo="Typo.body2">
+        <b>Número:</b> @Movimiento.NumeroMovimiento<br />
+        <b>Tipo:</b> @(Movimiento.Tipo == TipoMovimientoTesoreria.Ingreso ? "Ingreso" : "Egreso")<br />
+        <b>Valor:</b> $@Movimiento.Valor.ToString("N0")<br />
+        <b>Fecha:</b> @Movimiento.Fecha.ToString("g")<br />
+        <b>Descripción:</b> @Movimiento.Descripcion
+      </MudText>
+    </div>
+
+    <MudForm @ref="form" @bind-IsValid="@success">
+      <MudTextField @bind-Value="motivo"
+                    Label="Motivo de Anulación"
+                    Variant="Variant.Outlined"
+                    Margin="Margin.Dense"
+                    Lines="4"
+                    Required="true"
+                    RequiredError="El motivo de anulación es obligatorio"
+                    HelperText="Explicar claramente por qué se anula este movimiento"
+                    FullWidth="true" />
+    </MudForm>
+  </DialogContent>
+
+  <DialogActions>
+    <MudButton OnClick="Cancel">Cancelar</MudButton>
+    <MudButton Variant="Variant.Filled" 
+               Color="Color.Error" 
+               OnClick="Submit"
+               Disabled="@(!success)">
+      Confirmar Anulación
+    </MudButton>
+  </DialogActions>
+</MudDialog>
+
+@code {
+  [CascadingParameter]
+  MudDialogInstance MudDialog { get; set; } = default!;
+
+  [Parameter]
+  public MovimientoTesoreria Movimiento { get; set; } = default!;
+
+  private MudForm form = default!;
+  private bool success;
+  private string motivo = "";
+
+  private async Task Submit()
+  {
+    await form.Validate();
+    if (success)
+    {
+      MudDialog.Close(DialogResult.Ok(motivo));
+    }
+  }
+
+  private void Cancel()
+  {
+    MudDialog.Cancel();
+  }
+}

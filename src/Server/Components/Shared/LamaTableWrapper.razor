@@ -1,0 +1,16 @@
+@*
+    ============================================================================
+    LAMA TABLE WRAPPER - Envoltorio para Tablas Profesionales Estilo DataGrid
+    ============================================================================
+    Componente que envuelve MudTable para aplicar estilos premium
+    ============================================================================
+*@
+
+<div class="lama-table-wrapper">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,111 @@
+@*
+    ============================================================================
+    LAMA STAT CARD - Tarjeta de Indicador Financiero Premium
+    ============================================================================
+    Componente reutilizable para mostrar KPIs y métricas financieras
+    con diseño tipo Fintech (Stripe, Plaid, Brex)
+    ============================================================================
+*@
+
+<div class="lama-stat-card lama-stat-card--@Variant">
+    <div class="lama-stat-card__header">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <div class="lama-stat-card__icon lama-stat-card__icon--@Variant">
+                <MudIcon Icon="@Icon" Size="Size.Medium" />
+            </div>
+        }
+    </div>
+    
+    <div class="lama-stat-card__title">@Title</div>
+    
+    <div class="lama-stat-card__value">@Value</div>
+    
+    @if (!string.IsNullOrEmpty(Subtitle))
+    {
+        <div class="lama-stat-card__subtitle">@Subtitle</div>
+    }
+    
+    @if (!string.IsNullOrEmpty(Trend))
+    {
+        <div class="lama-stat-card__trend lama-stat-card__trend--@TrendDirection">
+            @if (TrendDirection == "up")
+            {
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
+            }
+            else if (TrendDirection == "down")
+            {
+                <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" />
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.TrendingFlat" Size="Size.Small" />
+            }
+            <span>@Trend</span>
+        </div>
+    }
+    
+    @if (ChildContent != null)
+    {
+        @ChildContent
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Título del indicador (ej: "Total Miembros", "Ingresos del Mes")
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Valor principal del indicador (formateado como string)
+    /// Usar formato monetario para valores financieros: FormatCurrency(valor)
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = "0";
+
+    /// <summary>
+    /// Subtítulo opcional (ej: "Miembros activos", "Recibos emitidos")
+    /// </summary>
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Icono Material Design (ej: Icons.Material.Filled.TrendingUp)
+    /// </summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    /// <summary>
+    /// Variante de color semántico:
+    /// - "ingreso" = Verde (para ingresos y valores positivos)
+    /// - "egreso" = Rojo (para egresos y gastos)
+    /// - "balance" = Azul (para balance y totales)
+    /// - "warning" = Ámbar (para alertas y pendientes)
+    /// - "primary" = Morado institucional L.A.M.A.
+    /// </summary>
+    [Parameter]
+    public string Variant { get; set; } = "primary";
+
+    /// <summary>
+    /// Texto de tendencia (ej: "+12.5% vs mes anterior")
+    /// </summary>
+    [Parameter]
+    public string? Trend { get; set; }
+
+    /// <summary>
+    /// Dirección de la tendencia para color y icono:
+    /// - "up" = Tendencia positiva (verde)
+    /// - "down" = Tendencia negativa (rojo)
+    /// - "neutral" = Sin cambio (gris)
+    /// </summary>
+    [Parameter]
+    public string TrendDirection { get; set; } = "neutral";
+
+    /// <summary>
+    /// Contenido adicional personalizado (opcional)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,40 @@
+@using MudBlazor
+
+<MudPaper Class="lama-filter-card" Elevation="0">
+    <div class="lama-filter-card__header">
+        <MudText Typo="Typo.subtitle1">
+            <b>@Title</b>
+        </MudText>
+    </div>
+    
+    <MudGrid Spacing="2">
+        @ChildContent
+        
+        @if (Actions != null)
+        {
+            <MudItem xs="12" Class="lama-filter-actions">
+                @Actions
+            </MudItem>
+        }
+    </MudGrid>
+</MudPaper>
+
+@code {
+    /// <summary>
+    /// Título del card de filtros (por defecto "Filtros")
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Filtros";
+
+    /// <summary>
+    /// Contenido del card (campos de filtro en MudGrid)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Botones de acción (Filtrar, Limpiar, etc.)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+}

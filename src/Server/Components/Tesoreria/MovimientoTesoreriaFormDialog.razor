@@ -1,0 +1,169 @@
+@using Server.Models
+@using MudBlazor
+
+<MudDialog>
+  <DialogContent>
+    <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+      <div class="lama-form-section">
+        <div class="lama-form-section__title">Información General</div>
+        
+        <MudTextField @bind-Value="Movimiento.NumeroMovimiento" 
+                      Label="Número de Movimiento"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Disabled="@(Modo == "edit")"
+                      ReadOnly="@(Modo == "edit")" />
+        
+        <MudDatePicker @bind-Date="movimientoFecha"
+                       Label="Fecha"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense" />
+        
+        <MudSelect @bind-Value="Movimiento.CuentaFinancieraId"
+                   Label="Cuenta Financiera"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Required="true"
+                   RequiredError="Debe seleccionar una cuenta">
+          @foreach (var c in Cuentas)
+          {
+            <MudSelectItem Value="c.Id">@c.Nombre</MudSelectItem>
+          }
+        </MudSelect>
+
+        <MudSelect @bind-Value="Movimiento.Tipo"
+                   Label="Tipo de Movimiento"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Required="true">
+          <MudSelectItem Value="TipoMovimientoTesoreria.Ingreso">Ingreso</MudSelectItem>
+          <MudSelectItem Value="TipoMovimientoTesoreria.Egreso">Egreso</MudSelectItem>
+        </MudSelect>
+      </div>
+
+      <div class="lama-form-section">
+        <div class="lama-form-section__title">Detalles Financieros</div>
+        
+        <MudNumericField @bind-Value="Movimiento.Valor"
+                         Label="Valor"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Format="N2"
+                         Required="true"
+                         RequiredError="El valor es obligatorio" />
+
+        <MudSelect @bind-Value="Movimiento.Medio"
+                   Label="Medio de Pago"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Required="true">
+          @foreach (var m in Enum.GetValues<MedioPagoTesoreria>())
+          {
+            <MudSelectItem Value="m">@m</MudSelectItem>
+          }
+        </MudSelect>
+
+        @if (Movimiento.Tipo == TipoMovimientoTesoreria.Ingreso)
+        {
+          <MudSelect @bind-Value="Movimiento.FuenteIngresoId"
+                     Label="Fuente de Ingreso"
+                     Variant="Variant.Outlined"
+                     Margin="Margin.Dense"
+                     Clearable="true">
+            @foreach (var f in Fuentes)
+            {
+              <MudSelectItem Value="f.Id">@f.Nombre</MudSelectItem>
+            }
+          </MudSelect>
+        }
+        else
+        {
+          <MudSelect @bind-Value="Movimiento.CategoriaEgresoId"
+                     Label="Categoría de Egreso"
+                     Variant="Variant.Outlined"
+                     Margin="Margin.Dense"
+                     Clearable="true">
+            @foreach (var c in Categorias)
+            {
+              <MudSelectItem Value="c.Id">@c.Nombre</MudSelectItem>
+            }
+          </MudSelect>
+        }
+      </div>
+
+      <div class="lama-form-section">
+        <div class="lama-form-section__title">Descripción y Referencia</div>
+        
+        <MudTextField @bind-Value="Movimiento.Descripcion"
+                      Label="Descripción"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Lines="3" />
+
+        <MudTextField @bind-Value="Movimiento.ReferenciaTransaccion"
+                      Label="Referencia de Transacción (opcional)"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+      </div>
+    </MudForm>
+  </DialogContent>
+
+  <DialogActions>
+    <MudButton OnClick="Cancel">Cancelar</MudButton>
+    <MudButton Variant="Variant.Filled" 
+               Color="Color.Primary" 
+               OnClick="Submit"
+               Disabled="@(!success)">
+      @(Modo == "create" ? "Crear" : "Actualizar")
+    </MudButton>
+  </DialogActions>
+</MudDialog>
+
+@code {
+  [CascadingParameter]
+  MudDialogInstance MudDialog { get; set; } = default!;
+
+  [Parameter]
+  public string Modo { get; set; } = "create";
+
+  [Parameter]
+  public MovimientoTesoreria Movimiento { get; set; } = default!;
+
+  [Parameter]
+  public List<CuentaFinanciera> Cuentas { get; set; } = new();
+
+  [Parameter]
+  public List<FuenteIngreso> Fuentes { get; set; } = new();
+
+  [Parameter]
+  public List<CategoriaEgreso> Categorias { get; set; } = new();
+
+  private MudForm form = default!;
+  private bool success;
+  private string[] errors = { };
+  private DateTime? movimientoFecha;
+
+  protected override void OnInitialized()
+  {
+    movimientoFecha = Movimiento.Fecha.Date;
+  }
+
+  private async Task Submit()
+  {
+    await form.Validate();
+    if (success)
+    {
+      // Actualizar fecha desde el DatePicker
+      if (movimientoFecha.HasValue)
+      {
+        Movimiento.Fecha = movimientoFecha.Value.Add(Movimiento.Fecha.TimeOfDay);
+      }
+      MudDialog.Close(DialogResult.Ok(Movimiento));
+    }
+  }
+
+  private void Cancel()
+  {
+    MudDialog.Cancel();
+  }
+}

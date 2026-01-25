@@ -2,102 +2,227 @@
 @using Server.Data
 @using Server.Models
 @using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@using Server.Components.Tesoreria
+@using Server.Components.Shared
 @attribute [Authorize(Roles = "Admin,Tesorero")]
+
+@inject Server.Services.LamaToastService Toast
+@inject IDialogService DialogService
 
 <PageTitle>Cuentas Financieras</PageTitle>
 
-<h3>Cuentas Financieras</h3>
+<div class="lama-container">
+  <LamaPageHeader Title="Cuentas Financieras"
+                  Subtitle="Administración de cuentas activas y saldo"
+                  Icon="@Icons.Material.Filled.AccountBalance">
+    <Actions>
+      <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                 StartIcon="@Icons.Material.Filled.Add"
+                 OnClick="AbrirCrear">
+        Nueva cuenta
+      </MudButton>
+    </Actions>
+  </LamaPageHeader>
+
+  @if (cuentas.Count == 0)
+  {
+    <LamaEmptyState Title="Sin cuentas financieras"
+                    Description="No hay cuentas registradas. Crea la primera cuenta para comenzar."
+                    Icon="@Icons.Material.Filled.Inbox">
+      <Action>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AbrirCrear">Crear cuenta</MudButton>
+      </Action>
+    </LamaEmptyState>
+  }
+  else
+  {
+    <LamaTableWrapper>
+      <MudTable Items="cuentas" Dense="true" Hover="true" FixedHeader="true" Height="480px">
+        <HeaderContent>
+          <MudTh>Código</MudTh>
+          <MudTh>Nombre</MudTh>
+          <MudTh>Banco</MudTh>
+          <MudTh>Número</MudTh>
+          <MudTh Class="lama-numeric">Saldo</MudTh>
+          <MudTh>Estado</MudTh>
+          <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+          <MudTd>@context.Codigo</MudTd>
+          <MudTd>@context.Nombre</MudTd>
+          <MudTd>@context.Banco</MudTd>
+          <MudTd>@MaskNumero(context.NumeroCuenta)</MudTd>
+          <MudTd Class="lama-numeric">
+            <span class="lama-currency">@FormatCurrency(context.SaldoActual)</span>
+          </MudTd>
+          <MudTd>
+            <LamaBadge Text="@(context.Activa ? "Activa" : "Inactiva")"
+                       Variant="@(context.Activa ? "success" : "neutral")"
+                       Icon="@(context.Activa ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.PauseCircle)" />
+          </MudTd>
+          <MudTd Class="lama-actions">
+            <MudTooltip Text="Editar">
+              <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                             OnClick="@(() => AbrirEditar(context))" />
+            </MudTooltip>
+            <MudTooltip Text="@(context.Activa ? "Desactivar" : "Activar")">
+              <MudIconButton Icon="@(context.Activa ? Icons.Material.Filled.Block : Icons.Material.Filled.PlayCircle)"
+                             Color="@(context.Activa ? Color.Error : Color.Success)" Size="Size.Small"
+                             OnClick="@(() => ConfirmarToggleActiva(context))" />
+            </MudTooltip>
+          </MudTd>
+        </RowTemplate>
+      </MudTable>
+    </LamaTableWrapper>
+  }
+</div>
 
 @code {
     [Inject] AppDbContext Db { get; set; } = default!;
 
     private List<CuentaFinanciera> cuentas = new();
-    private CuentaFinanciera nueva = new();
-    private bool creando = false;
 
     protected override async Task OnInitializedAsync()
     {
         cuentas = await Db.CuentasFinancieras.OrderBy(c => c.Codigo).ToListAsync();
     }
 
-    private void MostrarCrear()
+    private string MaskNumero(string? numero)
     {
-        creando = true;
-        nueva = new CuentaFinanciera
+        if (string.IsNullOrWhiteSpace(numero)) return "—";
+        var digits = new string(numero.Where(char.IsDigit).ToArray());
+        if (digits.Length < 4) return "***" + digits;
+        var last4 = digits[^4..];
+        return $"***{last4}";
+    }
+
+    private string FormatCurrency(decimal amount) => $"${amount:N0}";
+
+    private async Task AbrirCrear()
+    {
+        var nueva = new CuentaFinanciera
         {
             Codigo = string.Empty,
             Nombre = string.Empty,
             Tipo = TipoCuenta.Bancaria,
-            Banco = "Bancolombia",
-            NumeroCuenta = "****",
+            Banco = string.Empty,
+            NumeroCuenta = string.Empty,
             SaldoInicial = 0m,
             SaldoActual = 0m,
             Activa = true
         };
-    }
 
-    private async Task GuardarNueva()
-    {
-        if (string.IsNullOrWhiteSpace(nueva.Codigo) || string.IsNullOrWhiteSpace(nueva.Nombre))
-            return;
-
-        // Evitar duplicados por Codigo
-        var existe = await Db.CuentasFinancieras.AnyAsync(c => c.Codigo == nueva.Codigo);
-        if (existe) return;
-
-        nueva.CreatedBy = "ui";
-        nueva.CreatedAt = DateTime.UtcNow;
-        Db.CuentasFinancieras.Add(nueva);
-        await Db.SaveChangesAsync();
-
-        cuentas.Add(nueva);
-        creando = false;
-        StateHasChanged();
-    }
-}
-
-<!-- UI básica sin MudBlazor para MVP -->
-<button @onclick="MostrarCrear">Nueva Cuenta</button>
-
-@if (creando)
-{
-    <div class="card" style="padding:1rem; margin-top:1rem;">
-        <label>Código: <input @bind="nueva.Codigo" /></label><br />
-        <label>Nombre: <input @bind="nueva.Nombre" /></label><br />
-        <label>Banco: <input @bind="nueva.Banco" /></label><br />
-        <label>Número (enmascarado): <input @bind="nueva.NumeroCuenta" /></label><br />
-        <label>Tipo:
-            <select @bind="nueva.Tipo">
-                <option value="@TipoCuenta.Bancaria">Bancaria</option>
-                <option value="@TipoCuenta.Caja">Caja</option>
-            </select>
-        </label><br />
-        <button @onclick="GuardarNueva">Guardar</button>
-    </div>
-}
-
-<table class="table" style="margin-top:1rem;">
-    <thead>
-        <tr>
-            <th>Código</th>
-            <th>Nombre</th>
-            <th>Banco</th>
-            <th>Número</th>
-            <th>Saldo</th>
-            <th>Activa</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var c in cuentas)
+        var parameters = new DialogParameters
         {
-            <tr>
-                <td>@c.Codigo</td>
-                <td>@c.Nombre</td>
-                <td>@c.Banco</td>
-                <td>@c.NumeroCuenta</td>
-                <td>@c.SaldoActual.ToString("N0")</td>
-                <td>@(c.Activa ? "Sí" : "No")</td>
-            </tr>
+            ["Modo"] = "create",
+            ["Cuenta"] = nueva
+        };
+
+        var dialogRef = DialogService.Show<CuentaFinancieraFormDialog>("Nueva Cuenta", parameters);
+        var result = await dialogRef.Result;
+        if (!result.Canceled)
+        {
+            try
+            {
+                var cuenta = result.Data as CuentaFinanciera;
+                if (cuenta is null)
+                {
+                    Toast.Error("Error", "Datos de cuenta no válidos");
+                    return;
+                }
+
+                // Validaciones básicas previas
+                if (string.IsNullOrWhiteSpace(cuenta.Codigo) || string.IsNullOrWhiteSpace(cuenta.Nombre))
+                {
+                    Toast.Warning("Advertencia", "Código y Nombre son obligatorios");
+                    return;
+                }
+
+                var existe = await Db.CuentasFinancieras.AnyAsync(c => c.Codigo == cuenta.Codigo);
+                if (existe)
+                {
+                    Toast.Warning("Advertencia", "Ya existe una cuenta con ese código");
+                    return;
+                }
+
+                cuenta.CreatedBy = "ui";
+                cuenta.CreatedAt = DateTime.UtcNow;
+                Db.CuentasFinancieras.Add(cuenta);
+                await Db.SaveChangesAsync();
+                cuentas.Add(cuenta);
+                Toast.Success("Creada", $"Cuenta {cuenta.Nombre} creada exitosamente");
+            }
+            catch (Exception ex)
+            {
+                Toast.Error("Error", $"No se pudo crear: {ex.Message}");
+            }
         }
-    </tbody>
-</table>
+    }
+
+    private async Task AbrirEditar(CuentaFinanciera cuenta)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Modo"] = "edit",
+            ["Cuenta"] = cuenta
+        };
+
+        var dialogRef = DialogService.Show<CuentaFinancieraFormDialog>($"Editar: {cuenta.Nombre}", parameters);
+        var result = await dialogRef.Result;
+        if (!result.Canceled)
+        {
+            try
+            {
+                var editada = result.Data as CuentaFinanciera;
+                if (editada is null)
+                {
+                    Toast.Error("Error", "Datos de cuenta no válidos");
+                    return;
+                }
+
+                // Persistir cambios
+                editada.UpdatedAt = DateTime.UtcNow;
+                editada.UpdatedBy = "ui";
+                Db.CuentasFinancieras.Update(editada);
+                await Db.SaveChangesAsync();
+                Toast.Success("Actualizada", $"Cuenta {editada.Nombre} actualizada correctamente");
+            }
+            catch (Exception ex)
+            {
+                Toast.Error("Error", $"No se pudo actualizar: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task ConfirmarToggleActiva(CuentaFinanciera cuenta)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = cuenta.Activa ? "Desactivar cuenta" : "Activar cuenta",
+            ["Message"] = cuenta.Activa ?
+                $"¿Confirmas desactivar la cuenta {cuenta.Nombre}?" :
+                $"¿Confirmas activar la cuenta {cuenta.Nombre}?"
+        };
+
+        var dialogRef = DialogService.Show<LamaConfirmDialog>("Confirmación", parameters);
+        var result = await dialogRef.Result;
+        if (!result.Canceled)
+        {
+            try
+            {
+                cuenta.Activa = !cuenta.Activa;
+                cuenta.UpdatedAt = DateTime.UtcNow;
+                cuenta.UpdatedBy = "ui";
+                Db.CuentasFinancieras.Update(cuenta);
+                await Db.SaveChangesAsync();
+                Toast.Success(cuenta.Activa ? "Activada" : "Desactivada",
+                              $"Cuenta {cuenta.Nombre} {(cuenta.Activa ? "activada" : "desactivada")} correctamente");
+            }
+            catch (Exception ex)
+            {
+                Toast.Error("Error", $"No se pudo actualizar el estado: {ex.Message}");
+            }
+        }
+    }
+}

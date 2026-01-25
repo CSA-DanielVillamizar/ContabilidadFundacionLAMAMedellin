@@ -121,54 +121,52 @@ public class ExcelTreasuryImportService : IExcelTreasuryImportService
         {
             var movimientos = ParseMovimientosFromSheet(sheet, cuenta.Id, fuentes, categorias, summary, sourceName);
             summary.MovimientosPorHoja[sheet.Name] = movimientos.Count;
+            summary.PeriodoPorHoja[sheet.Name] = fecha.ToString("yyyy-MM");
+
+            var saldoInicio = saldoAcumulado;
+            summary.SaldoInicioPorHoja[sheet.Name] = saldoInicio;
 
             // 1) VALIDACIÓN DE ENTRADA: Comparar saldoMesAnterior con saldoAcumulado previo
+            // Usa BalanceTolerancePolicy para validación centralizada
             if (summary.SaldoMesAnteriorPorHoja.TryGetValue(sheet.Name, out var saldoMesAnterior))
             {
-                var diffEntrada = Math.Abs(saldoMesAnterior.Value - saldoAcumulado);
-                if (diffEntrada > 1m)
+                if (!BalanceTolerancePolicy.IsWithinTolerance(saldoMesAnterior.Value, saldoAcumulado))
                 {
                     summary.BalanceMismatches++;
-                    summary.Warnings.Add(
-                        $"Carry-over mismatch: Hoja '{sheet.Name}' saldo mes anterior {saldoMesAnterior:N0} != " +
-                        $"saldo acumulado previo {saldoAcumulado:N0} (diferencia: {diffEntrada:N0} COP)"
-                    );
+                    var context = $"Carry-over entre hojas - Hoja '{sheet.Name}' ({fecha:yyyy-MM})";
+                    summary.Warnings.Add(BalanceTolerancePolicy.FormatMismatchMessage(context, saldoMesAnterior.Value, saldoAcumulado));
                 }
             }
 
             // Procesar movimientos y calcular saldo acumulado
-            var saldoInicio = saldoAcumulado;
             foreach (var mov in movimientos)
             {
                 // Calcular saldo esperado
                 saldoAcumulado += mov.Tipo == TipoMovimientoTesoreria.Ingreso ? mov.Valor : -mov.Valor;
                 
-                // Verificar mismatch (tolerancia ±1 COP)
+                // Verificar mismatch según BalanceTolerancePolicy (centralizado)
                 if (mov.ImportBalanceExpected.HasValue)
                 {
-                    var diff = Math.Abs(saldoAcumulado - mov.ImportBalanceExpected.Value);
-                    if (diff > 1m)
+                    if (!BalanceTolerancePolicy.IsWithinTolerance(mov.ImportBalanceExpected.Value, saldoAcumulado))
                     {
                         mov.ImportHasBalanceMismatch = true;
                         mov.ImportBalanceFound = saldoAcumulado;
                         summary.BalanceMismatches++;
-                        summary.Warnings.Add($"Hoja {sheet.Name}, fila {mov.ImportRowNumber}: " +
-                            $"Saldo esperado {mov.ImportBalanceExpected:N0}, encontrado {saldoAcumulado:N0}");
+                        var context = $"Hoja '{sheet.Name}' ({fecha:yyyy-MM}), fila {mov.ImportRowNumber}";
+                        summary.Warnings.Add(BalanceTolerancePolicy.FormatMismatchMessage(context, mov.ImportBalanceExpected.Value, saldoAcumulado));
                     }
                 }
             }
 
             // 2) VALIDACIÓN DE SALIDA: Comparar saldoFinalEsperado con saldoAcumulado final
+            // Usa BalanceTolerancePolicy para validación centralizada
             if (summary.SaldoFinalEsperadoPorHoja.TryGetValue(sheet.Name, out var saldoEsperado))
             {
-                var diffSalida = Math.Abs(saldoEsperado.Value - saldoAcumulado);
-                if (diffSalida > 1m)
+                if (!BalanceTolerancePolicy.IsWithinTolerance(saldoEsperado.Value, saldoAcumulado))
                 {
                     summary.BalanceMismatches++;
-                    summary.Warnings.Add(
-                        $"Saldo fin de mes mismatch: Hoja '{sheet.Name}' saldo esperado {saldoEsperado:N0} != " +
-                        $"saldo calculado {saldoAcumulado:N0} (diferencia: {diffSalida:N0} COP)"
-                    );
+                    var context = $"Saldo fin de mes - Hoja '{sheet.Name}' ({fecha:yyyy-MM})";
+                    summary.Warnings.Add(BalanceTolerancePolicy.FormatMismatchMessage(context, saldoEsperado.Value, saldoAcumulado));
                 }
             }
 

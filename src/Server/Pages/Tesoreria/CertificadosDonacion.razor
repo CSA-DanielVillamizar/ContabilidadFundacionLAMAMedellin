@@ -2,206 +2,152 @@
 @using Server.DTOs.Donaciones
 @using Server.Models
 @using Server.Services.Donaciones
+@using MudBlazor
+@using Server.Components.Shared
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
+
 @inject ICertificadosDonacionService CertificadosService
 @inject NavigationManager Nav
-@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
+@inject Server.Services.LamaToastService Toast
+@inject IDialogService DialogService
 
 <PageTitle>Certificados de Donación - RTE</PageTitle>
 
-<Breadcrumb Items="@breadcrumbs" />
+<div class="lama-container">
+  <LamaPageHeader Title="Certificados de Donación"
+                  Subtitle="Emisión, control y auditoría RTE"
+                  Icon="@Icons.Material.Filled.VolunteerActivism">
+    <Actions>
+      <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="IrANuevo">Nueva donación</MudButton>
+      <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarListado">Exportar</MudButton>
+      <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Refrescar">Refrescar</MudButton>
+    </Actions>
+  </LamaPageHeader>
 
-<div class="container mx-auto p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-slate-800 dark:text-slate-100">
-            <i class="bi bi-award me-2"></i>Certificados de Donación (RTE)
-        </h1>
-        <AuthorizeView Roles="Tesorero,Junta">
-            <button class="btn btn-primary" @onclick="IrANuevo">
-                <i class="bi bi-plus-circle me-2"></i>Nuevo Certificado
-            </button>
-        </AuthorizeView>
-    </div>
+  <LamaFilterCard>
+    <ChildContent>
+      <MudItem xs="12" sm="6" md="3">
+        <MudDatePicker @bind-Date="filtroInicio" Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" />
+      </MudItem>
+      <MudItem xs="12" sm="6" md="3">
+        <MudDatePicker @bind-Date="filtroFin" Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" />
+      </MudItem>
+      <MudItem xs="12" sm="6" md="3">
+        <MudTextField @bind-Value="filtroDonante" Label="Donante / Miembro" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+      </MudItem>
+      <MudItem xs="12" sm="6" md="3">
+        <MudTextField @bind-Value="filtroTexto" Label="Búsqueda (concepto/nota)" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+      </MudItem>
+      <MudItem xs="12" sm="6" md="3">
+        <MudSelect T="EstadoCertificado?" @bind-Value="filtroEstado" Label="Estado" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+          <MudSelectItem Value="@(EstadoCertificado.Borrador)">Borrador</MudSelectItem>
+          <MudSelectItem Value="@(EstadoCertificado.Emitido)">Emitido</MudSelectItem>
+          <MudSelectItem Value="@(EstadoCertificado.Anulado)">Anulado</MudSelectItem>
+        </MudSelect>
+      </MudItem>
+      <MudItem xs="12" sm="6" md="3">
+        <MudSelect T="string" @bind-Value="filtroMetodo" Label="Medio" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+          <MudSelectItem Value="@("Transferencia")">Transferencia</MudSelectItem>
+          <MudSelectItem Value="@("Efectivo")">Efectivo</MudSelectItem>
+          <MudSelectItem Value="@("Cheque")">Cheque</MudSelectItem>
+        </MudSelect>
+      </MudItem>
+    </ChildContent>
+    <Actions>
+      <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FilterAlt" OnClick="Buscar">Filtrar</MudButton>
+      <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LimpiarFiltros">Limpiar</MudButton>
+    </Actions>
+  </LamaFilterCard>
 
-    <!-- Filtros -->
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Buscar
-                </label>
-                <input type="text" 
-                       class="w-full rounded-lg border-slate-300 dark:border-slate-600" 
-                       placeholder="Nombre o identificación..."
-                       @bind="filtroTexto"
-                       @bind:event="oninput"
-                       @onkeyup="BuscarConEnter" />
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Estado
-                </label>
-                <select class="w-full rounded-lg border-slate-300 dark:border-slate-600" 
-                        @bind="filtroEstado">
-                    <option value="">Todos</option>
-                    <option value="@EstadoCertificado.Borrador">Borrador</option>
-                    <option value="@EstadoCertificado.Emitido">Emitido</option>
-                    <option value="@EstadoCertificado.Anulado">Anulado</option>
-                </select>
-            </div>
-            <div class="flex items-end">
-                <button class="btn btn-secondary w-full" @onclick="Buscar">
-                    <i class="bi bi-search me-2"></i>Buscar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    @if (cargando)
-    {
-        <div class="text-center py-12">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Cargando...</span>
-            </div>
-            <p class="mt-3 text-slate-600 dark:text-slate-400">Cargando certificados...</p>
-        </div>
-    }
-    else if (certificados == null || !certificados.Any())
-    {
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-12 text-center">
-            <i class="bi bi-inbox text-6xl text-slate-300 dark:text-slate-600"></i>
-            <p class="mt-4 text-lg text-slate-600 dark:text-slate-400">
-                No se encontraron certificados de donación
-            </p>
-            <AuthorizeView Roles="Tesorero,Junta">
-                <button class="btn btn-primary mt-4" @onclick="IrANuevo">
-                    <i class="bi bi-plus-circle me-2"></i>Crear Primer Certificado
-                </button>
-            </AuthorizeView>
-        </div>
-    }
-    else
-    {
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">No.</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">Fecha Emisión</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">Fecha Donación</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">Donante</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">Valor</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">Estado</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                        @foreach (var cert in certificados)
-                        {
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700 transition">
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    <span class="font-mono text-sm text-slate-900 dark:text-slate-100">
-                                        @cert.NumeroCompleto
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
-                                    @cert.FechaEmision.ToString("dd/MM/yyyy")
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
-                                    @cert.FechaDonacion.ToString("dd/MM/yyyy")
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="text-sm font-medium text-slate-900 dark:text-slate-100">@cert.NombreDonante</div>
-                                    <div class="text-xs text-slate-500 dark:text-slate-400">@cert.IdentificacionDonante</div>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-right">
-                                    <span class="text-sm font-semibold text-green-600 dark:text-green-400">
-                                        $@cert.ValorDonacionCOP.ToString("N0")
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-center">
-                                    @switch (cert.Estado)
-                                    {
-                                        case EstadoCertificado.Borrador:
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                                <i class="bi bi-pencil me-1"></i>Borrador
-                                            </span>
-                                            break;
-                                        case EstadoCertificado.Emitido:
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                                <i class="bi bi-check-circle me-1"></i>Emitido
-                                            </span>
-                                            break;
-                                        case EstadoCertificado.Anulado:
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                                <i class="bi bi-x-circle me-1"></i>Anulado
-                                            </span>
-                                            break;
-                                    }
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-center">
-                                    <div class="flex justify-center space-x-2">
-                                        <button class="btn-icon btn-icon-sm btn-secondary" 
-                                                @onclick="() => VerDetalle(cert.Id)"
-                                                title="Ver detalle">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button class="btn-icon btn-icon-sm btn-primary" 
-                                                @onclick="() => DescargarPdf(cert.Id)"
-                                                title="Descargar PDF">
-                                            <i class="bi bi-file-pdf"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginación -->
-            @if (resultado != null && resultado.TotalPages > 1)
-            {
-                <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <div class="text-sm text-slate-600 dark:text-slate-400">
-                        Mostrando @certificados.Count de @resultado.TotalCount certificados
-                    </div>
-                    <div class="flex space-x-2">
-                        <button class="btn btn-sm btn-secondary" 
-                                @onclick="PaginaAnterior"
-                                disabled="@(paginaActual <= 1)">
-                            <i class="bi bi-chevron-left"></i>
-                        </button>
-                        <span class="px-3 py-1 text-sm text-slate-700 dark:text-slate-300">
-                            Página @paginaActual de @resultado.TotalPages
-                        </span>
-                        <button class="btn btn-sm btn-secondary" 
-                                @onclick="PaginaSiguiente"
-                                disabled="@(paginaActual >= resultado.TotalPages)">
-                            <i class="bi bi-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
-            }
-        </div>
-    }
+  @if (cargando)
+  {
+    <MudPaper Class="lama-card" Elevation="0" Style="text-align:center; padding:32px;">
+      <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+      <MudText Typo="Typo.body2" Class="mt-2">Cargando certificados...</MudText>
+    </MudPaper>
+  }
+  else if (CertificadosFiltrados.Count == 0)
+  {
+    <LamaEmptyState Title="Sin donaciones"
+                    Description="No hay donaciones que coincidan con los filtros seleccionados"
+                    Icon="@Icons.Material.Outlined.Inbox">
+      <Action>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="IrANuevo">Crear donación</MudButton>
+      </Action>
+    </LamaEmptyState>
+  }
+  else
+  {
+    <LamaTableWrapper>
+      <MudTable Items="CertificadosFiltrados" Dense="true" Hover="true" FixedHeader="true" Height="520px" Loading="@cargando">
+        <HeaderContent>
+          <MudTh>No.</MudTh>
+          <MudTh>Emisión</MudTh>
+          <MudTh>Donación</MudTh>
+          <MudTh>Donante</MudTh>
+          <MudTh Class="lama-numeric">Valor</MudTh>
+          <MudTh>Estado</MudTh>
+          <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+          <MudTd><span class="lama-mono">@context.NumeroCompleto</span></MudTd>
+          <MudTd>@context.FechaEmision.ToString("dd/MM/yyyy")</MudTd>
+          <MudTd>@context.FechaDonacion.ToString("dd/MM/yyyy")</MudTd>
+          <MudTd>
+            <div>@context.NombreDonante</div>
+            <div class="lama-muted">@context.IdentificacionDonante</div>
+          </MudTd>
+          <MudTd Class="lama-numeric"><span class="lama-currency">@FormatCurrency(context.ValorDonacionCOP)</span></MudTd>
+          <MudTd>
+            <LamaBadge Text="@context.Estado.ToString()" Variant="@EstadoVariant(context.Estado)" />
+          </MudTd>
+          <MudTd Class="lama-actions">
+            <MudTooltip Text="Detalle">
+              <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => VerDetalle(context.Id))" />
+            </MudTooltip>
+            <MudTooltip Text="Editar">
+              <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => Editar(context.Id))" />
+            </MudTooltip>
+            <MudTooltip Text="PDF">
+              <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" OnClick="@(() => DescargarPdf(context.Id))" />
+            </MudTooltip>
+            <MudTooltip Text="Anular">
+              <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmarAnular(context))" Disabled="@(!PuedeAnular(context))" />
+            </MudTooltip>
+          </MudTd>
+        </RowTemplate>
+      </MudTable>
+    </LamaTableWrapper>
+  }
 </div>
 
 @code {
     private bool cargando = false;
     private PagedResult<CertificadoDonacionListItem>? resultado;
     private List<CertificadoDonacionListItem> certificados = new();
-    
-    private string filtroTexto = string.Empty;
-    private string filtroEstado = string.Empty;
-    private int paginaActual = 1;
-    private const int registrosPorPagina = 20;
 
-    private List<Server.Components.Shared.Breadcrumb.BreadcrumbItem> breadcrumbs => new()
-    {
-        new() { Label = "Tesorería", Url = "/tesoreria" },
-        new() { Label = "Certificados RTE", IsActive = true }
-    };
+    private string filtroTexto = string.Empty;
+    private string filtroDonante = string.Empty;
+    private EstadoCertificado? filtroEstado;
+    private string? filtroMetodo;
+    private DateTime? filtroInicio;
+    private DateTime? filtroFin;
+    private int paginaActual = 1;
+    private const int registrosPorPagina = 100;
+
+    private List<CertificadoDonacionListItem> CertificadosFiltrados => certificados
+        .Where(c => !filtroEstado.HasValue || c.Estado == filtroEstado.Value)
+        .Where(c => !filtroInicio.HasValue || c.FechaDonacion.Date >= filtroInicio.Value.Date)
+        .Where(c => !filtroFin.HasValue || c.FechaDonacion.Date <= filtroFin.Value.Date)
+        .Where(c => string.IsNullOrWhiteSpace(filtroMetodo) || true) // Forma/medio no disponible en ListItem; sin efecto
+        .Where(c => string.IsNullOrWhiteSpace(filtroTexto) ||
+                    c.NumeroCompleto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                    c.IdentificacionDonante.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase))
+        .Where(c => string.IsNullOrWhiteSpace(filtroDonante) ||
+                    c.NombreDonante.Contains(filtroDonante, StringComparison.OrdinalIgnoreCase) ||
+                    c.IdentificacionDonante.Contains(filtroDonante, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(c => c.FechaDonacion)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,23 +161,19 @@
 
         try
         {
-            EstadoCertificado? estado = null;
-            if (!string.IsNullOrEmpty(filtroEstado) && Enum.TryParse<EstadoCertificado>(filtroEstado, out var e))
-            {
-                estado = e;
-            }
-
+            var estado = filtroEstado;
             resultado = await CertificadosService.GetPagedAsync(
-                string.IsNullOrWhiteSpace(filtroTexto) ? null : filtroTexto, 
-                estado, 
-                paginaActual, 
+                string.IsNullOrWhiteSpace(filtroTexto) ? null : filtroTexto,
+                estado,
+                paginaActual,
                 registrosPorPagina);
-            
-            certificados = resultado.Items;
+
+            certificados = resultado?.Items ?? new();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-certificados = new();
+            certificados = new();
+            Toast.Error("Error", $"No se pudieron cargar las donaciones: {ex.Message}");
         }
         finally
         {
@@ -246,44 +188,79 @@ certificados = new();
         await CargarCertificados();
     }
 
-    private async Task BuscarConEnter(KeyboardEventArgs e)
+    private async Task LimpiarFiltros()
     {
-        if (e.Key == "Enter")
+        filtroTexto = string.Empty;
+        filtroDonante = string.Empty;
+        filtroEstado = null;
+        filtroMetodo = null;
+        filtroInicio = null;
+        filtroFin = null;
+        paginaActual = 1;
+        await CargarCertificados();
+    }
+
+    private void Refrescar() => _ = CargarCertificados();
+
+    private void IrANuevo() => Nav.NavigateTo("/tesoreria/donaciones/nuevo");
+
+    private void Editar(Guid id) => Nav.NavigateTo($"/tesoreria/donaciones/{id}");
+
+    private void VerDetalle(Guid id) => Nav.NavigateTo($"/tesoreria/donaciones/{id}");
+
+    private void DescargarPdf(Guid id) => Nav.NavigateTo($"/api/certificados-donacion/{id}/pdf", true);
+
+    private bool PuedeAnular(CertificadoDonacionListItem c) => c.Estado != EstadoCertificado.Anulado;
+
+    private async Task ConfirmarAnular(CertificadoDonacionListItem cert)
+    {
+        var parameters = new DialogParameters
         {
-            await Buscar();
+            ["Title"] = $"Anular certificado {cert.NumeroCompleto}",
+            ["Message"] = "Esta acción es irreversible. Ingresa el motivo de anulación.",
+            ["Severity"] = Severity.Warning,
+            ["ShowTextField"] = true,
+            ["TextFieldLabel"] = "Motivo de anulación",
+            ["TextFieldRequired"] = true
+        };
+
+        var dialogRef = DialogService.Show<LamaConfirmDialog>("Confirmar anulación", parameters);
+        var result = await dialogRef.Result;
+        if (!result.Canceled && result.Data is string razon && !string.IsNullOrWhiteSpace(razon))
+        {
+            try
+            {
+                var dto = new AnularCertificadoDto { Id = cert.Id, RazonAnulacion = razon };
+                var ok = await CertificadosService.AnularAsync(dto, "ui");
+                if (ok)
+                {
+                    Toast.Success("Anulado", $"Certificado {cert.NumeroCompleto} anulado correctamente");
+                    await CargarCertificados();
+                }
+                else
+                {
+                    Toast.Warning("Advertencia", "No se pudo anular el certificado");
+                }
+            }
+            catch (Exception ex)
+            {
+                Toast.Error("Error", $"No se pudo anular: {ex.Message}");
+            }
         }
     }
 
-    private async Task PaginaAnterior()
+    private void ExportarListado()
     {
-        if (paginaActual > 1)
-        {
-            paginaActual--;
-            await CargarCertificados();
-        }
+        Toast.Info("Exportar", "Funcionalidad de exportación no está disponible en esta vista. Usa el reporte dedicado.");
     }
 
-    private async Task PaginaSiguiente()
+    private string EstadoVariant(EstadoCertificado estado) => estado switch
     {
-        if (resultado != null && paginaActual < resultado.TotalPages)
-        {
-            paginaActual++;
-            await CargarCertificados();
-        }
-    }
+        EstadoCertificado.Emitido => "success",
+        EstadoCertificado.Borrador => "warning",
+        EstadoCertificado.Anulado => "danger",
+        _ => "neutral"
+    };
 
-    private void IrANuevo()
-    {
-        Nav.NavigateTo("/tesoreria/donaciones/nuevo");
-    }
-
-    private void VerDetalle(Guid id)
-    {
-        Nav.NavigateTo($"/tesoreria/donaciones/{id}");
-    }
-
-    private void DescargarPdf(Guid id)
-    {
-        Nav.NavigateTo($"/api/certificados-donacion/{id}/pdf", true);
-    }
+    private string FormatCurrency(decimal amount) => $"${amount:N0}";
 }

@@ -15,6 +15,12 @@ public class ImportSummary
     public List<string> Warnings { get; set; } = new();
     public List<string> Errors { get; set; } = new();
     public Dictionary<string, int> MovimientosPorHoja { get; set; } = new();
+
+    /// <summary>Período (yyyy-MM) correspondiente a cada hoja</summary>
+    public Dictionary<string, string> PeriodoPorHoja { get; set; } = new();
+
+    /// <summary>Saldo inicial (carry-over) registrado al inicio de cada hoja</summary>
+    public Dictionary<string, decimal> SaldoInicioPorHoja { get; set; } = new();
     
     /// <summary>Saldo inicial (mes anterior) detectado por hoja</summary>
     public Dictionary<string, decimal?> SaldoMesAnteriorPorHoja { get; set; } = new();

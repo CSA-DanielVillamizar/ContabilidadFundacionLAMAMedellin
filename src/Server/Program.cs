@@ -155,14 +155,24 @@ builder.Services.AddSingleton<ModalService>();
 // ========== CONFIGURAR DbContext CON MANAGED IDENTITY EN PRODUCCIÓN ==========
 // En producción, usar Managed Identity (DefaultAzureCredential) en lugar de Trusted_Connection
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// En producción, solo forzar Managed Identity cuando NO hay credenciales explícitas (User ID/Password)
+var hasSqlAuth = connectionString?.IndexOf("User ID=", StringComparison.OrdinalIgnoreCase) >= 0
+    || connectionString?.IndexOf("Password=", StringComparison.OrdinalIgnoreCase) >= 0
+    || connectionString?.IndexOf("Uid=", StringComparison.OrdinalIgnoreCase) >= 0
+    || connectionString?.IndexOf("Pwd=", StringComparison.OrdinalIgnoreCase) >= 0;
+
 if (builder.Environment.IsProduction() && !string.IsNullOrEmpty(connectionString))
 {
-    // En producción, si la connection string no especifica autenticación, usar Managed Identity
-    if (!connectionString.Contains("Authentication=", StringComparison.OrdinalIgnoreCase))
+    // Si no hay SQL Auth ni autenticación definida, usar Managed Identity; de lo contrario respetar la cadena
+    if (!hasSqlAuth && !connectionString.Contains("Authentication=", StringComparison.OrdinalIgnoreCase))
     {
         connectionString += ";Authentication=Active Directory Default;";
+        Console.WriteLine("✓ DbContext configurado para Managed Identity (sin credenciales explícitas)");
     }
-    Console.WriteLine("✓ DbContext configurado para Managed Identity");
+    else
+    {
+        Console.WriteLine("ℹ️ DbContext usará credenciales explícitas configuradas (SQL Auth)");
+    }
 }
 
 // Usar únicamente la factory para evitar conflicto de lifetimes entre DbContextOptions Scoped y Factory Singleton
@@ -393,6 +403,7 @@ builder.Services.AddScoped<Server.Services.Miembros.IMiembrosExportService, Serv
 builder.Services.AddScoped<Server.Services.CierreContable.CierreContableService>();
 builder.Services.AddScoped<Server.Services.MovimientosTesoreria.MovimientosTesoreriaService>();
 builder.Services.AddScoped<Server.Services.Exportaciones.ExportacionesService>();
+builder.Services.AddScoped<Server.Services.ImportHistorico.ImportHistoricoService>();
 
 // Servicios de Gerencia de Negocios
 builder.Services.AddScoped<Server.Services.Productos.IProductosService, Server.Services.Productos.ProductosService>();
@@ -843,6 +854,222 @@ if (app.Environment.IsDevelopment())
         return Results.Ok(productos);
     }).AllowAnonymous();
 
+}
+
+// ========== COMANDO CLI: import-historico ==========
+// Manejo de argumentos para comando CLI (ejecutar antes de app.Run())
+if (args.Length > 0 && args[0] == "fix-excel-enero")
+{
+    Console.WriteLine("=== CORREGIR TÍTULO EN EXCEL - ENERO 2025 ===\n");
+    
+    var excelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "INFORME TESORERIA.xlsx");
+    if (!File.Exists(excelPath))
+    {
+        Console.WriteLine($"❌ ERROR: No se encuentra el archivo Excel: {excelPath}");
+        Environment.Exit(1);
+    }
+    
+    try
+    {
+        using var workbook = new ClosedXML.Excel.XLWorkbook(excelPath);
+        var sheet1 = workbook.Worksheet(1);
+        
+        Console.WriteLine($"📄 Hoja: {sheet1.Name}");
+        Console.WriteLine("🔍 Buscando título...\n");
+        
+        bool found = false;
+        for (int i = 1; i <= 20; i++)
+        {
+            var cellValue = sheet1.Cell(i, 1).GetString();
+            if (!string.IsNullOrWhiteSpace(cellValue) && cellValue.Contains("INFORME") && cellValue.Contains("TESORERIA"))
+            {
+                Console.WriteLine($"✅ Encontrado en fila {i}:");
+                Console.WriteLine($"   Original: {cellValue}");
+                
+                var newValue = cellValue.Replace("DIC 31 / 2024", "ENE 21 / 2025");
+                if (newValue != cellValue)
+                {
+                    sheet1.Cell(i, 1).Value = newValue;
+                    Console.WriteLine($"   Corregido: {newValue}\n");
+                    found = true;
+                }
+                else
+                {
+                    Console.WriteLine($"   ℹ️  No requiere corrección (ya está correcto)\n");
+                    found = true;
+                }
+                break;
+            }
+        }
+        
+        if (found)
+        {
+            workbook.Save();
+            Console.WriteLine("💾 Excel guardado exitosamente\n");
+        }
+        else
+        {
+            Console.WriteLine("❌ No se encontró el título a corregir\n");
+            Environment.Exit(1);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ ERROR: {ex.Message}");
+        Environment.Exit(1);
+    }
+    
+    Environment.Exit(0);
+}
+
+if (args.Length > 0 && args[0] == "delete-diciembre-2024")
+{
+    Console.WriteLine("=== BORRAR REGISTROS INCORRECTOS DICIEMBRE 2024 ===\n");
+    Console.WriteLine("⚠️  ADVERTENCIA: Se eliminarán registros de Ingresos/Egresos con ImportRowHash en diciembre 2024\n");
+    
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<Server.Data.AppDbContext>();
+        
+        // Contar antes
+        var ingresosAntes = await context.Ingresos
+            .Where(i => i.FechaIngreso.Year == 2024 && i.FechaIngreso.Month == 12 && i.ImportRowHash != null)
+            .CountAsync();
+        var egresosAntes = await context.Egresos
+            .Where(e => e.Fecha.Year == 2024 && e.Fecha.Month == 12 && e.ImportRowHash != null)
+            .CountAsync();
+        
+        Console.WriteLine($"📊 ANTES DELETE:");
+        Console.WriteLine($"   Ingresos diciembre 2024: {ingresosAntes}");
+        Console.WriteLine($"   Egresos diciembre 2024: {egresosAntes}\n");
+        
+        if (ingresosAntes == 0 && egresosAntes == 0)
+        {
+            Console.WriteLine("✅ No hay registros de diciembre 2024 para borrar");
+            Environment.Exit(0);
+        }
+        
+        // Borrar
+        var ingresosDelete = context.Ingresos.Where(i => i.FechaIngreso.Year == 2024 && i.FechaIngreso.Month == 12 && i.ImportRowHash != null);
+        var egresosDelete = context.Egresos.Where(e => e.Fecha.Year == 2024 && e.Fecha.Month == 12 && e.ImportRowHash != null);
+        
+        context.Ingresos.RemoveRange(ingresosDelete);
+        context.Egresos.RemoveRange(egresosDelete);
+        
+        await context.SaveChangesAsync();
+        
+        Console.WriteLine($"✅ BORRADO EXITOSO:");
+        Console.WriteLine($"   Ingresos eliminados: {ingresosAntes}");
+        Console.WriteLine($"   Egresos eliminados: {egresosAntes}\n");
+        
+        // Verificar meses restantes
+        var mesesIngresos = await context.Ingresos
+            .Where(i => i.ImportRowHash != null)
+            .GroupBy(i => new { i.FechaIngreso.Year, i.FechaIngreso.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+            .OrderBy(m => m.Year).ThenBy(m => m.Month)
+            .ToListAsync();
+        
+        Console.WriteLine("📅 MESES CON IMPORTROWHASH (después de DELETE):");
+        foreach (var mes in mesesIngresos)
+        {
+            Console.WriteLine($"   {mes.Year}-{mes.Month:D2}: {mes.Count} ingresos");
+        }
+        
+        Environment.Exit(0);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\n❌ ERROR: {ex.Message}");
+        Environment.Exit(1);
+    }
+}
+
+if (args.Length > 0 && args[0] == "import-historico")
+{
+    Console.WriteLine("=== IMPORT HISTÓRICO TESORERÍA ENE-NOV 2025 ===\n");
+
+    bool dryRun = args.Contains("--dry-run");
+    bool apply = args.Contains("--apply");
+
+    if (!dryRun && !apply)
+    {
+        Console.WriteLine("❌ ERROR: Debe especificar --dry-run o --apply");
+        Console.WriteLine("\nUso:");
+        Console.WriteLine("  dotnet run -- import-historico --dry-run    # Validar sin escribir");
+        Console.WriteLine("  dotnet run -- import-historico --apply      # Import real (requiere --dry-run exitoso primero)");
+        Environment.Exit(1);
+    }
+
+    if (dryRun && apply)
+    {
+        Console.WriteLine("❌ ERROR: No puede especificar --dry-run y --apply simultáneamente");
+        Environment.Exit(1);
+    }
+
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var importService = scope.ServiceProvider.GetRequiredService<Server.Services.ImportHistorico.ImportHistoricoService>();
+        var excelPath = Path.Combine(AppContext.BaseDirectory, "Data", "INFORME TESORERIA.xlsx");
+
+        if (!File.Exists(excelPath))
+        {
+            Console.WriteLine($"❌ ERROR: Archivo Excel no encontrado: {excelPath}");
+            Environment.Exit(1);
+        }
+
+        Console.WriteLine($"📁 Excel: {excelPath}");
+        Console.WriteLine($"🔄 Modo: {(dryRun ? "DRY-RUN (sin escritura)" : "IMPORT REAL (escribir en DB)")}\n");
+
+        var result = await importService.ExecuteImportAsync(excelPath, dryRun);
+
+        if (result.Success)
+        {
+            Console.WriteLine($"\n✅ {(dryRun ? "DRY-RUN" : "IMPORT")} COMPLETADO EXITOSAMENTE");
+            Console.WriteLine($"📊 Duración: {result.Duration.TotalSeconds:F2}s");
+            Console.WriteLine($"📂 SHA256: {result.ExcelSHA256}");
+            Console.WriteLine($"\n📋 RESUMEN POR MES:\n");
+
+            Console.WriteLine($"{"Mes",-20} {"SI",-12} {"Ing.L",-8} {"Ing.N",-8} {"Ing.D",-8} {"Egr.L",-8} {"Egr.N",-8} {"Egr.D",-8} {"Val.OK",-8}");
+            Console.WriteLine(new string('-', 100));
+
+            foreach (var mes in result.MesesProcesados)
+            {
+                Console.WriteLine($"{mes.NombreMes,-20} {mes.SaldoInicial,12:C} {mes.IngresosLeidos,8} {mes.IngresosNuevos,8} {mes.IngresosDuplicados,8} {mes.EgresosLeidos,8} {mes.EgresosNuevos,8} {mes.EgresosDuplicados,8} {(mes.ValidationOk ? "✓" : "✗"),8}");
+            }
+
+            Console.WriteLine($"\n📊 TOTALES:");
+            Console.WriteLine($"  Meses procesados: {result.MesesProcesados.Count}");
+            Console.WriteLine($"  Ingresos nuevos: {result.MesesProcesados.Sum(m => m.IngresosNuevos)}");
+            Console.WriteLine($"  Egresos nuevos: {result.MesesProcesados.Sum(m => m.EgresosNuevos)}");
+            Console.WriteLine($"  Duplicados omitidos: {result.MesesProcesados.Sum(m => m.IngresosDuplicados + m.EgresosDuplicados)}");
+
+            if (dryRun)
+            {
+                Console.WriteLine($"\n⚠️  DRY-RUN completado. NO se escribió nada en la base de datos.");
+                Console.WriteLine($"    Para ejecutar el import REAL, use: dotnet run -- import-historico --apply");
+            }
+            else
+            {
+                Console.WriteLine($"\n✅ Import REAL completado. Datos escritos en PRODUCCIÓN.");
+            }
+
+            Environment.Exit(0);
+        }
+        else
+        {
+            Console.WriteLine($"\n❌ ERROR: {result.ErrorMessage}");
+            Environment.Exit(1);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\n❌ EXCEPCIÓN: {ex.Message}");
+        Console.WriteLine($"\nStack trace:\n{ex.StackTrace}");
+        Environment.Exit(1);
+    }
 }
 
 app.Run();

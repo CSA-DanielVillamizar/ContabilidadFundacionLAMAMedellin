@@ -1,0 +1,136 @@
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                @if (Severity == Severity.Error)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
+                }
+                else if (Severity == Severity.Warning)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Help" Color="Color.Info" Size="Size.Large" />
+                }
+                
+                <MudText Typo="Typo.h6">@Title</MudText>
+            </div>
+            
+            <MudText Typo="Typo.body1">@Message</MudText>
+            
+            @if (!string.IsNullOrWhiteSpace(DetailMessage))
+            {
+                <MudAlert Severity="@Severity" Variant="Variant.Outlined" Dense="true">
+                    @DetailMessage
+                </MudAlert>
+            }
+            
+            @if (ShowTextField)
+            {
+                <MudTextField @bind-Value="TextFieldValue"
+                             Label="@TextFieldLabel"
+                             Variant="Variant.Outlined"
+                             Lines="3"
+                             Required="@TextFieldRequired" />
+            }
+        </div>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">@CancelText</MudButton>
+        <MudButton OnClick="Confirm" 
+                   Variant="Variant.Filled" 
+                   Color="@ConfirmColor"
+                   Disabled="@(ShowTextField && TextFieldRequired && string.IsNullOrWhiteSpace(TextFieldValue))">
+            @ConfirmText
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>
+    /// Título del diálogo
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Confirmar acción";
+
+    /// <summary>
+    /// Mensaje principal
+    /// </summary>
+    [Parameter]
+    public string Message { get; set; } = "¿Está seguro de realizar esta acción?";
+
+    /// <summary>
+    /// Mensaje de detalle adicional (opcional)
+    /// </summary>
+    [Parameter]
+    public string? DetailMessage { get; set; }
+
+    /// <summary>
+    /// Severidad visual (Error, Warning, Info)
+    /// </summary>
+    [Parameter]
+    public Severity Severity { get; set; } = Severity.Warning;
+
+    /// <summary>
+    /// Texto del botón de confirmación
+    /// </summary>
+    [Parameter]
+    public string ConfirmText { get; set; } = "Confirmar";
+
+    /// <summary>
+    /// Texto del botón de cancelación
+    /// </summary>
+    [Parameter]
+    public string CancelText { get; set; } = "Cancelar";
+
+    /// <summary>
+    /// Color del botón de confirmación
+    /// </summary>
+    [Parameter]
+    public Color ConfirmColor { get; set; } = Color.Primary;
+
+    /// <summary>
+    /// Mostrar campo de texto para comentarios/motivo
+    /// </summary>
+    [Parameter]
+    public bool ShowTextField { get; set; }
+
+    /// <summary>
+    /// Label del campo de texto
+    /// </summary>
+    [Parameter]
+    public string TextFieldLabel { get; set; } = "Motivo";
+
+    /// <summary>
+    /// El campo de texto es obligatorio
+    /// </summary>
+    [Parameter]
+    public bool TextFieldRequired { get; set; } = true;
+
+    /// <summary>
+    /// Valor del campo de texto (bind desde el componente padre)
+    /// </summary>
+    [Parameter]
+    public string TextFieldValue { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> TextFieldValueChanged { get; set; }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Confirm()
+    {
+        MudDialog.Close(DialogResult.Ok(TextFieldValue));
+    }
+}

@@ -173,7 +173,51 @@ Build succeeded in 42.2s
 
 ---
 
-## 5. CHECKLIST DE ACEPTACIÓN PRODUCTION-READY
+## 4.3 Política Formal: Tolerancia de Balance en Importación Excel
+
+**Ubicación Centralizada**: `src/Server/Services/Import/BalanceTolerancePolicy.cs`
+
+**Definición de Política**:
+
+| Parámetro | Valor | Justificación |
+|---|---|---|
+| **Tolerancia** | 1.0 COP | Una unidad monetaria mínima (moneda más pequeña en circulación) |
+| **Aplicación** | EXCLUSIVA (<) | Software contable requiere precisión; diff = 1.00 es error |
+| **Regla** | `diff < 1.0` | No `diff <= 1.0` |
+
+**Comportamiento Esperado**:
+
+| Diferencia | Estado | Nota |
+|---|---|---|
+| `0.00 COP` | ✅ ACEPTA | Exacto, 0 < 1.0 |
+| `0.99 COP` | ✅ ACEPTA | 0.99 < 1.0 |
+| `1.00 COP` | ❌ RECHAZA | 1.00 ≮ 1.0 (fuera de tolerancia) |
+| `1.50 COP` | ❌ RECHAZA | 1.50 ≮ 1.0 (error contable) |
+
+**Aplicación en Código**:
+- `ExcelTreasuryImportService`: Validación de entrada, per-movimiento, y salida
+- `BalanceTolerancePolicy.IsWithinTolerance(expected, found)`: Punto central de verdad
+
+**Configuración** (Opcional para futuro):
+```json
+{
+  "Import": {
+    "BalanceTolerance": 1.0,
+    "BalanceToleranceInclusive": false
+  }
+}
+```
+
+**Respaldo de Tests**:
+- `BalanceTolerance_VariousThresholds_AppliesCorrectly`: 5 casos parametrizados
+- `BalanceTolerance_EdgeCase_JustBelowTolerance_Accepts`: diff=0.99 (borde inferior)
+- `BalanceTolerance_EdgeCase_ExactlyAtTolerance_Rejects`: diff=1.00 (borde superior)
+
+**Conclusión**: ✅ Política FORMALIZADA, CENTRALIZADA y DEFENDIBLE ante auditoría.
+
+---
+
+## 6. CHECKLIST DE ACEPTACIÓN PRODUCTION-READY
 
 - [✅] Todas las migraciones versionadas en Git
 - [✅] .gitignore NO ignora Migrations/
@@ -182,12 +226,13 @@ Build succeeded in 42.2s
 - [✅] dotnet build: 0 errores
 - [✅] dotnet test: 85/85 pasando (100%)
 - [✅] Última migración: 20260121233036_AddAnulacionFieldsToMovimientoTesoreria ✅
+- [✅] Política de tolerancia: Formalizada y centralizada en BalanceTolerancePolicy.cs
 
 ---
 
-## 6. PLAN SEGURO DE DESPLIEGUE A PRODUCCIÓN
+## 7. PLAN SEGURO DE DESPLIEGUE A PRODUCCIÓN
 
-### 6.1 Pasos Pre-Deploy (Obligatorios)
+### 7.1 Pasos Pre-Deploy (Obligatorios)
 
 **Paso 1: Backup de Base de Datos**
 ```sql
@@ -265,7 +310,7 @@ Documentar:
 
 ---
 
-## 7. PROHIBICIONES EXPLÍCITAS (NO HACER)
+## 8. PROHIBICIONES EXPLÍCITAS (NO HACER - SEGURIDAD EN PRODUCCIÓN)
 
 ❌ **NO editar __EFMigrationsHistory manualmente**
 - Causa: Pérdida de trazabilidad histórica
@@ -293,7 +338,7 @@ Documentar:
 
 ---
 
-## 8. HISTORIAL DE CAMBIOS EN ESTA SESIÓN
+## 9. HISTORIAL DE CAMBIOS EN ESTA SESIÓN
 
 ### Commit 1: `13c814a`
 **Mensaje**: `fix: track EF migrations and stabilize schema evolution`
@@ -326,7 +371,7 @@ Documentar:
 
 ---
 
-## 9. ESTADO ACTUAL Y CONCLUSIONES
+## 10. ESTADO ACTUAL Y CONCLUSIONES
 
 ### Estado Actual
 | Componente | Status | Evidencia |
@@ -354,7 +399,7 @@ Documentar:
 
 ---
 
-## 10. FIRMAS Y APROBACIONES
+## 11. FIRMAS Y APROBACIONES
 
 **Auditoría Completada**: 2026-01-21 19:05:53 UTC  
 **Vigencia**: Hasta próxima integración de código  

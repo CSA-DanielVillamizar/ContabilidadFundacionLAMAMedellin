@@ -1,0 +1,51 @@
+@using MudBlazor
+
+<div class="lama-empty-state">
+    <MudIcon Icon="@Icon" Class="lama-empty-state__icon" />
+    
+    <div class="lama-empty-state__title">@Title</div>
+    
+    @if (!string.IsNullOrWhiteSpace(DescriptionToRender))
+    {
+        <div class="lama-empty-state__message">@DescriptionToRender</div>
+    }
+    
+    @if (Action != null)
+    {
+        @Action
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Ícono del estado vacío
+    /// </summary>
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Filled.Inbox;
+
+    /// <summary>
+    /// Título del mensaje de estado vacío
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "No hay datos disponibles";
+
+    /// <summary>
+    /// Mensaje descriptivo opcional (alias: Description)
+    /// </summary>
+    [Parameter]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Descripción opcional para compatibilidad (se usa en lugar de Message si se establece)
+    /// </summary>
+    [Parameter]
+    public string? Description { get; set; }
+
+    private string? DescriptionToRender => !string.IsNullOrWhiteSpace(Description) ? Description : Message;
+
+    /// <summary>
+    /// RenderFragment para un botón de acción opcional
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Action { get; set; }
+}

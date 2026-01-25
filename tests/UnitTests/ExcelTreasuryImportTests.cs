@@ -1,10 +1,24 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using ClosedXML.Excel;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Server.Data;
+using Server.Models;
+using Server.Services.Audit;
+using Server.Services.CierreContable;
+using Server.Services.Import;
+using Server.Services.MovimientosTesoreria;
 using Xunit;
 
 namespace UnitTests;
@@ -152,16 +166,16 @@ public class ExcelTreasuryImportTests
     [Fact]
     public void BalanceMismatch_DetectionWithTolerance_WorksCorrectly()
     {
-        // Tolerancia de ±1 COP
+        // Usa BalanceTolerancePolicy: tolerancia exclusiva < 1 COP
         var saldoCalculado = 100000.00m;
-        var saldoEsperado1 = 100000.50m;
-        var saldoEsperado2 = 100002.00m;
+        var saldoEsperado1 = 100000.50m;  // diff = 0.50 < 1.0 => dentro
+        var saldoEsperado2 = 100002.00m;  // diff = 2.00 >= 1.0 => fuera
 
-        var diff1 = Math.Abs(saldoCalculado - saldoEsperado1);
-        var diff2 = Math.Abs(saldoCalculado - saldoEsperado2);
-
-        Assert.True(diff1 <= 1m); // Dentro de tolerancia
-        Assert.False(diff2 <= 1m); // Fuera de tolerancia
+        // Verificar con política centralizada
+        Assert.True(BalanceTolerancePolicy.IsWithinTolerance(saldoEsperado1, saldoCalculado), 
+            "Diferencia 0.50 COP debe estar dentro de tolerancia");
+        Assert.False(BalanceTolerancePolicy.IsWithinTolerance(saldoEsperado2, saldoCalculado), 
+            "Diferencia 2.00 COP debe estar fuera de tolerancia");
     }
 
     // Helper
@@ -184,10 +198,10 @@ public class ExcelTreasuryImportTests
         var saldoFinalHoja1 = 100000m;
         var saldoMesAnteriorHoja2 = 100000m;
 
-        var diff = Math.Abs(saldoFinalHoja1 - saldoMesAnteriorHoja2);
-        var isMismatch = diff > 1m;
+        // Usa BalanceTolerancePolicy para validación centralizada
+        var isWithinTolerance = BalanceTolerancePolicy.IsWithinTolerance(saldoMesAnteriorHoja2, saldoFinalHoja1);
 
-        Assert.False(isMismatch, "Los saldos coinciden exactamente, no debe haber mismatch");
+        Assert.True(isWithinTolerance, "Los saldos coinciden exactamente, debe estar dentro de tolerancia");
     }
 
     [Fact]
@@ -198,25 +212,24 @@ public class ExcelTreasuryImportTests
         var saldoFinalHoja1 = 100000m;
         var saldoMesAnteriorHoja2 = 100500m;
 
-        var diff = Math.Abs(saldoFinalHoja1 - saldoMesAnteriorHoja2);
-        var isMismatch = diff > 1m;
+        // Usa BalanceTolerancePolicy para validación centralizada (exclusiva)
+        var isWithinTolerance = BalanceTolerancePolicy.IsWithinTolerance(saldoMesAnteriorHoja2, saldoFinalHoja1);
 
-        Assert.True(isMismatch, "Diferencia de 500 COP debe ser detectada como mismatch");
-        Assert.Equal(500m, diff);
+        Assert.False(isWithinTolerance, "Diferencia de 500 COP debe estar fuera de tolerancia");
     }
 
     [Fact]
     public void CarryOver_SaldoMesAnteriorWithinToleranceOf1COP_NoMismatch()
     {
         // Hoja 1 termina con saldo 100.000,50 COP
-        // Hoja 2 comienza con saldo mes anterior 100.000 COP => dentro de tolerancia ±1
+        // Hoja 2 comienza con saldo mes anterior 100.000 COP => dentro de tolerancia < 1
         var saldoFinalHoja1 = 100000.50m;
         var saldoMesAnteriorHoja2 = 100000m;
 
-        var diff = Math.Abs(saldoFinalHoja1 - saldoMesAnteriorHoja2);
-        var isMismatch = diff > 1m;
+        // Usa BalanceTolerancePolicy para validación centralizada (tolerancia exclusiva)
+        var isWithinTolerance = BalanceTolerancePolicy.IsWithinTolerance(saldoMesAnteriorHoja2, saldoFinalHoja1);
 
-        Assert.False(isMismatch, "Diferencia de 0,50 COP está dentro de tolerancia ±1");
+        Assert.True(isWithinTolerance, "Diferencia de 0,50 COP está dentro de tolerancia <1");
     }
 
     [Fact]
@@ -277,15 +290,179 @@ public class ExcelTreasuryImportTests
     [InlineData(100000, 99998, false)]  // Diferencia 2 está fuera (lado negativo)
     public void BalanceTolerance_VariousThresholds_AppliesCorrectly(long calculado, long esperado, bool shouldMatch)
     {
-        // Regla de tolerancia: ESTRICTAMENTE menor a 1 (tolerancia exclusiva)
+        // Usa BalanceTolerancePolicy: tolerancia EXCLUSIVA < 1 COP
         // Para software contable, cualquier diferencia >= 1 es rechazada
-        var diff = Math.Abs((decimal)calculado - (decimal)esperado);
-        var isMatch = diff < 1m;
+        var isMatch = BalanceTolerancePolicy.IsWithinTolerance(esperado, calculado);
 
         if (shouldMatch)
-            Assert.True(isMatch, $"Diferencia {diff} debe estar dentro de tolerancia estricta <1");
+            Assert.True(isMatch, $"Diferencia {Math.Abs(calculado - esperado)} debe estar dentro de tolerancia estricta <1");
         else
-            Assert.False(isMatch, $"Diferencia {diff} debe estar fuera de tolerancia estricta <1");
+            Assert.False(isMatch, $"Diferencia {Math.Abs(calculado - esperado)} debe estar fuera de tolerancia estricta <1");
+    }
+
+    [Fact]
+    public void BalanceTolerance_EdgeCase_JustBelowTolerance_Accepts()
+    {
+        // Test de borde explícito: diff = 0.99 debe aceptarse
+        var esperado = 100000m;
+        var encontrado = 100000.99m;  // diff = 0.99 < 1.0
+        
+        var isWithinTolerance = BalanceTolerancePolicy.IsWithinTolerance(esperado, encontrado);
+        
+        Assert.True(isWithinTolerance, "Diferencia de 0.99 COP debe estar dentro (excl. < 1.0)");
+    }
+
+    [Fact]
+    public void BalanceTolerance_EdgeCase_ExactlyAtTolerance_Rejects()
+    {
+        // Test de borde explícito: diff = 1.00 debe rechazarse (tolerancia EXCLUSIVA)
+        var esperado = 100000m;
+        var encontrado = 100001m;  // diff = 1.00, NO < 1.0 => rechaza
+        
+        var isWithinTolerance = BalanceTolerancePolicy.IsWithinTolerance(esperado, encontrado);
+        
+        Assert.False(isWithinTolerance, "Diferencia de 1.00 COP debe estar fuera (excl. < 1.0)");
+    }
+
+    [Fact]
+    public void BalanceTolerancePolicy_CalculateDiff_ReturnsAbsoluteDifference()
+    {
+            // Test CalculateDiff retorna diferencia absoluta
+            var diff1 = BalanceTolerancePolicy.CalculateDiff(100000m, 100001m);
+            var diff2 = BalanceTolerancePolicy.CalculateDiff(100001m, 100000m);
+            var diff3 = BalanceTolerancePolicy.CalculateDiff(100000m, 100000m);
+        
+            Assert.Equal(1.00m, diff1);
+            Assert.Equal(1.00m, diff2);  // Debe ser absoluta (sin signo)
+            Assert.Equal(0.00m, diff3);
+    }
+
+    [Fact]
+    public void BalanceTolerancePolicy_FormatMismatchMessage_IncludesAllDetails()
+    {
+        // Test que FormatMismatchMessage incluye todos los detalles requeridos en formato es-CO
+        var context = "Hoja MAYO 2025, fila 10";
+        var esperado = 100000m;
+        var encontrado = 99999m;
+
+        var mensaje = BalanceTolerancePolicy.FormatMismatchMessage(context, esperado, encontrado);
+
+        var co = CultureInfo.GetCultureInfo("es-CO");
+        var esperadoStr = "100.000,00";
+        var encontradoStr = "99.999,00";
+        var diffStr = "1,00";
+        var toleranciaStr = "1,00";
+
+        Assert.Contains(context, mensaje);
+        Assert.Contains($"Esperado={esperadoStr} COP", mensaje);
+        Assert.Contains($"Encontrado={encontradoStr} COP", mensaje);
+        Assert.Contains($"Diff={diffStr} COP", mensaje);
+        Assert.Contains($"Tolerancia={toleranciaStr} COP", mensaje);
+        Assert.Contains($"Regla: diff < {toleranciaStr}", mensaje);
+        Assert.Contains("EXCLUSIVA", mensaje);
+    }
+
+    private sealed class FakeAuditService : IAuditService
+    {
+        public Task LogAsync(string entityType, string entityId, string action, string userName, object? oldValues = null, object? newValues = null, string? additionalInfo = null) => Task.CompletedTask;
+        public Task<List<Server.Models.AuditLog>> GetEntityLogsAsync(string entityType, string entityId) => Task.FromResult(new List<Server.Models.AuditLog>());
+        public Task<List<Server.Models.AuditLog>> GetRecentLogsAsync(int count = 100) => Task.FromResult(new List<Server.Models.AuditLog>());
+    }
+
+    private sealed class TestDbFactory : IDbContextFactory<AppDbContext>
+    {
+        private readonly SqliteConnection _conn;
+        public TestDbFactory(SqliteConnection conn) { _conn = conn; }
+        public AppDbContext CreateDbContext()
+        {
+            var opts = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_conn).Options;
+            var db = new AppDbContext(opts);
+            try
+            {
+                _conn.CreateCollation("Modern_Spanish_CI_AS", (x, y) => string.Compare(x, y, new CultureInfo("es-ES"), CompareOptions.IgnoreCase));
+            }
+            catch
+            {
+                // Si ya existe la colación, continuar
+            }
+            db.Database.EnsureCreated();
+            return db;
+        }
+
+        public Task<AppDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(CreateDbContext());
+    }
+
+    [Fact]
+    public async Task ImportAsync_StoresSaldoInicioPorHoja_AsCarryOverBetweenSheets()
+    {
+        using var conn = new SqliteConnection("DataSource=:memory:");
+        conn.Open();
+        var factory = new TestDbFactory(conn);
+        var audit = new FakeAuditService();
+        var cierre = new CierreContableService(factory, audit);
+        var movimientosService = new MovimientosTesoreriaService(factory, cierre, audit);
+        var logger = NullLogger<ExcelTreasuryImportService>.Instance;
+        var options = Options.Create(new ImportOptions { Enabled = true, TreasuryExcelPath = "INFORME TESORERIA.xlsx" });
+        await using (var seedDb = factory.CreateDbContext())
+        {
+            var cuenta = await seedDb.CuentasFinancieras.FirstOrDefaultAsync(c => c.Codigo == "BANCO-BCOL-001");
+            if (cuenta == null)
+            {
+                cuenta = new CuentaFinanciera { Id = Guid.NewGuid(), Codigo = "BANCO-BCOL-001", Nombre = "Cuenta Test", Tipo = TipoCuenta.Bancaria, SaldoInicial = 0m };
+                seedDb.CuentasFinancieras.Add(cuenta);
+            }
+            else
+            {
+                cuenta.SaldoInicial = 0m;
+                seedDb.CuentasFinancieras.Update(cuenta);
+            }
+
+            if (!await seedDb.FuentesIngreso.AnyAsync(f => f.Codigo == "OTROS"))
+            {
+                seedDb.FuentesIngreso.Add(new FuenteIngreso { Id = Guid.NewGuid(), Codigo = "OTROS", Nombre = "Otros" });
+            }
+
+            await seedDb.SaveChangesAsync();
+        }
+
+        using var workbook = new XLWorkbook();
+        var sheet1 = workbook.AddWorksheet("CORTE ENERO 2025");
+        var sheet2 = workbook.AddWorksheet("CORTE FEBRERO 2025");
+
+        void BuildSheet(IXLWorksheet sheet, DateTime fechaMovimiento, decimal valorIngreso, decimal saldoEsperado)
+        {
+            sheet.Cell(1, 1).Value = "FECHA";
+            sheet.Cell(1, 2).Value = "CONCEPTO";
+            sheet.Cell(1, 3).Value = "INGRESOS";
+            sheet.Cell(1, 4).Value = "EGRESOS";
+            sheet.Cell(1, 5).Value = "SALDO";
+
+            sheet.Cell(2, 1).Value = fechaMovimiento;
+            sheet.Cell(2, 2).Value = "Ingreso OTROS";
+            sheet.Cell(2, 3).Value = valorIngreso;
+            sheet.Cell(2, 4).Value = 0;
+            sheet.Cell(2, 5).Value = saldoEsperado;
+        }
+
+        BuildSheet(sheet1, new DateTime(2025, 1, 5), 1000m, 1000m);
+        BuildSheet(sheet2, new DateTime(2025, 2, 5), 500m, 1500m);
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        var service = new ExcelTreasuryImportService(factory, logger, options, cierre, movimientosService);
+        var summary = await service.ImportAsync(stream, "in-memory.xlsx", dryRun: true);
+
+        Assert.True(summary.Success, "La importación debe completar sin errores");
+        Assert.Equal(2, summary.SaldoInicioPorHoja.Count);
+        Assert.Equal(2, summary.PeriodoPorHoja.Count);
+        Assert.Equal("2025-01", summary.PeriodoPorHoja[sheet1.Name]);
+        Assert.Equal("2025-02", summary.PeriodoPorHoja[sheet2.Name]);
+        Assert.Equal(summary.SaldoFinalCalculadoPorHoja[sheet1.Name], summary.SaldoInicioPorHoja[sheet2.Name]);
+        Assert.Equal(1000m, summary.SaldoFinalCalculadoPorHoja[sheet1.Name]);
+        Assert.Equal(1000m, summary.SaldoInicioPorHoja[sheet2.Name]);
     }
 
     [Fact]

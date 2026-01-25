@@ -65,7 +65,7 @@
             },
             "ClosedXML": {
               "target": "Package",
-              "version": "[0.104.2, )"
+              "version": "[0.104.1, )"
             },
             "CsvHelper": {
               "target": "Package",

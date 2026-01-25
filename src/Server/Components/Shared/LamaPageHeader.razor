@@ -1,0 +1,43 @@
+@using MudBlazor
+
+<div class="lama-page-header">
+    <div class="lama-page-header__left">
+        <MudIcon Icon="@Icon" Class="lama-page-header__icon" />
+        <div>
+            <div class="lama-page-header__title">@Title</div>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <div class="lama-page-header__subtitle">@Subtitle</div>
+            }
+        </div>
+    </div>
+    <div class="lama-page-header__actions">
+        @Actions
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Título principal del encabezado
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>
+    /// Subtítulo opcional descriptivo
+    /// </summary>
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Ícono Material Design a la izquierda del título
+    /// </summary>
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Filled.Dashboard;
+
+    /// <summary>
+    /// RenderFragment para botones/acciones a la derecha
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+}

@@ -1,0 +1,43 @@
+@*
+    ============================================================================
+    LAMA BADGE - Componente de Badge/Etiqueta con Colores Semánticos
+    ============================================================================
+    Para estados, categorías y etiquetas en tablas y formularios
+    ============================================================================
+*@
+
+<span class="lama-badge lama-badge--@Variant">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <span class="lama-badge__icon">
+            <MudIcon Icon="@Icon" Size="Size.Small" />
+        </span>
+    }
+    @Text
+</span>
+
+@code {
+    /// <summary>
+    /// Texto del badge
+    /// </summary>
+    [Parameter]
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Variante de color:
+    /// - "success" = Verde
+    /// - "danger" = Rojo
+    /// - "warning" = Ámbar
+    /// - "info" = Azul
+    /// - "primary" = Morado L.A.M.A.
+    /// - "neutral" = Gris
+    /// </summary>
+    [Parameter]
+    public string Variant { get; set; } = "neutral";
+
+    /// <summary>
+    /// Icono opcional (Material Icons)
+    /// </summary>
+    [Parameter]
+    public string? Icon { get; set; }
+}

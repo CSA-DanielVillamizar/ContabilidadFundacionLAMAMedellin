@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Server.Models;
 
 /// <summary>
@@ -70,6 +72,13 @@ public class Recibo
     // Auditoría
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string CreatedBy { get; set; } = "system";
+
+    /// <summary>
+    /// Hash determinístico para deduplicación de imports (SHA256 de FechaEmision|TotalCop|Serie|Consecutivo|MiembroId).
+    /// Permite idempotencia: el import puede ejecutarse múltiples veces sin crear duplicados.
+    /// </summary>
+    [MaxLength(64)]
+    public string? ImportRowHash { get; set; }
 }
 
 /// <summary>

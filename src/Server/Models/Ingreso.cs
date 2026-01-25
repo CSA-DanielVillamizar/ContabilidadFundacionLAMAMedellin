@@ -67,4 +67,11 @@ public class Ingreso
     public string? CreatedBy { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
+
+    /// <summary>
+    /// Hash determinístico para deduplicación de imports (SHA256 de Fecha|Valor|Descripción|Categoría|MetodoPago|NumeroIngreso).
+    /// Permite idempotencia: el import puede ejecutarse múltiples veces sin crear duplicados.
+    /// </summary>
+    [MaxLength(64)]
+    public string? ImportRowHash { get; set; }
 }

@@ -2,171 +2,256 @@
 @attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
 @using Microsoft.EntityFrameworkCore
 @using Server.Models
+@using MudBlazor
+@using Server.Components.Shared
+
 @inject Server.Data.AppDbContext Db
+@inject Server.Services.LamaToastService Toast
 
-<PageTitle>Reporte Donaciones vs Certificados</PageTitle>
+<PageTitle>Reporte Donaciones vs Certificados - RTE</PageTitle>
 
-<UICard Class="mb-6">
-    <Header>
-        <div class="flex items-center gap-3">
-            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
-            <span class="text-2xl font-semibold">Donaciones vs Certificados</span>
-        </div>
-        <div class="text-slate-500">Cruce de recibos con conceptos DONACION vs certificados emitidos</div>
-    </Header>
+<div class="lama-container">
+  <LamaPageHeader Title="Donaciones vs Certificados"
+                  Subtitle="Análisis de donaciones sin certificado y certificados emitidos"
+                  Icon="@Icons.Material.Filled.VolunteerActivism">
+    <Actions>
+      <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Refrescar">Refrescar</MudButton>
+    </Actions>
+  </LamaPageHeader>
+
+  <LamaFilterCard>
     <ChildContent>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Desde</label>
-                <InputDate @bind-Value="desde" class="w-full rounded-xl border-slate-300" />
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Hasta</label>
-                <InputDate @bind-Value="hasta" class="w-full rounded-xl border-slate-300" />
-            </div>
-            <div class="flex items-end">
-                <UIButton Variant="primary" OnClick="@CargarAsync">Filtrar</UIButton>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <UICard>
-                <Header>
-                    <span class="font-semibold">Donaciones SIN certificado</span>
-                    <span class="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-danger text-white text-xs">@sinCertificados.Count</span>
-                </Header>
-                <ChildContent>
-                    @if (sinCertificados.Count == 0)
-                    {
-                        <div class="text-sm text-slate-500">No hay resultados.</div>
-                    }
-                    else
-                    {
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="text-left text-slate-500">
-                                    <th class="px-2 py-1">Recibo</th>
-                                    <th class="px-2 py-1">Fecha</th>
-                                    <th class="px-2 py-1">Donante</th>
-                                    <th class="px-2 py-1 text-right">Total COP</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var r in sinCertificados)
-                                {
-                                    <tr class="border-t border-slate-200">
-                                        <td class="px-2 py-1">@r.Numero</td>
-                                        <td class="px-2 py-1">@r.Fecha.ToString("dd/MM/yyyy")</td>
-                                        <td class="px-2 py-1">@r.Donante</td>
-                                        <td class="px-2 py-1 text-right">@r.TotalCop.ToString("N0")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
-                </ChildContent>
-            </UICard>
-            <UICard>
-                <Header>
-                    <span class="font-semibold">Donaciones CON certificado</span>
-                    <span class="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-success text-white text-xs">@conCertificados.Count</span>
-                </Header>
-                <ChildContent>
-                    @if (conCertificados.Count == 0)
-                    {
-                        <div class="text-sm text-slate-500">No hay resultados.</div>
-                    }
-                    else
-                    {
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="text-left text-slate-500">
-                                    <th class="px-2 py-1">Certificado</th>
-                                    <th class="px-2 py-1">Fecha</th>
-                                    <th class="px-2 py-1">Donante</th>
-                                    <th class="px-2 py-1 text-right">Valor COP</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var c in conCertificados)
-                                {
-                                    <tr class="border-t border-slate-200">
-                                        <td class="px-2 py-1">CD-@c.Ano-@c.Consecutivo.ToString("D5")</td>
-                                        <td class="px-2 py-1">@c.FechaEmision.ToString("dd/MM/yyyy")</td>
-                                        <td class="px-2 py-1">@c.Donante</td>
-                                        <td class="px-2 py-1 text-right">@c.ValorCop.ToString("N0")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
-                </ChildContent>
-            </UICard>
-        </div>
+      <MudItem xs="12" sm="6" md="3">
+        <MudDatePicker @bind-Date="desde" Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" />
+      </MudItem>
+      <MudItem xs="12" sm="6" md="3">
+        <MudDatePicker @bind-Date="hasta" Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" />
+      </MudItem>
     </ChildContent>
-</UICard>
+    <Actions>
+      <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FilterAlt" OnClick="Cargar">Filtrar</MudButton>
+      <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Limpiar">Limpiar</MudButton>
+    </Actions>
+  </LamaFilterCard>
+
+  @if (cargando)
+  {
+    <MudGrid Spacing="2">
+      <MudItem xs="12" sm="6">
+        <MudSkeleton SkeletonType="SkeletonType.Text" Height="300px" />
+      </MudItem>
+      <MudItem xs="12" sm="6">
+        <MudSkeleton SkeletonType="SkeletonType.Text" Height="300px" />
+      </MudItem>
+    </MudGrid>
+  }
+  else
+  {
+    <MudGrid Spacing="2">
+      <!-- Donaciones sin certificado -->
+      <MudItem xs="12" sm="6">
+        <MudPaper Class="lama-card" Elevation="0">
+          <div style="display: flex; align-items: center; margin-bottom: 16px; justify-content: space-between;">
+            <MudText Typo="Typo.h6">Donaciones SIN Certificado</MudText>
+            <LamaBadge Text="@sinCertificados.Count.ToString()" Variant="danger" />
+          </div>
+          
+          @if (sinCertificados.Count == 0)
+          {
+            <LamaEmptyState Title="Sin donaciones"
+                            Description="No hay donaciones sin certificado en el rango seleccionado"
+                            Icon="@Icons.Material.Outlined.CheckCircle">
+            </LamaEmptyState>
+          }
+          else
+          {
+            <div style="max-height: 400px; overflow-y: auto;">
+              <MudTable Items="sinCertificados" Dense="true" Hover="true">
+                <HeaderContent>
+                  <MudTh>Recibo</MudTh>
+                  <MudTh>Fecha</MudTh>
+                  <MudTh>Donante</MudTh>
+                  <MudTh Class="lama-numeric">Valor</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                  <MudTd><span class="lama-mono">@context.Numero</span></MudTd>
+                  <MudTd>@context.Fecha.ToString("dd/MM/yyyy")</MudTd>
+                  <MudTd>@context.Donante</MudTd>
+                  <MudTd Class="lama-numeric">@FormatCurrency(context.TotalCop)</MudTd>
+                </RowTemplate>
+              </MudTable>
+            </div>
+          }
+        </MudPaper>
+      </MudItem>
+
+      <!-- Donaciones con certificado -->
+      <MudItem xs="12" sm="6">
+        <MudPaper Class="lama-card" Elevation="0">
+          <div style="display: flex; align-items: center; margin-bottom: 16px; justify-content: space-between;">
+            <MudText Typo="Typo.h6">Donaciones CON Certificado</MudText>
+            <LamaBadge Text="@conCertificados.Count.ToString()" Variant="success" />
+          </div>
+          
+          @if (conCertificados.Count == 0)
+          {
+            <LamaEmptyState Title="Sin certificados"
+                            Description="No hay certificados emitidos en el rango seleccionado"
+                            Icon="@Icons.Material.Outlined.DocumentScanner">
+            </LamaEmptyState>
+          }
+          else
+          {
+            <div style="max-height: 400px; overflow-y: auto;">
+              <MudTable Items="conCertificados" Dense="true" Hover="true">
+                <HeaderContent>
+                  <MudTh>Certificado</MudTh>
+                  <MudTh>Fecha</MudTh>
+                  <MudTh>Donante</MudTh>
+                  <MudTh Class="lama-numeric">Valor</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                  <MudTd><span class="lama-mono">CD-@context.Ano-@context.Consecutivo.ToString("D5")</span></MudTd>
+                  <MudTd>@context.FechaEmision.ToString("dd/MM/yyyy")</MudTd>
+                  <MudTd>@context.Donante</MudTd>
+                  <MudTd Class="lama-numeric">@FormatCurrency(context.ValorCop)</MudTd>
+                </RowTemplate>
+              </MudTable>
+            </div>
+          }
+        </MudPaper>
+      </MudItem>
+    </MudGrid>
+
+    <!-- Resumen -->
+    <MudPaper Class="lama-card" Elevation="0" Style="margin-top: 24px;">
+      <MudText Typo="Typo.h6" Class="mb-4">Resumen</MudText>
+      <MudGrid Spacing="1">
+        <MudItem xs="12" sm="6" md="3">
+          <LamaStatCard Title="Sin Certificado"
+                        Value="@sinCertificados.Count.ToString()"
+                        Icon="@Icons.Material.Filled.Warning"
+                        Variant="warning" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+          <LamaStatCard Title="Con Certificado"
+                        Value="@conCertificados.Count.ToString()"
+                        Icon="@Icons.Material.Filled.CheckCircle"
+                        Variant="success" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+          <LamaStatCard Title="Total Donado (Sin Cert)"
+                        Value="@FormatCurrency(sinCertificados.Sum(r => r.TotalCop))"
+                        Icon="@Icons.Material.Filled.TrendingDown"
+                        Variant="danger" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+          <LamaStatCard Title="Total Certificado"
+                        Value="@FormatCurrency(conCertificados.Sum(c => c.ValorCop))"
+                        Icon="@Icons.Material.Filled.TrendingUp"
+                        Variant="success" />
+        </MudItem>
+      </MudGrid>
+    </MudPaper>
+  }
+</div>
 
 @code {
-    private DateTime desde = DateTime.Today.AddMonths(-6);
-    private DateTime hasta = DateTime.Today;
+    private DateTime? desde = null;
+    private DateTime? hasta = null;
+    private bool cargando = false;
 
     private List<RowRecibo> sinCertificados = new();
     private List<RowCert> conCertificados = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarAsync();
+        desde = DateTime.Today.AddMonths(-6);
+        hasta = DateTime.Today;
+        await Cargar();
     }
 
-    private async Task CargarAsync()
+    private async Task Cargar()
     {
-        // Recibos con items cuyo concepto contiene DONACION
-        var recibosDonacion = await Db.Recibos
-            .Where(r => r.FechaEmision >= desde && r.FechaEmision <= hasta)
-            .Select(r => new
-            {
-                Recibo = r,
-                TieneItemDonacion = Db.ReciboItems
-                    .Any(ri => ri.ReciboId == r.Id && Db.Conceptos.Any(cc => cc.Id == ri.ConceptoId && cc.Codigo.Contains("DONACION")))
-            })
-            .Where(x => x.TieneItemDonacion)
-            .Select(x => x.Recibo)
-            .ToListAsync();
+        cargando = true;
+        StateHasChanged();
 
-        // Certificados por recibo
-        var certs = await Db.CertificadosDonacion
-            .Where(c => c.FechaEmision >= desde && c.FechaEmision <= hasta)
-            .ToListAsync();
+        try
+        {
+            var dtDesde = desde ?? DateTime.Today.AddMonths(-6);
+            var dtHasta = hasta ?? DateTime.Today;
 
-        var certPorRecibo = certs
-            .Where(c => c.ReciboId.HasValue)
-            .GroupBy(c => c.ReciboId!.Value)
-            .ToDictionary(g => g.Key, g => g.ToList());
+            // Recibos con items cuyo concepto contiene DONACION
+            var recibosDonacion = await Db.Recibos
+                .Where(r => r.FechaEmision >= dtDesde && r.FechaEmision <= dtHasta)
+                .Where(r => Db.ReciboItems.Any(ri => ri.ReciboId == r.Id && 
+                            Db.Conceptos.Any(cc => cc.Id == ri.ConceptoId && cc.Codigo.Contains("DONACION"))))
+                .ToListAsync();
 
-        sinCertificados = recibosDonacion
-            .Where(r => !certPorRecibo.ContainsKey(r.Id))
-            .OrderByDescending(r => r.FechaEmision)
-            .Select(r => new RowRecibo
-            {
-                Numero = $"{r.Serie}-{r.Ano}-{r.Consecutivo:D6}",
-                Fecha = r.FechaEmision,
-                    Donante = r.MiembroId.HasValue ? (Db.Miembros.Where(m => m.Id == r.MiembroId.Value).Select(m => m.NombreCompleto).FirstOrDefault() ?? r.TerceroLibre ?? "Sin nombre") : (r.TerceroLibre ?? "Sin nombre"),
-                TotalCop = r.TotalCop
-            })
-            .ToList();
+            // Certificados por recibo
+            var certs = await Db.CertificadosDonacion
+                .Where(c => c.FechaEmision >= dtDesde && c.FechaEmision <= dtHasta)
+                .ToListAsync();
 
-        conCertificados = certs
-            .OrderByDescending(c => c.FechaEmision)
-            .Select(c => new RowCert
-            {
-                Ano = c.Ano,
-                Consecutivo = c.Consecutivo,
-                FechaEmision = c.FechaEmision,
-                Donante = c.NombreDonante,
-                ValorCop = c.ValorDonacionCOP
-            })
-            .ToList();
+            var certPorRecibo = certs
+                .Where(c => c.ReciboId.HasValue)
+                .GroupBy(c => c.ReciboId!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // Donaciones sin certificado
+            sinCertificados = recibosDonacion
+                .Where(r => !certPorRecibo.ContainsKey(r.Id))
+                .OrderByDescending(r => r.FechaEmision)
+                .Select(r => new RowRecibo
+                {
+                    Numero = $"{r.Serie}-{r.Ano}-{r.Consecutivo:D6}",
+                    Fecha = r.FechaEmision,
+                    Donante = r.MiembroId.HasValue 
+                        ? (Db.Miembros.Where(m => m.Id == r.MiembroId.Value).Select(m => m.NombreCompleto).FirstOrDefault() ?? r.TerceroLibre ?? "Sin nombre")
+                        : (r.TerceroLibre ?? "Sin nombre"),
+                    TotalCop = r.TotalCop
+                })
+                .ToList();
+
+            // Certificados emitidos
+            conCertificados = certs
+                .OrderByDescending(c => c.FechaEmision)
+                .Select(c => new RowCert
+                {
+                    Ano = c.Ano,
+                    Consecutivo = c.Consecutivo,
+                    FechaEmision = c.FechaEmision,
+                    Donante = c.NombreDonante,
+                    ValorCop = c.ValorDonacionCOP
+                })
+                .ToList();
+
+            Toast.Success("Reporte cargado", $"Análisis generado para el período seleccionado");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error("Error", $"No se pudo cargar el reporte: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
     }
+
+    private void Refrescar()
+    {
+        _ = Cargar();
+    }
+
+    private void Limpiar()
+    {
+        desde = DateTime.Today.AddMonths(-6);
+        hasta = DateTime.Today;
+        _ = Cargar();
+    }
+
+    private string FormatCurrency(decimal amount) => $"${amount:N0}";
 
     private class RowRecibo
     {

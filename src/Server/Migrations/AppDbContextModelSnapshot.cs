@@ -1294,6 +1294,10 @@ namespace Server.Migrations
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ImportRowHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Proveedor")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1528,6 +1532,10 @@ namespace Server.Migrations
 
                     b.Property<DateTime>("FechaIngreso")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ImportRowHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("MetodoPago")
                         .IsRequired()
@@ -2225,6 +2233,10 @@ namespace Server.Migrations
 
                     b.Property<DateTime>("FechaEmision")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ImportRowHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<Guid?>("MiembroId")
                         .HasColumnType("uniqueidentifier");

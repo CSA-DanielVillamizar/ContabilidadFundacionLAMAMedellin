@@ -1,196 +1,147 @@
 @page "/tesoreria/respaldo"
 @attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
 @using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
 @inject NavigationManager Nav
-@inject ToastService Toast
+@inject Server.Services.LamaToastService Toast
 @inject AuthenticationStateProvider AuthState
 
 <PageTitle>Respaldo y Exportaciones - LAMA Medellín</PageTitle>
 
-<div class="space-y-6">
-    <!-- Exportaciones -->
-    <UICard>
-        <Header>
-            <h3 class="text-xl font-semibold text-gray-900">Exportar Datos a Excel</h3>
-            <p class="text-sm text-gray-500 mt-1">Descarga información de recibos y egresos en formato Excel</p>
-        </Header>
-        <ChildContent>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Exportar Recibos -->
-                <div class="border border-gray-200 rounded-lg p-6 hover:border-blue-300 transition">
-                    <div class="flex items-center mb-4">
-                        <svg class="w-12 h-12 text-green-600 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <div>
-                            <h4 class="font-semibold text-gray-900">Recibos</h4>
-                            <p class="text-sm text-gray-500">Incluye resumen y detalle de items</p>
-                        </div>
-                    </div>
+<!-- Encabezado -->
+<LamaPageHeader 
+    Icon="backup" 
+    Title="Respaldo y Exportaciones"
+    Subtitle="Descarga datos en Excel y gestiona respaldos de base de datos">
+</LamaPageHeader>
 
-                    <div class="space-y-3 mb-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Desde (opcional)</label>
-                            <input type="date" @bind="desdeRecibos" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Hasta (opcional)</label>
-                            <input type="date" @bind="hastaRecibos" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
+<!-- Sección de Exportaciones -->
+<div style="margin-bottom: 2rem;">
+    <MudText Typo="Typo.h6" Class="lama-muted" Style="margin-bottom: 1rem;">Exportar Datos a Excel</MudText>
+    
+    <MudGrid>
+        <!-- Card: Exportar Recibos -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="lama-container" Elevation="1" Style="padding: 1.5rem;">
+                <div style="display: flex; align-items: flex-start; margin-bottom: 1.5rem;">
+                    <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large" Color="Color.Success" Style="margin-right: 1rem;" />
+                    <div>
+                        <MudText Typo="Typo.h6">Recibos</MudText>
+                        <MudText Typo="Typo.body2" Class="lama-muted">Incluye resumen y detalle de items</MudText>
                     </div>
-
-                    <button @onclick="ExportarRecibos" disabled="@exportandoRecibos"
-                            class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center">
-                        @if (exportandoRecibos)
-                        {
-                            <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span>Exportando...</span>
-                        }
-                        else
-                        {
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                            </svg>
-                            <span>Descargar Recibos</span>
-                        }
-                    </button>
                 </div>
 
-                <!-- Exportar Egresos -->
-                <div class="border border-gray-200 rounded-lg p-6 hover:border-red-300 transition">
-                    <div class="flex items-center mb-4">
-                        <svg class="w-12 h-12 text-red-600 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
-                        </svg>
-                        <div>
-                            <h4 class="font-semibold text-gray-900">Egresos</h4>
-                            <p class="text-sm text-gray-500">Listado completo de gastos</p>
-                        </div>
-                    </div>
+                <MudStack Spacing="1">
+                    <MudDatePicker @bind-Date="desdeRecibos" Label="Desde (opcional)" Variant="Variant.Outlined" FullWidth />
+                    <MudDatePicker @bind-Date="hastaRecibos" Label="Hasta (opcional)" Variant="Variant.Outlined" FullWidth />
+                    
+                    <MudButton FullWidth Variant="Variant.Filled" Color="Color.Success" 
+                               @onclick="ExportarRecibos" Disabled="@exportandoRecibos"
+                               StartIcon="@Icons.Material.Filled.Download" Style="margin-top: 1rem;">
+                        @if (exportandoRecibos) { <span>Exportando...</span> } 
+                        else { <span>Descargar Recibos</span> }
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
 
-                    <div class="space-y-3 mb-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Desde (opcional)</label>
-                            <input type="date" @bind="desdeEgresos" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Hasta (opcional)</label>
-                            <input type="date" @bind="hastaEgresos" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
+        <!-- Card: Exportar Egresos -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="lama-container" Elevation="1" Style="padding: 1.5rem;">
+                <div style="display: flex; align-items: flex-start; margin-bottom: 1.5rem;">
+                    <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Large" Color="Color.Error" Style="margin-right: 1rem;" />
+                    <div>
+                        <MudText Typo="Typo.h6">Egresos</MudText>
+                        <MudText Typo="Typo.body2" Class="lama-muted">Listado completo de gastos</MudText>
                     </div>
-
-                    <button @onclick="ExportarEgresos" disabled="@exportandoEgresos"
-                            class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 flex items-center justify-center">
-                        @if (exportandoEgresos)
-                        {
-                            <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span>Exportando...</span>
-                        }
-                        else
-                        {
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                            </svg>
-                            <span>Descargar Egresos</span>
-                        }
-                    </button>
                 </div>
+
+                <MudStack Spacing="1">
+                    <MudDatePicker @bind-Date="desdeEgresos" Label="Desde (opcional)" Variant="Variant.Outlined" FullWidth />
+                    <MudDatePicker @bind-Date="hastaEgresos" Label="Hasta (opcional)" Variant="Variant.Outlined" FullWidth />
+                    
+                    <MudButton FullWidth Variant="Variant.Filled" Color="Color.Error" 
+                               @onclick="ExportarEgresos" Disabled="@exportandoEgresos"
+                               StartIcon="@Icons.Material.Filled.Download" Style="margin-top: 1rem;">
+                        @if (exportandoEgresos) { <span>Exportando...</span> } 
+                        else { <span>Descargar Egresos</span> }
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</div>
+
+<!-- Sección de Respaldo Base de Datos -->
+<div>
+    <MudText Typo="Typo.h6" Class="lama-muted" Style="margin-bottom: 1rem;">Respaldo de Base de Datos</MudText>
+    
+    <MudStack Spacing="2">
+        <!-- Alerta informativa -->
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true">
+            <MudText Typo="Typo.body2">
+                Puede realizar el respaldo usando SQL Server Management Studio (SSMS) o comandos T-SQL. Ambos métodos crearn una copia completa de la base de datos.
+            </MudText>
+        </MudAlert>
+
+        <!-- Método 1: SSMS -->
+        <MudPaper Class="lama-container" Elevation="1" Style="padding: 1.5rem;">
+            <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                <MudIcon Icon="@Icons.Material.Filled.SaveAlt" Size="Size.Medium" Color="Color.Primary" Style="margin-right: 0.75rem;" />
+                <MudText Typo="Typo.h6">Usando SQL Server Management Studio (SSMS)</MudText>
             </div>
-        </ChildContent>
-    </UICard>
 
-    <!-- Respaldo Base de Datos -->
-    <UICard>
-        <Header>
-            <h3 class="text-xl font-semibold text-gray-900">Respaldo de Base de Datos</h3>
-            <p class="text-sm text-gray-500 mt-1">Guía para crear respaldo completo de SQL Server</p>
-        </Header>
-        <ChildContent>
-            <div class="space-y-6">
-                <!-- Instrucciones -->
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <div class="flex items-start">
-                        <svg class="w-6 h-6 text-blue-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <div>
-                            <h4 class="font-semibold text-blue-900 mb-2">Opciones de Respaldo</h4>
-                            <p class="text-sm text-blue-800 mb-4">
-                                Puede realizar el respaldo usando SQL Server Management Studio (SSMS) o comandos T-SQL.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+            <MudList T="string" Dense="true">
+                <MudListItem T="string">Abrir SSMS y conectarse al servidor <code style="background-color: rgba(0,0,0,0.05); padding: 0.25rem 0.5rem; border-radius: 4px;">localhost</code></MudListItem>
+                <MudListItem T="string">En Object Explorer, clic derecho en la base de datos <code style="background-color: rgba(0,0,0,0.05); padding: 0.25rem 0.5rem; border-radius: 4px;">LamaMedellin</code></MudListItem>
+                <MudListItem T="string">Seleccionar <strong>Tasks → Back Up...</strong></MudListItem>
+                <MudListItem T="string">Verificar que "Backup type" esté en <strong>Full</strong></MudListItem>
+                <MudListItem T="string">En "Destination", agregar ruta de archivo .bak (ej: <code style="background-color: rgba(0,0,0,0.05); padding: 0.25rem 0.5rem; border-radius: 4px;">C:\Backups\LamaMedellin_20251022.bak</code>)</MudListItem>
+                <MudListItem T="string">Click en <strong>OK</strong></MudListItem>
+            </MudList>
+        </MudPaper>
 
-                <!-- Método 1: SSMS -->
-                <div class="border border-gray-200 rounded-lg p-6">
-                    <h4 class="font-semibold text-gray-900 mb-3 flex items-center">
-                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-bold mr-2">1</span>
-                        Usando SQL Server Management Studio (SSMS)
-                    </h4>
-                    <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 ml-8">
-                        <li>Abrir SSMS y conectarse al servidor <code class="bg-gray-100 px-2 py-1 rounded">localhost</code></li>
-                        <li>En Object Explorer, clic derecho en la base de datos <code class="bg-gray-100 px-2 py-1 rounded">LamaMedellin</code></li>
-                        <li>Seleccionar <strong>Tasks → Back Up...</strong></li>
-                        <li>Verificar que "Backup type" esté en <strong>Full</strong></li>
-                        <li>En "Destination", agregar ruta de archivo .bak (ej: <code class="bg-gray-100 px-2 py-1 rounded">C:\Backups\LamaMedellin_20251022.bak</code>)</li>
-                        <li>Click en <strong>OK</strong></li>
-                    </ol>
-                </div>
+        <!-- Método 2: T-SQL -->
+        <MudPaper Class="lama-container" Elevation="1" Style="padding: 1.5rem;">
+            <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                <MudIcon Icon="@Icons.Material.Filled.Code" Size="Size.Medium" Color="Color.Primary" Style="margin-right: 0.75rem;" />
+                <MudText Typo="Typo.h6">Usando Comando T-SQL</MudText>
+            </div>
 
-                <!-- Método 2: T-SQL -->
-                <div class="border border-gray-200 rounded-lg p-6">
-                    <h4 class="font-semibold text-gray-900 mb-3 flex items-center">
-                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-bold mr-2">2</span>
-                        Usando Comando T-SQL
-                    </h4>
-                    <p class="text-sm text-gray-600 mb-3">
-                        Ejecute el siguiente comando en SSMS o sqlcmd. Ajuste la ruta según su configuración:
-                    </p>
-                    <div class="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                        <pre class="text-green-400 text-sm"><code>BACKUP DATABASE [LamaMedellin]
-TO DISK = N'C:\Backups\LamaMedellin_20251022_143000.bak'
+            <MudText Typo="Typo.body2" Class="lama-muted" Style="margin-bottom: 1rem;">
+                Ejecute el siguiente comando en SSMS o sqlcmd. Ajuste la ruta según su configuración:
+            </MudText>
+
+            <MudPaper Outlined="true" Style="background-color: #1e1e1e; padding: 1rem; border-radius: 8px; overflow-x: auto;">
+                <MudText Component="pre" Typo="Typo.body2" Style="color: #00d047; font-family: 'Courier New', monospace; margin: 0;">
+<code>BACKUP DATABASE [LamaMedellin]
+TO DISK = N'C:\Backups\LamaMedellin_YYYYMMDD_HHMMSS.bak'
 WITH NOFORMAT, NOINIT,  
 NAME = N'LamaMedellin-Full Database Backup',
 SKIP, NOREWIND, NOUNLOAD, COMPRESSION, STATS = 10
-GO</code></pre>
-                    </div>
-                    <button @onclick="CopiarComandoRespaldo"
-                            class="mt-3 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 text-sm flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                        Copiar Comando
-                    </button>
-                </div>
+GO</code>
+                </MudText>
+            </MudPaper>
 
-                <!-- Recomendaciones -->
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                    <div class="flex items-start">
-                        <svg class="w-6 h-6 text-yellow-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        <div>
-                            <h4 class="font-semibold text-yellow-900 mb-2">Recomendaciones</h4>
-                            <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
-                                <li>Programe respaldos automáticos semanalmente</li>
-                                <li>Almacene copias en ubicación externa (nube, disco externo)</li>
-                                <li>Pruebe la restauración periódicamente</li>
-                                <li>Documente la ruta de respaldos para el equipo</li>
-                                <li>Considere usar SQL Server Agent para automatización</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </ChildContent>
-    </UICard>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                       @onclick="CopiarComandoRespaldo"
+                       StartIcon="@Icons.Material.Filled.ContentCopy" Style="margin-top: 1rem;">
+                Copiar Comando
+            </MudButton>
+        </MudPaper>
+
+        <!-- Recomendaciones -->
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="false">
+            <MudText Typo="Typo.subtitle2" Style="margin-bottom: 0.75rem;"><strong>Recomendaciones</strong></MudText>
+            <MudList T="string" Dense="true">
+                <MudListItem T="string">Programe respaldos automáticos semanalmente</MudListItem>
+                <MudListItem T="string">Almacene copias en ubicación externa (nube, disco externo)</MudListItem>
+                <MudListItem T="string">Pruebe la restauración periódicamente</MudListItem>
+                <MudListItem T="string">Documente la ruta de respaldos para el equipo</MudListItem>
+                <MudListItem T="string">Considere usar SQL Server Agent para automatización</MudListItem>
+            </MudList>
+        </MudAlert>
+    </MudStack>
 </div>
 
 @code {
@@ -202,6 +153,9 @@ GO</code></pre>
     private bool exportandoRecibos = false;
     private bool exportandoEgresos = false;
 
+    /// <summary>
+    /// Descarga recibos en formato Excel con rango de fechas opcional.
+    /// </summary>
     private void ExportarRecibos()
     {
         exportandoRecibos = true;
@@ -214,7 +168,14 @@ GO</code></pre>
                 url += $"hasta={hastaRecibos.Value:yyyy-MM-dd}";
 
             Nav.NavigateTo(url, forceLoad: true);
-            Toast.Show("Exportación de recibos iniciada. El archivo se descargará automáticamente.", "success");
+            Toast.Success(
+                "Exportación iniciada",
+                "El archivo de recibos se descargará automáticamente."
+            );
+        }
+        catch (Exception ex)
+        {
+            Toast.Error("Error en exportación", ex.Message);
         }
         finally
         {
@@ -222,6 +183,9 @@ GO</code></pre>
         }
     }
 
+    /// <summary>
+    /// Descarga egresos en formato Excel con rango de fechas opcional.
+    /// </summary>
     private void ExportarEgresos()
     {
         exportandoEgresos = true;
@@ -234,7 +198,14 @@ GO</code></pre>
                 url += $"hasta={hastaEgresos.Value:yyyy-MM-dd}";
 
             Nav.NavigateTo(url, forceLoad: true);
-            Toast.Show("Exportación de egresos iniciada. El archivo se descargará automáticamente.", "success");
+            Toast.Success(
+                "Exportación iniciada",
+                "El archivo de egresos se descargará automáticamente."
+            );
+        }
+        catch (Exception ex)
+        {
+            Toast.Error("Error en exportación", ex.Message);
         }
         finally
         {
@@ -242,6 +213,9 @@ GO</code></pre>
         }
     }
 
+    /// <summary>
+    /// Copia el comando T-SQL de respaldo al portapapeles y muestra una notificación.
+    /// </summary>
     private async Task CopiarComandoRespaldo()
     {
         var comando = $@"BACKUP DATABASE [LamaMedellin]
@@ -251,8 +225,17 @@ NAME = N'LamaMedellin-Full Database Backup',
 SKIP, NOREWIND, NOUNLOAD, COMPRESSION, STATS = 10
 GO";
 
-        // En un navegador moderno con soporte Clipboard API
-        // Por ahora solo mostraremos el toast
-        Toast.Show("Comando copiado al portapapeles (seleccione y copie manualmente)", "info");
+        try
+        {
+            // En navegador moderno, copiar al portapapeles vía JavaScript (optional)
+            Toast.Info(
+                "Comando listo",
+                "Seleccione y copie el comando T-SQL mostrado arriba. Puede ejecutarlo en SSMS o sqlcmd."
+            );
+        }
+        catch (Exception ex)
+        {
+            Toast.Error("Error", ex.Message);
+        }
     }
 }

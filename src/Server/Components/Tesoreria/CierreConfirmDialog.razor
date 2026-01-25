@@ -1,0 +1,43 @@
+@using MudBlazor
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <div style="margin-bottom: 1.5rem;">
+            <MudAlert Severity="Severity.Warning" Dense="true" Style="margin-bottom: 1rem;">
+                <MudText Typo="Typo.body2">
+                    <strong>Acción irreversible:</strong> Una vez cerrado el mes <strong>@NombreMes @Año</strong>, 
+                    no se podrán crear, modificar ni anular recibos ni egresos de ese período.
+                </MudText>
+            </MudAlert>
+
+            <MudText Typo="Typo.body2">
+                ¿Está seguro que desea proceder con el cierre contable?
+            </MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="Confirm" Color="Color.Primary" Variant="Variant.Filled">
+            Confirmar Cierre
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public int Año { get; set; }
+
+    [Parameter]
+    public int Mes { get; set; }
+
+    [Parameter]
+    public string NombreMes { get; set; } = "";
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Confirm() => MudDialog.Close(true);
+}

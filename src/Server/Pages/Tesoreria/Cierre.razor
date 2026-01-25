@@ -2,196 +2,153 @@
 @attribute [Authorize(Policy = "AdminOrTesoreroWith2FA")]
 @using Server.Models
 @using Server.Services.CierreContable
+@using Server.Components.Tesoreria
+@using MudBlazor
 @inject CierreContableService CierreService
 @inject AuthenticationStateProvider AuthStateProvider
-@inject ToastService Toast
+@inject IDialogService DialogService
+@inject Server.Services.LamaToastService Toast
 
 <PageTitle>Cierre Contable Mensual - LAMA Medellín</PageTitle>
 
-<UICard>
-    <Header>
-        <h3 class="text-xl font-semibold text-gray-900">Cierre Contable Mensual</h3>
-        <p class="text-sm text-gray-500 mt-1">Cerrar períodos para bloquear ediciones en recibos y egresos</p>
-    </Header>
-    <ChildContent>
-        <div class="space-y-6">
-            <!-- Formulario de cierre -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h4 class="font-medium text-gray-900 mb-4">Cerrar nuevo período</h4>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Año</label>
-                        <input type="number" @bind="anoSeleccionado" min="2020" max="2099" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mes</label>
-                        <select @bind="mesSeleccionado" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                            <option value="1">Enero</option>
-                            <option value="2">Febrero</option>
-                            <option value="3">Marzo</option>
-                            <option value="4">Abril</option>
-                            <option value="5">Mayo</option>
-                            <option value="6">Junio</option>
-                            <option value="7">Julio</option>
-                            <option value="8">Agosto</option>
-                            <option value="9">Septiembre</option>
-                            <option value="10">Octubre</option>
-                            <option value="11">Noviembre</option>
-                            <option value="12">Diciembre</option>
-                        </select>
-                    </div>
-                    <div class="flex items-end">
-                        <button @onclick="AbrirModalCierre" disabled="@cerrando"
-                                class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300">
-                            @if (cerrando)
-                            {
-                                <span>Procesando...</span>
-                            }
-                            else
-                            {
-                                <span>Cerrar Mes</span>
-                            }
-                        </button>
-                    </div>
-                </div>
+<!-- Encabezado con título y acciones -->
+<LamaPageHeader 
+    Icon="lock_clock" 
+    Title="Cierre Contable"
+    Subtitle="Cierre períodos para bloquear ediciones en recibos y egresos">
+    <Actions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   @onclick="AbrirModalCierre" Disabled="@cerrando"
+                   StartIcon="@Icons.Material.Filled.Lock">
+            @if (cerrando) { <span>Cerrando...</span> } else { <span>Cerrar Mes</span> }
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                   @onclick="RefrescarCierres"
+                   StartIcon="@Icons.Material.Filled.Refresh">
+            Refrescar
+        </MudButton>
+    </Actions>
+</LamaPageHeader>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones (opcional)</label>
-                    <textarea @bind="observaciones" rows="2" 
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                              placeholder="Notas sobre el cierre del período..."></textarea>
-                </div>
-            </div>
+<!-- Filtros de período -->
+<LamaFilterCard>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudNumericField @bind-Value="anoSeleccionado" Label="Año" 
+                           Min="2020" Max="2099" Variant="Variant.Outlined"
+                           FullWidth />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect @bind-Value="mesSeleccionado" Label="Mes" Variant="Variant.Outlined" FullWidth>
+                <MudSelectItem Value="1">Enero</MudSelectItem>
+                <MudSelectItem Value="2">Febrero</MudSelectItem>
+                <MudSelectItem Value="3">Marzo</MudSelectItem>
+                <MudSelectItem Value="4">Abril</MudSelectItem>
+                <MudSelectItem Value="5">Mayo</MudSelectItem>
+                <MudSelectItem Value="6">Junio</MudSelectItem>
+                <MudSelectItem Value="7">Julio</MudSelectItem>
+                <MudSelectItem Value="8">Agosto</MudSelectItem>
+                <MudSelectItem Value="9">Septiembre</MudSelectItem>
+                <MudSelectItem Value="10">Octubre</MudSelectItem>
+                <MudSelectItem Value="11">Noviembre</MudSelectItem>
+                <MudSelectItem Value="12">Diciembre</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="observaciones" Label="Observaciones (opcional)" 
+                         Variant="Variant.Outlined" FullWidth
+                         Placeholder="Notas sobre el cierre del período..." />
+        </MudItem>
+    </MudGrid>
+</LamaFilterCard>
 
-            <!-- Tabla de cierres registrados -->
-            <div>
-                <h4 class="font-medium text-gray-900 mb-3">Histórico de cierres</h4>
-                
-                @if (cargando)
-                {
-                    <div class="text-center py-8">
-                        <p class="text-gray-500">Cargando cierres...</p>
-                    </div>
-                }
-                else if (cierres == null || !cierres.Any())
-                {
-                    <div class="text-center py-8 bg-gray-50 rounded-lg">
-                        <p class="text-gray-500">No hay períodos cerrados aún</p>
-                    </div>
-                }
-                else
-                {
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Período</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha Cierre</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo Inicial</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ingresos</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Egresos</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo Final</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observaciones</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach (var cierre in cierres)
-                                {
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
-                                            @ObtenerNombreMes(cierre.Mes) @cierre.Ano
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                            @cierre.FechaCierre.ToString("dd/MM/yyyy HH:mm")
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                            @cierre.UsuarioCierre
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                                            @cierre.SaldoInicialCalculado.ToString("C0")
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-green-600 font-medium">
-                                            @cierre.TotalIngresos.ToString("C0")
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-red-600 font-medium">
-                                            @cierre.TotalEgresos.ToString("C0")
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold @(cierre.SaldoFinal >= 0 ? "text-blue-600" : "text-red-600")">
-                                            @cierre.SaldoFinal.ToString("C0")
-                                        </td>
-                                        <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
-                                            @(cierre.Observaciones ?? "-")
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </div>
+<!-- Histórico de cierres -->
+<div style="margin-top: 2rem;">
+    @if (cargando)
+    {
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+            @for (int i = 0; i < 3; i++)
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Text" Height="40px" />
+            }
         </div>
-    </ChildContent>
-</UICard>
-
-<!-- Modal de confirmación -->
-@if (mostrarModal)
-{
-    <UIModal Show="true" OnClose="CerrarModal" Size="md">
-        <Header>
-            <h3 class="text-lg font-semibold text-gray-900">Confirmar Cierre Contable</h3>
-        </Header>
-        <ChildContent>
-            <div class="space-y-4">
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div class="flex items-start">
-                        <svg class="w-6 h-6 text-yellow-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
-                        <div>
-                            <h4 class="font-medium text-yellow-800">Acción Irreversible</h4>
-                            <p class="text-sm text-yellow-700 mt-1">
-                                Una vez cerrado el mes <strong>@ObtenerNombreMes(mesSeleccionado) @anoSeleccionado</strong>, 
-                                no se podrán crear, modificar ni anular recibos ni egresos de ese período.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <p class="text-sm text-gray-700">
-                        ¿Está seguro que desea cerrar el período contable?
-                    </p>
-                </div>
-            </div>
-        </ChildContent>
-        <Footer>
-            <button @onclick="CerrarModal" 
-                    class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                Cancelar
-            </button>
-            <button @onclick="ConfirmarCierre" disabled="@cerrando"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300">
-                @if (cerrando)
-                {
-                    <span>Procesando...</span>
-                }
-                else
-                {
-                    <span>Confirmar Cierre</span>
-                }
-            </button>
-        </Footer>
-    </UIModal>
-}
+    }
+    else if (cierres == null || !cierres.Any())
+    {
+        <LamaEmptyState 
+            Icon="event_note"
+            Title="Sin cierres registrados"
+            Description="No hay períodos cerrados aún. Selecciona un período y haz clic en 'Cerrar Mes' para registrar el primer cierre." />
+    }
+    else
+    {
+        <LamaTableWrapper>
+            <MudTable Items="@cierres" Striped="true" Hover="true" FixedHeader="true" Height="500px" Dense="true">
+                <ColGroup>
+                    <col style="width: 120px;" />
+                    <col style="width: 150px;" />
+                    <col style="width: 130px;" />
+                    <col style="width: 130px;" />
+                    <col style="width: 130px;" />
+                    <col style="width: 130px;" />
+                    <col style="width: 130px;" />
+                    <col style="width: 200px;" />
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh>Período</MudTh>
+                    <MudTh>Fecha Cierre</MudTh>
+                    <MudTh>Usuario</MudTh>
+                    <MudTh Style="text-align: right;">Saldo Inicial</MudTh>
+                    <MudTh Style="text-align: right;">Ingresos</MudTh>
+                    <MudTh Style="text-align: right;">Egresos</MudTh>
+                    <MudTh Style="text-align: right;">Saldo Final</MudTh>
+                    <MudTh>Observaciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Período">
+                        <MudText Typo="Typo.body2">@ObtenerNombreMes(context.Mes) @context.Ano</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Fecha Cierre">
+                        <MudText Typo="Typo.body2">@context.FechaCierre.ToString("dd/MM/yyyy HH:mm")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Usuario">
+                        <MudText Typo="Typo.body2">@context.UsuarioCierre</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Saldo Inicial" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Class="lama-numeric">@FormatCurrency(context.SaldoInicialCalculado)</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Ingresos" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Class="lama-numeric" Color="Color.Success">@FormatCurrency(context.TotalIngresos)</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Egresos" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Class="lama-numeric" Color="Color.Error">@FormatCurrency(context.TotalEgresos)</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Saldo Final" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Class="lama-numeric" 
+                               Color="@(context.SaldoFinal >= 0 ? Color.Success : Color.Error)">
+                            @FormatCurrency(context.SaldoFinal)
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Observaciones">
+                        @if (!string.IsNullOrEmpty(context.Observaciones))
+                        {
+                            <MudText Typo="Typo.body2" Class="lama-muted">@context.Observaciones</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="lama-muted">-</MudText>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </LamaTableWrapper>
+    }
+</div>
 
 @code {
     private List<CierreMensual>? cierres;
     private bool cargando = true;
     private bool cerrando = false;
-    private bool mostrarModal = false;
 
     private int anoSeleccionado = DateTime.Now.Year;
     private int mesSeleccionado = DateTime.Now.Month;
@@ -202,6 +159,9 @@
         await CargarCierres();
     }
 
+    /// <summary>
+    /// Carga la lista de cierres contables registrados.
+    /// </summary>
     private async Task CargarCierres()
     {
         cargando = true;
@@ -209,22 +169,44 @@
         {
             cierres = await CierreService.ObtenerCierresAsync();
         }
+        catch (Exception ex)
+        {
+            Toast.Error("Error al cargar cierres", ex.Message);
+        }
         finally
         {
             cargando = false;
         }
     }
 
-    private void AbrirModalCierre()
+    /// <summary>
+    /// Abre un diálogo MudDialog para confirmar el cierre del período.
+    /// </summary>
+    private async Task AbrirModalCierre()
     {
-        mostrarModal = true;
+        var parameters = new DialogParameters
+        {
+            ["Año"] = anoSeleccionado,
+            ["Mes"] = mesSeleccionado,
+            ["NombreMes"] = ObtenerNombreMes(mesSeleccionado)
+        };
+
+        var dialogRef = await DialogService.ShowAsync<CierreConfirmDialog>(
+            "Confirmar Cierre Contable",
+            parameters
+        );
+
+        var result = await dialogRef.Result;
+
+        if (!result.Canceled && result.Data is bool confirmed && confirmed)
+        {
+            await ConfirmarCierre();
+        }
     }
 
-    private void CerrarModal()
-    {
-        mostrarModal = false;
-    }
-
+    /// <summary>
+    /// Ejecuta el cierre contable del período seleccionado.
+    /// </summary>
     private async Task ConfirmarCierre()
     {
         cerrando = true;
@@ -234,28 +216,27 @@
             var usuario = authState.User.Identity?.Name ?? "Sistema";
 
             var cierre = await CierreService.CerrarMesAsync(
-                anoSeleccionado, 
-                mesSeleccionado, 
-                usuario, 
+                anoSeleccionado,
+                mesSeleccionado,
+                usuario,
                 string.IsNullOrWhiteSpace(observaciones) ? null : observaciones
             );
 
-            Toast.Show($"Período {ObtenerNombreMes(mesSeleccionado)} {anoSeleccionado} cerrado exitosamente", "success");
-            
-            // Limpiar form
+            Toast.Success(
+                "Período cerrado",
+                $"{ObtenerNombreMes(mesSeleccionado)} {anoSeleccionado} ha sido cerrado exitosamente."
+            );
+
             observaciones = "";
-            mostrarModal = false;
-            
-            // Recargar lista
             await CargarCierres();
         }
         catch (InvalidOperationException ex)
         {
-            Toast.Show(ex.Message, "error");
+            Toast.Error("No se puede cerrar el período", ex.Message);
         }
         catch (Exception ex)
         {
-            Toast.Show($"Error al cerrar período: {ex.Message}", "error");
+            Toast.Error("Error al cerrar período", ex.Message);
         }
         finally
         {
@@ -263,6 +244,18 @@
         }
     }
 
+    /// <summary>
+    /// Recarga la lista de cierres desde el servicio.
+    /// </summary>
+    private async Task RefrescarCierres()
+    {
+        await CargarCierres();
+        Toast.Info("Actualizado", "Lista de cierres refrescada.");
+    }
+
+    /// <summary>
+    /// Obtiene el nombre completo del mes según su número.
+    /// </summary>
     private string ObtenerNombreMes(int mes) => mes switch
     {
         1 => "Enero",
@@ -279,4 +272,9 @@
         12 => "Diciembre",
         _ => mes.ToString()
     };
+
+    /// <summary>
+    /// Formatea un valor decimal como moneda con formato local.
+    /// </summary>
+    private string FormatCurrency(decimal amount) => $"${amount:N0}";
 }

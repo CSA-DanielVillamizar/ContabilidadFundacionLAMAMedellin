@@ -1,0 +1,58 @@
+@*
+    ============================================================================
+    LAMA TOAST MANAGER - Sistema de Notificaciones Modernas
+    ============================================================================
+    Implementación de notificaciones Toast estilo Fintech
+    Reemplaza las alertas Bootstrap por notificaciones elegantes
+    ============================================================================
+*@
+
+@inject LamaToastService ToastService
+
+<div class="lama-toast-container">
+    @foreach (var toast in ToastService.Toasts)
+    {
+        <div class="lama-toast lama-toast--@toast.Type" @key="toast.Id">
+            <div class="lama-toast__icon">
+                @if (toast.Type == "success")
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                }
+                else if (toast.Type == "error")
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" />
+                }
+                else if (toast.Type == "warning")
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                }
+            </div>
+            <div class="lama-toast__content">
+                <div class="lama-toast__title">@toast.Title</div>
+                @if (!string.IsNullOrEmpty(toast.Message))
+                {
+                    <div class="lama-toast__message">@toast.Message</div>
+                }
+            </div>
+            <button class="lama-toast__close" @onclick="() => ToastService.Remove(toast.Id)">
+                <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ToastService.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnChange -= StateHasChanged;
+    }
+}

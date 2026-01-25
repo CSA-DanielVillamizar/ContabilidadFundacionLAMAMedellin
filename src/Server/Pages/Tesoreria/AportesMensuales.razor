@@ -2,84 +2,155 @@
 @using Server.Data
 @using Server.Models
 @using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@using Server.Components.Shared
 @attribute [Authorize(Roles = "Admin,Tesorero")]
+
+@inject Server.Services.LamaToastService Toast
 
 <PageTitle>Aportes Mensuales</PageTitle>
 
-<h3>Aportes Mensuales</h3>
+<div class="lama-container">
+    <LamaPageHeader Title="Aportes Mensuales"
+                                    Subtitle="Seguimiento de cuotas y pagos de miembros"
+                                    Icon="@Icons.Material.Filled.Savings">
+        <Actions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="CargarAportes">
+                Refrescar
+            </MudButton>
+        </Actions>
+    </LamaPageHeader>
 
-@code {
-    [Inject] AppDbContext Db { get; set; } = default!;
+    <LamaFilterCard>
+        <ChildContent>
+            <MudItem xs="12" sm="6" md="3">
+                <MudNumericField @bind-Value="filtroAno" Label="Año" Variant="Variant.Outlined" Margin="Margin.Dense" Min="2000" Max="2100" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudNumericField @bind-Value="filtroMes" Label="Mes" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="12" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect @bind-Value="filtroEstado" Label="Estado" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem Value="EstadoAporte.Pendiente">Pendiente</MudSelectItem>
+                    <MudSelectItem Value="EstadoAporte.Pagado">Pagado</MudSelectItem>
+                    <MudSelectItem Value="EstadoAporte.Exonerado">Exonerado</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect @bind-Value="filtroMiembroId" Label="Miembro" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var m in miembros)
+                    {
+                        <MudSelectItem Value="m.Id">@m.NombreCompleto (@m.NumeroSocio)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </ChildContent>
+        <Actions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FilterAlt" OnClick="CargarAportes">Filtrar</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LimpiarFiltros">Limpiar</MudButton>
+        </Actions>
+    </LamaFilterCard>
 
-    private List<AporteMensual> aportes = new();
-    private int filtroAno = DateTime.UtcNow.Year;
-    private int filtroMes = DateTime.UtcNow.Month;
-    private EstadoAporte? filtroEstado;
-    private Guid? filtroMiembroId;
-
-    private List<Miembro> miembros = new();
-
-    protected override async Task OnInitializedAsync()
+    @if (aportes.Count == 0)
     {
-        miembros = await Db.Miembros.OrderBy(m => m.NombreCompleto).ToListAsync();
-        await CargarAportes();
+        <LamaEmptyState Title="Sin aportes"
+                                        Description="No hay aportes para los filtros seleccionados"
+                                        Icon="@Icons.Material.Outlined.Inbox">
+            <Action>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarAportes">Actualizar</MudButton>
+            </Action>
+        </LamaEmptyState>
     }
-
-    private async Task CargarAportes()
+    else
     {
-        var query = Db.AportesMensuales.AsQueryable().Where(a => a.Ano == filtroAno && a.Mes == filtroMes);
-        if (filtroEstado.HasValue) query = query.Where(a => a.Estado == filtroEstado.Value);
-        if (filtroMiembroId.HasValue) query = query.Where(a => a.MiembroId == filtroMiembroId.Value);
-        aportes = await query.OrderBy(a => a.MiembroId).ToListAsync();
+        <LamaTableWrapper>
+            <MudTable Items="aportes" Dense="true" Hover="true" FixedHeader="true" Height="480px">
+                <HeaderContent>
+                    <MudTh>Miembro</MudTh>
+                    <MudTh>Año</MudTh>
+                    <MudTh>Mes</MudTh>
+                    <MudTh Class="lama-numeric">Valor</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh>Fecha Pago</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@ObtenerNombreMiembro(context.MiembroId)</MudTd>
+                    <MudTd>@context.Ano</MudTd>
+                    <MudTd>@NombreMes(context.Mes)</MudTd>
+                    <MudTd Class="lama-numeric">
+                        <span class="lama-currency">@FormatCurrency(context.ValorEsperado)</span>
+                    </MudTd>
+                    <MudTd>
+                        <LamaBadge Text="@context.Estado.ToString()" Variant="@EstadoVariant(context.Estado)" />
+                    </MudTd>
+                    <MudTd>@(context.FechaPago.HasValue ? context.FechaPago.Value.ToString("g") : "—")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </LamaTableWrapper>
     }
-}
-
-<div class="filters" style="margin-bottom:1rem;">
-    <label>Año: <input type="number" @bind="filtroAno" /></label>
-    <label>Mes: <input type="number" @bind="filtroMes" /></label>
-    <label>Estado:
-        <select @bind="filtroEstado">
-            <option value="">(Todos)</option>
-            <option value="@EstadoAporte.Pendiente">Pendiente</option>
-            <option value="@EstadoAporte.Pagado">Pagado</option>
-            <option value="@EstadoAporte.Exonerado">Exonerado</option>
-        </select>
-    </label>
-    <label>Miembro:
-        <select @bind="filtroMiembroId">
-            <option value="">(Todos)</option>
-            @foreach (var m in miembros)
-            {
-                <option value="@m.Id">@m.NombreCompleto (@m.NumeroSocio)</option>
-            }
-        </select>
-    </label>
-    <button @onclick="CargarAportes">Filtrar</button>
 </div>
 
-<table class="table" style="margin-top:1rem;">
-    <thead>
-        <tr>
-            <th>Miembro</th>
-            <th>Año</th>
-            <th>Mes</th>
-            <th>Valor</th>
-            <th>Estado</th>
-            <th>Fecha Pago</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var a in aportes)
+@code {
+        [Inject] AppDbContext Db { get; set; } = default!;
+
+        private List<AporteMensual> aportes = new();
+        private int filtroAno = DateTime.UtcNow.Year;
+        private int filtroMes = DateTime.UtcNow.Month;
+        private EstadoAporte? filtroEstado;
+        private Guid? filtroMiembroId;
+        private List<Miembro> miembros = new();
+        private bool loading;
+
+        protected override async Task OnInitializedAsync()
         {
-            var miembro = miembros.FirstOrDefault(m => m.Id == a.MiembroId)?.NombreCompleto ?? "(N/A)";
-            <tr>
-                <td>@miembro</td>
-                <td>@a.Ano</td>
-                <td>@a.Mes</td>
-                <td>@a.ValorEsperado.ToString("N0")</td>
-                <td>@a.Estado</td>
-                <td>@(a.FechaPago.HasValue ? a.FechaPago.Value.ToString() : "-")</td>
-            </tr>
+                miembros = await Db.Miembros.OrderBy(m => m.NombreCompleto).ToListAsync();
+                await CargarAportes();
         }
-    </tbody>
-</table>
+
+        private async Task CargarAportes()
+        {
+                try
+                {
+                        loading = true;
+                        var query = Db.AportesMensuales.AsQueryable().Where(a => a.Ano == filtroAno && a.Mes == filtroMes);
+                        if (filtroEstado.HasValue) query = query.Where(a => a.Estado == filtroEstado.Value);
+                        if (filtroMiembroId.HasValue) query = query.Where(a => a.MiembroId == filtroMiembroId.Value);
+                        aportes = await query.OrderBy(a => a.MiembroId).ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                        Toast.Error("Error", $"No se pudieron cargar los aportes: {ex.Message}");
+                }
+                finally
+                {
+                        loading = false;
+                }
+        }
+
+        private async Task LimpiarFiltros()
+        {
+                filtroAno = DateTime.UtcNow.Year;
+                filtroMes = DateTime.UtcNow.Month;
+                filtroEstado = null;
+                filtroMiembroId = null;
+                await CargarAportes();
+        }
+
+        private string ObtenerNombreMiembro(Guid miembroId) => miembros.FirstOrDefault(m => m.Id == miembroId)?.NombreCompleto ?? "(N/A)";
+
+        private string NombreMes(int mes)
+        {
+                if (mes < 1 || mes > 12) return mes.ToString();
+                return new DateTime(2000, mes, 1).ToString("MMMM");
+        }
+
+        private string EstadoVariant(EstadoAporte estado) => estado switch
+        {
+                EstadoAporte.Pagado => "success",
+                EstadoAporte.Pendiente => "warning",
+                EstadoAporte.Exonerado => "neutral",
+                _ => "primary"
+        };
+
+        private string FormatCurrency(decimal amount) => $"${amount:N0}";
+}

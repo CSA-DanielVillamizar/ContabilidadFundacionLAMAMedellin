@@ -25,43 +25,44 @@
         </Actions>
     </PageHeader>
     
+    <!-- 🎨 STAT CARDS PREMIUM - Diseño Fintech -->
     <div class="mb-6">
-        <MudGrid>
+        <MudGrid Spacing="3">
             <MudItem xs="12" sm="6" md="3">
-                <ModernStatCard Title="Total Miembros"
-                                Value="@(stats?.TotalMiembros.ToString() ?? "0")"
-                                Icon="@Icons.Material.Filled.People"
-                                IconColor="primary"
-                                Trend="@stats?.MiembrosCambio"
-                                TrendDirection="@GetTrendDirection(stats?.MiembrosCambio)"
-                                Subtitle="Miembros activos" />
+                <LamaStatCard Title="Total Miembros"
+                              Value="@(stats?.TotalMiembros.ToString("N0") ?? "0")"
+                              Icon="@Icons.Material.Filled.People"
+                              Variant="primary"
+                              Trend="@stats?.MiembrosCambio"
+                              TrendDirection="@GetTrendDirection(stats?.MiembrosCambio)"
+                              Subtitle="Miembros activos" />
             </MudItem>
             <MudItem xs="12" sm="6" md="3">
-                <ModernStatCard Title="Ingresos del Mes"
-                                Value="@FormatCurrency(stats?.RecibosDelMes ?? 0)"
-                                Icon="@Icons.Material.Filled.TrendingUp"
-                                IconColor="success"
-                                Trend="@stats?.RecibosCambio"
-                                TrendDirection="@GetTrendDirection(stats?.RecibosCambio)"
-                                Subtitle="Recibos emitidos" />
+                <LamaStatCard Title="Ingresos del Mes"
+                              Value="@FormatCurrency(stats?.RecibosDelMes ?? 0)"
+                              Icon="@Icons.Material.Filled.TrendingUp"
+                              Variant="ingreso"
+                              Trend="@stats?.RecibosCambio"
+                              TrendDirection="@GetTrendDirection(stats?.RecibosCambio)"
+                              Subtitle="Recibos emitidos" />
             </MudItem>
             <MudItem xs="12" sm="6" md="3">
-                <ModernStatCard Title="Egresos del Mes"
-                                Value="@FormatCurrency(stats?.EgresosDelMes ?? 0)"
-                                Icon="@Icons.Material.Filled.TrendingDown"
-                                IconColor="warning"
-                                Trend="@stats?.EgresosCambio"
-                                TrendDirection="@GetTrendDirection(stats?.EgresosCambio)"
-                                Subtitle="Gastos registrados" />
+                <LamaStatCard Title="Egresos del Mes"
+                              Value="@FormatCurrency(stats?.EgresosDelMes ?? 0)"
+                              Icon="@Icons.Material.Filled.TrendingDown"
+                              Variant="egreso"
+                              Trend="@stats?.EgresosCambio"
+                              TrendDirection="@GetTrendDirection(stats?.EgresosCambio)"
+                              Subtitle="Gastos registrados" />
             </MudItem>
             <MudItem xs="12" sm="6" md="3">
-                <ModernStatCard Title="Balance"
-                                Value="@FormatCurrency(stats?.Balance ?? 0)"
-                                Icon="@Icons.Material.Filled.AccountBalance"
-                                IconColor="@(stats?.Balance >= 0 ? "success" : "warning")"
-                                Trend="@stats?.BalanceCambio"
-                                TrendDirection="@GetTrendDirection(stats?.BalanceCambio)"
-                                Subtitle="Neto del mes" />
+                <LamaStatCard Title="Balance del Mes"
+                              Value="@FormatCurrency(stats?.Balance ?? 0)"
+                              Icon="@Icons.Material.Filled.AccountBalance"
+                              Variant="@(stats?.Balance >= 0 ? "ingreso" : "egreso")"
+                              Trend="@stats?.BalanceCambio"
+                              TrendDirection="@GetTrendDirection(stats?.BalanceCambio)"
+                              Subtitle="Neto del período" />
             </MudItem>
         </MudGrid>
     </div>

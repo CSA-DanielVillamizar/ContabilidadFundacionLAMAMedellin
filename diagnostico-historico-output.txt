@@ -1,0 +1,3 @@
+Sqlcmd: Error: Microsoft ODBC Driver 17 for SQL Server : Failed to authenticate the user '' in Active Directory (Authentication option is 'ActiveDirectoryIntegrated').
+Error code 0xCAA9001F; state 10
+Integrated Windows authentication supported only in federation flow..

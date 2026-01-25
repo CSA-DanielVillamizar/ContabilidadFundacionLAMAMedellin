@@ -1,0 +1,96 @@
+@using Server.Models
+@using MudBlazor
+
+<MudDialog>
+  <DialogContent>
+    <MudForm @ref="form" @bind-IsValid="success">
+      <div class="lama-form-section">
+        <div class="lama-form-section__title">Datos de la Cuenta</div>
+
+        <MudTextField @bind-Value="Cuenta.Codigo"
+                      Label="Código"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Required="true"
+                      RequiredError="El código es obligatorio" />
+
+        <MudTextField @bind-Value="Cuenta.Nombre"
+                      Label="Nombre"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Required="true"
+                      RequiredError="El nombre es obligatorio" />
+
+        <MudSelect @bind-Value="Cuenta.Tipo"
+                   Label="Tipo de Cuenta"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Required="true">
+          <MudSelectItem Value="TipoCuenta.Bancaria">Bancaria</MudSelectItem>
+          <MudSelectItem Value="TipoCuenta.Caja">Caja</MudSelectItem>
+        </MudSelect>
+
+        <MudTextField @bind-Value="Cuenta.Banco"
+                      Label="Banco"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+
+        <MudTextField @bind-Value="Cuenta.NumeroCuenta"
+                      Label="Número de Cuenta (se enmascarará)"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+
+        <MudTextField @bind-Value="Cuenta.TitularCuenta"
+                      Label="Titular"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+
+        <MudNumericField @bind-Value="Cuenta.SaldoInicial"
+                         Label="Saldo Inicial"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense"
+                         Format="N0" />
+
+        <MudSwitch T="bool" @bind-Checked="Cuenta.Activa" Color="Color.Primary" Label="Activa" />
+      </div>
+    </MudForm>
+  </DialogContent>
+
+  <DialogActions>
+    <MudButton OnClick="Cancel">Cancelar</MudButton>
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               OnClick="Submit"
+               Disabled="@(!success)">
+      @(Modo == "create" ? "Crear" : "Guardar")
+    </MudButton>
+  </DialogActions>
+</MudDialog>
+
+@code {
+  [CascadingParameter]
+  MudDialogInstance MudDialog { get; set; } = default!;
+
+  [Parameter]
+  public string Modo { get; set; } = "create";
+
+  [Parameter]
+  public CuentaFinanciera Cuenta { get; set; } = default!;
+
+  private MudForm form = default!;
+  private bool success;
+
+  private async Task Submit()
+  {
+    await form.Validate();
+    if (success)
+    {
+      MudDialog.Close(DialogResult.Ok(Cuenta));
+    }
+  }
+
+  private void Cancel()
+  {
+    MudDialog.Cancel();
+  }
+}

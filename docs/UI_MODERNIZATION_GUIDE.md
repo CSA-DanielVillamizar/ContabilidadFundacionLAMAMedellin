@@ -114,28 +114,42 @@ if (!result.Canceled) { /* persistir y Toast */ }
   - `LamaToastService` integrado
 
 #### 7. **Presupuestos.razor** – Gestión de Presupuestos y Ejecución
-- **Líneas:** 812 | **Build:** ✅ Success | **Commit:** `[c3974ce] feat(ui): modernize presupuestos (premium - pasadas A/B/C)` 
-- **Patrón Aplicado (Pasadas A/B/C):**
+- **Líneas:** 812 | **Build:** ✅ Success (0 errors, 37 warnings pre-existentes) | **Commits:** `[c3974ce] feat(ui): modernize presupuestos (premium - pasadas A/B/C)` → `[559bcc1] fix(ui): complete presupuestos table (mudtable premium)`
+- **Patrón Aplicado (Pasadas A/B/C + Corrección Premium):**
   - `LamaPageHeader` con icono calculate, botones (Copiar Presupuestos Outlined, Nuevo Presupuesto Filled)
   - `LamaFilterCard` con `MudSelect` (año/mes/concepto) + handlers OnAnoChanged/OnMesChanged/OnConceptoChanged
   - **4 KPI Cards** (`LamaStatCard`):
     - Total Presupuestado (Primary), Total Ejecutado (Success), Diferencia (Warning), % Ejecución Promedio (Info)
-  - Tabla Tailwind con `.lama-numeric` en columnas monetarias (Presupuestado/Ejecutado/Diferencia)
-  - Helpers: `FormatCurrency()`, `GetPorcentajeEjecucionTexto()`, `GetEstadoEjecucion()`
-  - **Lógica funcional intacta**: Paginación Tailwind, modal eliminar inline, acciones Ver/Editar/Eliminar con SVG icons
-- **Notas:** Pasada D (diálogos) omitida por estrategia de evitar refactors peligrosos. Tabla mantiene estructura Tailwind funcional. Sin Bootstrap. Sin gradients inline en código actualizado.
+  - **LamaTableWrapper + MudTable T="PresupuestoDto"** (74 insertions, 107 deletions):
+    - `MudProgressCircular` Size.Large Indeterminate para loading state (reemplaza spinner Tailwind)
+    - `LamaEmptyState` Icon="@Icons.Material.Filled.Calculate" para empty state (reemplaza SVG Tailwind)
+    - `MudTable` Items="@presupuestos" Hover Breakpoint="Breakpoint.Sm" Dense
+    - HeaderContent con 7 `MudTh` (Período, Concepto, Presupuestado, Ejecutado, Diferencia, % Ejecución, Acciones)
+    - RowTemplate Context="pres" (renombrado para evitar conflicto con AuthorizeView)
+    - `MudProgressLinear` Color="@GetColorEjecucion()" Value="@((double)Math.Min())" **Class="lama-progress-mini"** (reemplaza Tailwind bg divs con inline width)
+    - `MudText` Color="Color.Primary/Success/Warning/Error" Class="lama-numeric font-weight-bold" para valores monetarios (elimina inline `style="color: var(--mud-palette-*)"`)
+    - `MudTablePager` PageSizeOptions="new int[] { 10, 25, 50 }" (reemplaza paginación Tailwind)
+  - Helpers: `FormatCurrency()`, `GetPorcentajeEjecucionTexto()`, `GetEstadoEjecucion()`, **`GetColorDiferencia(decimal)`** (nuevo), `GetColorEjecucion()` (actualizado para MudBlazor Color enum)
+  - **Eliminación estilos inline**: Style="margin-bottom: 1.5rem;" → Class="mb-6", inline colors → MudText Color props, inline width → .lama-progress-mini class
+- **Notas:** Tabla completamente migrada a MudTable premium. Estilos inline funcionales solo para text-align (MudTh/MudTd no tienen Align prop) y text-overflow. Pasada D (diálogos) omitida estratégicamente. Sin Bootstrap. **CSS Utility:** `.lama-progress-mini` (width: 100px) añadida en lama-theme.css [e7fa074].
 
 #### 8. **ConciliacionesBancarias.razor** – Conciliación Bancaria por Período
-- **Líneas:** 332 (antes) / ~300 (después) | **Build:** ✅ Success | **Commit:** `[8f297e4] feat(ui): modernize conciliaciones bancarias (premium)`
-- **Patrón Aplicado:**
+- **Líneas:** 332 (antes) → 316 (después) | **Build:** ✅ Success (0 errors, 37 warnings pre-existentes) | **Commits:** `[8f297e4] feat(ui): modernize conciliaciones bancarias (premium)` → `[3942c1e] fix(ui): migrate conciliaciones modal to muddialog premium`
+- **Patrón Aplicado (Premium + Corrección Modal):**
   - `LamaPageHeader` con icono account_balance, botones (Limpiar Outlined, Nueva Conciliación Primary)
   - `LamaFilterCard` con `MudSelect` (año/mes/estado: Pendiente/EnProceso/Conciliada/ConDiferencias)
   - **3 KPI Cards** (`LamaStatCard`): Conciliaciones (Primary), Conciliadas (Success), Pendientes (Warning)
   - Tabla Tailwind con `.lama-numeric` en columnas monetarias (Saldo Libros/Saldo Banco/Diferencia)
   - Estados con badges Tailwind (ClaseEstado switch helper)
   - Paginación Tailwind (Anterior/Siguiente)
-  - **Modal Eliminar inline mantenido** (MudDialog no aplicado para evitar cambios en lógica)
-- **Notas:** Sin Bootstrap. Lógica funcional intacta (setters automáticos en filtros).
+  - **IDialogService.ShowMessageBox() para confirmación eliminar** (21 insertions, 38 deletions):
+    - Eliminada toda estructura modal inline Tailwind (22 líneas: fixed inset-0 backdrop + white modal card)
+    - Removidos campos estado `mostrarModalEliminar`, `eliminando` (solo conserva `seleccion`)
+    - `ConfirmarEliminar()` async void llamando `await DialogService.ShowMessageBox("Eliminar conciliación", message, yesText: "Eliminar", cancelText: "Cancelar")`
+    - `Eliminar()` simplificado sin manejo de estado modal
+  - **LamaToastService correcciones**: ShowError/ShowSuccess/ShowWarning → Error/Success/Warning (API directa sin prefijo Show)
+  - **Eliminación estilos inline**: Style="margin-bottom: 1.5rem;" → Class="mb-6"
+- **Notas:** Modal inline migrado a IDialogService (MudDialog pattern compliant). Lógica funcional intacta (confirmación + eliminación secuencial). Sin Bootstrap. 0 estilos inline problématicos (solo text-align funcional en tabla).
 
 ### ⏳ Siguientes en Fila (Orden de Prioridad)
 

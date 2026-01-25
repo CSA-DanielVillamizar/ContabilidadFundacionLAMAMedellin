@@ -106,41 +106,50 @@ if (!result.Canceled) { /* persistir y Toast */ }
 - **Componentes Creados:** `Components/Tesoreria/CierreConfirmDialog.razor`
 
 #### 6. **Respaldo.razor** – Exportación de Datos y Guía de Respaldos BD
-- **Líneas:** ~220 | **Build:** ✅ Success | **Commit:** `[main de513de] feat(ui): modernize respaldo (premium)` (176 -, 159 +)
+- **Líneas:** 242 | **Build:** ✅ Success | **Commit:** `[de513de] feat(ui): modernize respaldo (premium)` (176 -, 159 +)
 - **Patrón Aplicado:**
-  - `LamaPageHeader` con icono 🔍, botones Verificar y Reparar
-  - `LamaFilterCard` con filtros: Año, Mes (vía `MudNumericField`)
-  - Loading: `MudProgressCircular Size.Large` durante validación
-  - **MudTable Dinámico** con `ResultItem` record para filas mixtas (valores + estados):
-    ```csharp
-    public record ResultItem(string Concepto, decimal Valor, bool EsValor, 
-                             string Estado, bool EsEstado);
-    ```
-    - Columnas condicionales: Valor (`.lama-numeric`), Estado (`LamaBadge`)
-  - Botones:
-    - **Verificar:** Llama `IVerificacionTesoreriaService.VerificarAsync(año, mes)`
-    - **Reparar Saldo Inicial:** Modal MudDialog → `RepararSaldoInicialAsync()` → re-verificar
-  - `LamaEmptyState` si sin datos
-  - `LamaToastService` para feedback (Verificación ✓, Reparación ✓, Errores)
-- **Líneas:** 180 | **Build:** ✅ Success | **Commit:** `[main 9e9e19d] feat(ui): modernize verificacion (premium)`
+  - `LamaPageHeader` con icono backup, botones (acciones en main header)
+  - Dos secciones `MudPaper` (Recibos Success / Egresos Error) con `MudDatePicker` desde/hasta + botones descarga
+  - Sección respaldo BD: `MudAlert Info` + 2 `MudPaper` (SSMS method con `MudList<string>`, T-SQL method con code block + botón copiar)
+  - `LamaToastService` integrado
+
+#### 7. **Presupuestos.razor** – Gestión de Presupuestos y Ejecución
+- **Líneas:** 812 | **Build:** ✅ Success | **Commit:** `[c3974ce] feat(ui): modernize presupuestos (premium - pasadas A/B/C)` 
+- **Patrón Aplicado (Pasadas A/B/C):**
+  - `LamaPageHeader` con icono calculate, botones (Copiar Presupuestos Outlined, Nuevo Presupuesto Filled)
+  - `LamaFilterCard` con `MudSelect` (año/mes/concepto) + handlers OnAnoChanged/OnMesChanged/OnConceptoChanged
+  - **4 KPI Cards** (`LamaStatCard`):
+    - Total Presupuestado (Primary), Total Ejecutado (Success), Diferencia (Warning), % Ejecución Promedio (Info)
+  - Tabla Tailwind con `.lama-numeric` en columnas monetarias (Presupuestado/Ejecutado/Diferencia)
+  - Helpers: `FormatCurrency()`, `GetPorcentajeEjecucionTexto()`, `GetEstadoEjecucion()`
+  - **Lógica funcional intacta**: Paginación Tailwind, modal eliminar inline, acciones Ver/Editar/Eliminar con SVG icons
+- **Notas:** Pasada D (diálogos) omitida por estrategia de evitar refactors peligrosos. Tabla mantiene estructura Tailwind funcional. Sin Bootstrap. Sin gradients inline en código actualizado.
+
+#### 8. **ConciliacionesBancarias.razor** – Conciliación Bancaria por Período
+- **Líneas:** 332 (antes) / ~300 (después) | **Build:** ✅ Success | **Commit:** `[8f297e4] feat(ui): modernize conciliaciones bancarias (premium)`
+- **Patrón Aplicado:**
+  - `LamaPageHeader` con icono account_balance, botones (Limpiar Outlined, Nueva Conciliación Primary)
+  - `LamaFilterCard` con `MudSelect` (año/mes/estado: Pendiente/EnProceso/Conciliada/ConDiferencias)
+  - **3 KPI Cards** (`LamaStatCard`): Conciliaciones (Primary), Conciliadas (Success), Pendientes (Warning)
+  - Tabla Tailwind con `.lama-numeric` en columnas monetarias (Saldo Libros/Saldo Banco/Diferencia)
+  - Estados con badges Tailwind (ClaseEstado switch helper)
+  - Paginación Tailwind (Anterior/Siguiente)
+  - **Modal Eliminar inline mantenido** (MudDialog no aplicado para evitar cambios en lógica)
+- **Notas:** Sin Bootstrap. Lógica funcional intacta (setters automáticos en filtros).
 
 ### ⏳ Siguientes en Fila (Orden de Prioridad)
 
-#### Prioridad 1: **Cierre.razor** (283 líneas)
-- Formulario de cierre de mes + tabla histórica
-- Patrón: `LamaPageHeader` (botón "Cerrar Mes") + `LamaFilterCard` (año/mes) + Modal MudDialog + tabla histórica
+*(Actualizado: Todos los módulos Tesorería core completados)*
 
-#### Prioridad 2: **Respaldo.razor** (259 líneas)
-- Exportación de datos (Recibos/Egresos)
-- Patrón: `LamaPageHeader` + dos secciones `MudPaper` + botones descarga + loading feedback
-
-#### Prioridad 1: **Presupuestos.razor** (844 líneas – MÁXIMA COMPLEJIDAD)
-- Retirar gradientes inline, refactorizar KPI cards, modales anidados, tablas
-- Patrón: Estándar + `LamaStatCard` para KPIs + `MudDialog` para crear/editar presupuestos + `LamaFilterCard`
-
-#### Prioridad 2: **ConciliacionesBancarias.razor**
-- Reconciliación bancaria (tamaño a confirmar tras lectura)
-- Patrón: Estándar
+**COMPLETADO 8/8 MÓDULOS TESORERÍA:**
+1. ✅ CertificadosDonacion
+2. ✅ Reportes
+3. ✅ ReportesDonacionesCertificados
+4. ✅ Verificacion
+5. ✅ Cierre
+6. ✅ Respaldo
+7. ✅ Presupuestos
+8. ✅ ConciliacionesBancarias
 
 ---
 

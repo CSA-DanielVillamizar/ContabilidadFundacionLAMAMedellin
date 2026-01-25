@@ -938,6 +938,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.lama-progress-mini {
+  width: 100px;
+  max-width: 100px;
+}
+
 /* MUD DIALOG CUSTOMIZATION */
 .mud-dialog-container .mud-dialog {
   border-radius: var(--radius-lg);

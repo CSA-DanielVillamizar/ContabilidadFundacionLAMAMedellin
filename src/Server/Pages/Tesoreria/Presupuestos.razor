@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "AdminGerenteTesorero")]
 @using Server.DTOs
 @using Server.Services
+@using MudBlazor
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ToastService Toast
@@ -13,194 +14,124 @@
         <RedirectToLogin />
     </NotAuthorized>
     <Authorized>
-        <!-- Header con breadcrumb -->
-        <div class="mb-6">
-            <nav class="flex mb-4" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                    <li class="inline-flex items-center">
-                        <a href="/" class="text-slate-700 dark:text-slate-300 hover:text-emerald-600">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
-                        </a>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <svg class="w-6 h-6 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
-                            <span class="ml-1 font-semibold text-slate-900 dark:text-white">Presupuestos</span>
-                        </div>
-                    </li>
-                </ol>
-            </nav>
+        <!-- Encabezado premium -->
+        <LamaPageHeader 
+            Icon="calculate" 
+            Title="Presupuestos"
+            Subtitle="Gestión de presupuestos y ejecución presupuestal">
+            <Actions>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                           OnClick="MostrarModalCopiar" StartIcon="@Icons.Material.Filled.ContentCopy">
+                    Copiar Presupuestos
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" 
+                           OnClick="NuevoPresupuesto" StartIcon="@Icons.Material.Filled.Add">
+                    Nuevo Presupuesto
+                </MudButton>
+            </Actions>
+        </LamaPageHeader>
 
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Presupuestos</h1>
-                        <p class="text-slate-600 dark:text-slate-400">Gestión de presupuestos y ejecución</p>
-                    </div>
-                </div>
-
-                <div class="flex gap-2">
-                    <button @onclick="MostrarModalCopiar" class="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                        Copiar Presupuestos
-                    </button>
-                    <button @onclick="NuevoPresupuesto" class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg transition flex items-center gap-2 shadow-lg">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        Nuevo Presupuesto
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- KPIs de Ejecución -->
+        <!-- KPIs de Ejecución premium -->
         @if (estadisticas != null)
         {
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <!-- Total Presupuestado -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-blue-100 text-sm font-medium">Total Presupuestado</span>
-                        <svg class="w-8 h-8 text-blue-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold">@estadisticas.TotalPresupuestado.ToString("C0")</div>
-                    <div class="text-blue-100 text-sm mt-1">@estadisticas.CantidadPresupuestos presupuestos activos</div>
-                </div>
+            <MudGrid Style="margin-bottom: 1.5rem;">
+                <MudItem xs="12" sm="6" md="3">
+                    <LamaStatCard 
+                        Icon="account_balance_wallet"
+                        Title="Total Presupuestado"
+                        Value="@FormatCurrency(estadisticas.TotalPresupuestado)"
+                        Subtitle="@($"{estadisticas.CantidadPresupuestos} presupuestos activos")"
+                        Variant="LamaStatCard.ColorVariant.Primary" />
+                </MudItem>
 
-                <!-- Total Ejecutado -->
-                <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-emerald-100 text-sm font-medium">Total Ejecutado</span>
-                        <svg class="w-8 h-8 text-emerald-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold">@estadisticas.TotalEjecutado.ToString("C0")</div>
-                    <div class="text-emerald-100 text-sm mt-1">
-                        @if (estadisticas.TotalPresupuestado > 0)
-                        {
-                            var porcentaje = (estadisticas.TotalEjecutado / estadisticas.TotalPresupuestado) * 100;
-                            <span>@porcentaje.ToString("F1")% del presupuesto</span>
-                        }
-                    </div>
-                </div>
+                <MudItem xs="12" sm="6" md="3">
+                    <LamaStatCard 
+                        Icon="check_circle"
+                        Title="Total Ejecutado"
+                        Value="@FormatCurrency(estadisticas.TotalEjecutado)"
+                        Subtitle="@GetPorcentajeEjecucionTexto(estadisticas)"
+                        Variant="LamaStatCard.ColorVariant.Success" />
+                </MudItem>
 
-                <!-- Diferencia -->
-                <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-orange-100 text-sm font-medium">Diferencia</span>
-                        <svg class="w-8 h-8 text-orange-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold">@estadisticas.Diferencia.ToString("C0")</div>
-                    <div class="text-orange-100 text-sm mt-1">
-                        @if (estadisticas.Diferencia >= 0)
-                        {
-                            <span>Disponible</span>
-                        }
-                        else
-                        {
-                            <span>Sobreejecución</span>
-                        }
-                    </div>
-                </div>
+                <MudItem xs="12" sm="6" md="3">
+                    <LamaStatCard 
+                        Icon="trending_up"
+                        Title="Diferencia"
+                        Value="@FormatCurrency(estadisticas.Diferencia)"
+                        Subtitle="@(estadisticas.Diferencia >= 0 ? "Disponible" : "Sobreejecución")"
+                        Variant="LamaStatCard.ColorVariant.Warning" />
+                </MudItem>
 
-                <!-- % Ejecución Promedio -->
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-purple-100 text-sm font-medium">% Ejecución Promedio</span>
-                        <svg class="w-8 h-8 text-purple-200 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                    </div>
-                    <div class="text-3xl font-bold">@estadisticas.PorcentajeEjecucionPromedio.ToString("F1")%</div>
-                    <div class="text-purple-100 text-sm mt-1">
-                        @if (estadisticas.PorcentajeEjecucionPromedio < 50)
-                        {
-                            <span>Ejecución baja</span>
-                        }
-                        else if (estadisticas.PorcentajeEjecucionPromedio < 80)
-                        {
-                            <span>Ejecución normal</span>
-                        }
-                        else if (estadisticas.PorcentajeEjecucionPromedio <= 100)
-                        {
-                            <span>Ejecución alta</span>
-                        }
-                        else
-                        {
-                            <span>Sobreejecución</span>
-                        }
-                    </div>
-                </div>
-            </div>
+                <MudItem xs="12" sm="6" md="3">
+                    <LamaStatCard 
+                        Icon="bar_chart"
+                        Title="% Ejecución Promedio"
+                        Value="@($"{estadisticas.PorcentajeEjecucionPromedio:F1}%")"
+                        Subtitle="@GetEstadoEjecucion(estadisticas.PorcentajeEjecucionPromedio)"
+                        Variant="LamaStatCard.ColorVariant.Info" />
+                </MudItem>
+            </MudGrid>
         }
 
-        <!-- Filtros -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Año</label>
-                    <select @bind="filtroAno" @bind:after="Buscar" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
-                        <option value="">Todos los años</option>
+        <!-- Filtros premium -->
+        <LamaFilterCard>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" Value="filtroAno" Label="Año" Variant="Variant.Outlined" 
+                               AnchorOrigin="Origin.BottomCenter" FullWidth
+                               ValueChanged="@OnAnoChanged">
+                        <MudSelectItem T="string" Value="@(string.Empty)">Todos los años</MudSelectItem>
                         @for (int i = DateTime.Now.Year + 1; i >= DateTime.Now.Year - 5; i--)
                         {
-                            <option value="@i">@i</option>
+                            <MudSelectItem T="string" Value="@i.ToString()">@i</MudSelectItem>
                         }
-                    </select>
-                </div>
+                    </MudSelect>
+                </MudItem>
 
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Mes</label>
-                    <select @bind="filtroMes" @bind:after="Buscar" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
-                        <option value="">Todos los meses</option>
-                        <option value="1">Enero</option>
-                        <option value="2">Febrero</option>
-                        <option value="3">Marzo</option>
-                        <option value="4">Abril</option>
-                        <option value="5">Mayo</option>
-                        <option value="6">Junio</option>
-                        <option value="7">Julio</option>
-                        <option value="8">Agosto</option>
-                        <option value="9">Septiembre</option>
-                        <option value="10">Octubre</option>
-                        <option value="11">Noviembre</option>
-                        <option value="12">Diciembre</option>
-                    </select>
-                </div>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" Value="filtroMes" Label="Mes" Variant="Variant.Outlined" 
+                               AnchorOrigin="Origin.BottomCenter" FullWidth
+                               ValueChanged="@OnMesChanged">
+                        <MudSelectItem T="string" Value="@(string.Empty)">Todos los meses</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("1")">Enero</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("2")">Febrero</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("3")">Marzo</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("4")">Abril</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("5")">Mayo</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("6")">Junio</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("7")">Julio</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("8")">Agosto</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("9")">Septiembre</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("10")">Octubre</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("11")">Noviembre</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("12")">Diciembre</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
 
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Concepto</label>
-                    <select @bind="filtroConceptoId" @bind:after="Buscar" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition">
-                        <option value="">Todos los conceptos</option>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudSelect T="string" Value="filtroConceptoId" Label="Concepto" Variant="Variant.Outlined" 
+                               AnchorOrigin="Origin.BottomCenter" FullWidth
+                               ValueChanged="@OnConceptoChanged">
+                        <MudSelectItem T="string" Value="@(string.Empty)">Todos los conceptos</MudSelectItem>
                         @if (conceptos != null)
                         {
                             @foreach (var concepto in conceptos)
                             {
-                                <option value="@concepto.Id">@concepto.Nombre</option>
+                                <MudSelectItem T="string" Value="@concepto.Id.ToString()">@concepto.Nombre</MudSelectItem>
                             }
                         }
-                    </select>
-                </div>
+                    </MudSelect>
+                </MudItem>
 
-                <div class="flex items-end">
-                    <button @onclick="LimpiarFiltros" class="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition">
-                        Limpiar Filtros
-                    </button>
-                </div>
-            </div>
-        </div>
+                <MudItem xs="12" sm="6" md="2" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" 
+                               OnClick="LimpiarFiltros" FullWidth
+                               StartIcon="@Icons.Material.Filled.FilterAltOff">
+                        Limpiar
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </LamaFilterCard>
 
         <!-- Tabla de Presupuestos -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
@@ -252,13 +183,13 @@
                                         }
                                     </td>
                                     <td class="px-6 py-4 text-right whitespace-nowrap">
-                                        <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">@presupuesto.MontoPresupuestado.ToString("C0")</span>
+                                        <span class="lama-numeric text-sm font-semibold text-blue-600 dark:text-blue-400">@presupuesto.MontoPresupuestado.ToString("C0")</span>
                                     </td>
                                     <td class="px-6 py-4 text-right whitespace-nowrap">
-                                        <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400">@presupuesto.MontoEjecutado.ToString("C0")</span>
+                                        <span class="lama-numeric text-sm font-semibold text-emerald-600 dark:text-emerald-400">@presupuesto.MontoEjecutado.ToString("C0")</span>
                                     </td>
                                     <td class="px-6 py-4 text-right whitespace-nowrap">
-                                        <span class="text-sm font-semibold @(presupuesto.Diferencia >= 0 ? "text-orange-600 dark:text-orange-400" : "text-red-600 dark:text-red-400")">
+                                        <span class="lama-numeric text-sm font-semibold @(presupuesto.Diferencia >= 0 ? "text-orange-600 dark:text-orange-400" : "text-red-600 dark:text-red-400")">
                                             @presupuesto.Diferencia.ToString("C0")
                                         </span>
                                     </td>
@@ -839,5 +770,42 @@
     {
         public string Message { get; set; } = string.Empty;
         public int CantidadCopiada { get; set; }
+    }
+
+    // Handlers para filtros MudSelect
+    private void OnAnoChanged(string valor)
+    {
+        filtroAno = valor;
+        Buscar();
+    }
+
+    private void OnMesChanged(string valor)
+    {
+        filtroMes = valor;
+        Buscar();
+    }
+
+    private void OnConceptoChanged(string valor)
+    {
+        filtroConceptoId = valor;
+        Buscar();
+    }
+
+    // Helpers para formateo y KPIs
+    private string FormatCurrency(decimal value) => value.ToString("C0");
+
+    private string GetPorcentajeEjecucionTexto(EstadisticasPresupuestoDto stats)
+    {
+        if (stats.TotalPresupuestado == 0) return "Sin datos";
+        var porcentaje = (stats.TotalEjecutado / stats.TotalPresupuestado) * 100;
+        return $"{porcentaje:F1}% del presupuesto";
+    }
+
+    private string GetEstadoEjecucion(decimal porcentaje)
+    {
+        if (porcentaje < 50) return "Ejecución baja";
+        if (porcentaje < 80) return "Ejecución normal";
+        if (porcentaje <= 100) return "Ejecución alta";
+        return "Sobreejecución";
     }
 }

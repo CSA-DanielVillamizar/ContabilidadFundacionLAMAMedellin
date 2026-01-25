@@ -7,8 +7,8 @@
 @attribute [Authorize(Policy = "AdminGerenteTesorero")]
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject ToastService Toast
-
+@inject LamaToastService Toast
+@inject IDialogService DialogService
 <PageTitle>Conciliación Bancaria</PageTitle>
 
 <!-- Encabezado premium -->
@@ -70,7 +70,7 @@
   </LamaFilterCard>
 
   <!-- KPIs premium -->
-  <MudGrid Style="margin-bottom: 1.5rem;">
+  <MudGrid Class="mb-6">
     <MudItem xs="12" sm="4">
       <LamaStatCard 
           Icon="article"
@@ -165,26 +165,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Modal Eliminar -->
-  @if (mostrarModalEliminar && seleccion != null)
-  {
-    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700">
-        <div class="flex items-start">
-          <svg class="w-8 h-8 text-red-600 dark:text-red-400 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-          <div>
-            <h3 class="text-lg font-semibold">Eliminar conciliación</h3>
-            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">¿Seguro que deseas eliminar la conciliación de <b>@seleccion.Periodo</b>?</p>
-          </div>
-        </div>
-        <div class="mt-6 flex justify-end gap-2">
-          <button class="px-4 py-2 border rounded-lg" @onclick="() => mostrarModalEliminar = false">Cancelar</button>
-          <button class="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50" disabled="@eliminando" @onclick="Eliminar">@((eliminando ? "Eliminando..." : "Eliminar"))</button>
-        </div>
-      </div>
-    </div>
-  }
 </div>
 
 @code {
@@ -212,8 +192,6 @@
   private int porPagina = 20;
   private int totalCount = 0;
   private bool cargando = true;
-  private bool mostrarModalEliminar = false;
-  private bool eliminando = false;
   private ConciliacionBancariaDto? seleccion;
 
   protected override async Task OnInitializedAsync()
@@ -237,7 +215,7 @@
       var resp = await Http.GetAsync(url);
       if (!resp.IsSuccessStatusCode)
       {
-        Toast.ShowError("No se pudo cargar el listado");
+        Toast.Error("No se pudo cargar el listado");
         return;
       }
       var content = await resp.Content.ReadAsStringAsync();
@@ -248,7 +226,7 @@
     }
     catch
     {
-      Toast.ShowError("Error inesperado al cargar");
+      Toast.Error("Error inesperado al cargar");
     }
     finally
     {
@@ -270,33 +248,38 @@
     if (seleccion is null) return;
     try
     {
-      eliminando = true;
       var resp = await Http.DeleteAsync($"/api/conciliacionbancaria/{seleccion.Id}");
       if (resp.IsSuccessStatusCode)
       {
-        Toast.ShowSuccess("Conciliación eliminada");
-        mostrarModalEliminar = false;
+        Toast.Success("Conciliación eliminada");
         await Cargar();
       }
       else
       {
         var msg = await resp.Content.ReadAsStringAsync();
-        Toast.ShowWarning($"No se eliminó: {msg}");
+        Toast.Warning($"No se eliminó: {msg}");
       }
     }
     catch
     {
-      Toast.ShowError("Error eliminando");
-    }
-    finally
-    {
-      eliminando = false;
+      Toast.Error("Error eliminando");
     }
   }
 
-  private void ConfirmarEliminar(ConciliacionBancariaDto c)
+  private async void ConfirmarEliminar(ConciliacionBancariaDto c)
   {
-    seleccion = c; mostrarModalEliminar = true;
+    seleccion = c;
+    var confirmed = await DialogService.ShowMessageBox(
+      "Eliminar conciliación",
+      $"¿Estás seguro de eliminar la conciliación de {c.Periodo}? Esta acción no se puede deshacer.",
+      yesText: "Eliminar",
+      cancelText: "Cancelar"
+    );
+    
+    if (confirmed == true)
+    {
+      await Eliminar();
+    }
   }
 
   private void Nuevo() => Nav.NavigateTo("/tesoreria/conciliaciones-bancarias/form");

@@ -1,0 +1,611 @@
+@page "/miembros/{MiembroId:guid}"
+@attribute [Authorize(Policy = "TesoreroJuntaConsulta")]
+@inject Server.Services.Miembros.IMiembrosService MiembrosService
+@inject Server.Services.Recibos.IRecibosService RecibosService
+@inject Server.Services.Deudores.IDeudoresService DeudoresService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@using Server.DTOs
+@using Server.DTOs.Miembros
+@using Server.DTOs.Recibos
+@using Server.Models
+@using Server.Services.Deudores
+
+<style>
+    /* Tarjetas del perfil con superficies adaptadas al tema */
+    .perfil-card {
+        background: var(--mud-palette-background);
+        border: 1px solid var(--mud-palette-lines-default);
+        transition: background-color 0.3s, border-color 0.3s;
+    }
+</style>
+
+<PageTitle>Perfil de Miembro - LAMA Medellín</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+        @if (miembro == null)
+        {
+            <MudProgressLinear Indeterminate="true" />
+            <MudText Class="mt-4">Cargando perfil del miembro...</MudText>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Text" 
+                       Color="Color.Default" 
+                       StartIcon="@Icons.Material.Filled.ArrowBack" 
+                       OnClick="Atrás"
+                       Class="mb-3">
+                Volver a Miembros
+            </MudButton>
+
+            <!-- Grid principal de 2 columnas -->
+            <MudGrid Spacing="4">
+                <!-- COLUMNA IZQUIERDA: Tarjeta de Identidad + Gráfica -->
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="0" Class="rounded-xl pa-4 perfil-card">
+                        <MudCardContent>
+                            <!-- Avatar grande centrado -->
+                            <div class="d-flex justify-center mb-4">
+                                <MudAvatar Size="Size.Large" 
+                                          Color="Color.Primary" 
+                                          Variant="Variant.Filled"
+                                          Class="pa-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Large" />
+                                </MudAvatar>
+                            </div>
+
+                            <!-- Información principal -->
+                            <MudText Typo="Typo.h6" Align="Align.Center" Class="font-weight-700 mb-1">
+                                @miembro.NombreCompleto
+                            </MudText>
+
+                            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-3">
+                                @($"Socio #{miembro.NumeroSocio}")
+                            </MudText>
+
+                            <!-- Cédula -->
+                            <MudStack Row="true" Class="mb-3" Justify="Justify.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Color="Color.Secondary" />
+                                <MudText Typo="Typo.body2">@miembro.Cedula</MudText>
+                            </MudStack>
+
+                            <!-- Rango -->
+                            @if (!string.IsNullOrEmpty(miembro.Rango))
+                            {
+                                <div class="mud-chip" style="display:inline-flex;margin-bottom:12px;width:100%;">
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Class="font-weight-600">
+                                        @miembro.Rango
+                                    </MudText>
+                                </div>
+                            }
+
+                            <!-- Estado -->
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-4">
+                                Estado: @miembro.Estado
+                            </MudText>
+
+                            <MudDivider Class="my-4" />
+
+                            <!-- KPIs -->
+                            <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-2">Resumen Financiero</MudText>
+
+                            <MudStack Spacing="2">
+                                <!-- Último Pago -->
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Último Pago:</MudText>
+                                    <MudText Typo="Typo.body2" Class="font-weight-600">
+                                        @(ultimoPago?.ToString("dd/MM/yyyy") ?? "Sin pagos")
+                                    </MudText>
+                                </div>
+
+                                <!-- Meses Pagados -->
+                                @if (mesesPagados != null && mesesPagados.Count > 0)
+                                {
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Meses Pagados:</MudText>
+                                        <span class="mud-chip mud-chip-filled" style="background-color: rgba(76, 175, 80, 0.2);">
+                                            <MudText Typo="Typo.caption" Class="font-weight-600">@mesesPagados.Count</MudText>
+                                        </span>
+                                    </div>
+                                }
+
+                                <!-- Meses Pendientes -->
+                                @if (mesesPendientes != null && mesesPendientes.Count > 0)
+                                {
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Meses Pendientes:</MudText>
+                                        <span class="mud-chip mud-chip-filled" style="background-color: rgba(255, 152, 0, 0.2);">
+                                            <MudText Typo="Typo.caption" Class="font-weight-600">@mesesPendientes.Count</MudText>
+                                        </span>
+                                    </div>
+                                }
+                            </MudStack>
+
+                            <MudDivider Class="my-4" />
+
+                            <!-- Gráfica: Comportamiento de Pago (Últimos 6 meses) -->
+                            <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-3">Comportamiento de Pago</MudText>
+                            
+                            @if (chartDataPago != null && chartDataPago.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Bar"
+                                         ChartData="@chartDataPago"
+                                         Width="100%"
+                                         Height="200px"
+                                         ChartOptions="chartOptions" />
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true">
+                                    Sin datos de pago en los últimos 6 meses
+                                </MudAlert>
+                            }
+
+                            <MudDivider Class="my-4" />
+
+                            <!-- Contacto -->
+                            <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-2">Contacto Directo</MudText>
+
+                            <MudStack Spacing="1">
+                                @if (!string.IsNullOrEmpty(miembro.Email))
+                                {
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Color="Color.Secondary" />
+                                        <MudText Typo="Typo.body2">@miembro.Email</MudText>
+                                    </MudStack>
+                                }
+
+                                @if (!string.IsNullOrEmpty(miembro.Celular))
+                                {
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Color="Color.Secondary" />
+                                        <MudText Typo="Typo.body2">@miembro.Celular</MudText>
+                                    </MudStack>
+                                }
+
+                                @if (!string.IsNullOrEmpty(miembro.Direccion))
+                                {
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Secondary" />
+                                        <MudText Typo="Typo.body2">@miembro.Direccion</MudText>
+                                    </MudStack>
+                                }
+                            </MudStack>
+
+                            <MudDivider Class="my-3" />
+
+                            <!-- Auditoría Rápida -->
+                            <MudText Typo="Typo.caption" Class="text-center mt-3">
+                                <MudLink Href="@($"/admin/auditoria?usuarioId={MiembroId}")" 
+                                        Color="Color.Default"
+                                        Underline="Underline.Always">
+                                    Ver historial de cambios →
+                                </MudLink>
+                            </MudText>
+
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <!-- COLUMNA DERECHA: Tabs con Información Detallada -->
+                <MudItem xs="12" md="8">
+                    <MudCard Elevation="0" Class="rounded-xl pa-4 perfil-card">
+                        <MudTabs Elevation="0">
+                            <!-- TAB 1: Información Detallada del Miembro -->
+                            <MudTabPanel Text="Información" Icon="@Icons.Material.Filled.Info">
+                                <MudCardContent>
+                                    <MudStack Spacing="3">
+                                        <!-- Nombres -->
+                                        <div>
+                                            <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-1">Nombres</MudText>
+                                            <MudTextField @bind-Value="miembro.Nombres" 
+                                                         ReadOnly="true"
+                                                         Variant="Variant.Outlined"
+                                                         Margin="Margin.Dense" />
+                                        </div>
+
+                                        <!-- Apellidos -->
+                                        <div>
+                                            <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-1">Apellidos</MudText>
+                                            <MudTextField @bind-Value="miembro.Apellidos" 
+                                                         ReadOnly="true"
+                                                         Variant="Variant.Outlined"
+                                                         Margin="Margin.Dense" />
+                                        </div>
+
+                                        <!-- Cédula -->
+                                        <div>
+                                            <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-1">Cédula</MudText>
+                                            <MudTextField @bind-Value="miembro.Cedula" 
+                                                         ReadOnly="true"
+                                                         Variant="Variant.Outlined"
+                                                         Margin="Margin.Dense" />
+                                        </div>
+
+                                        <!-- Fecha de Ingreso -->
+                                        @if (miembro.FechaIngreso.HasValue)
+                                        {
+                                            <div>
+                                                <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-1">Fecha de Ingreso</MudText>
+                                                <MudTextField Value="@miembro.FechaIngreso?.ToString("dd/MM/yyyy")" 
+                                                             ReadOnly="true"
+                                                             Variant="Variant.Outlined"
+                                                             Margin="Margin.Dense" />
+                                            </div>
+                                        }
+
+                                        <!-- Cargo -->
+                                        @if (!string.IsNullOrEmpty(miembro.Cargo))
+                                        {
+                                            <div>
+                                                <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-1">Cargo</MudText>
+                                                <MudTextField @bind-Value="miembro.Cargo" 
+                                                             ReadOnly="true"
+                                                             Variant="Variant.Outlined"
+                                                             Margin="Margin.Dense" />
+                                            </div>
+                                        }
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudTabPanel>
+
+                            <!-- TAB 2: Historial Financiero con Filtros PLATINUM -->
+                            <MudTabPanel Text="Historial Financiero" Icon="@Icons.Material.Filled.Receipt">
+                                <MudCardContent>
+                                    <!-- BARRA DE HERRAMIENTAS: Filtros y Exportación -->
+                                    <MudToolBar Dense="true" Class="mb-4 rounded-lg pa-3" Style="background: rgba(19,109,236,0.08); border: 1px solid rgba(19,109,236,0.15);">
+                                        <!-- Filtro por Rango de Fechas -->
+                                        <MudDateRangePicker @bind-DateRange="_dateRange"
+                                                          Label="Filtrar por Fecha"
+                                                          Class="mx-2">
+                                        </MudDateRangePicker>
+
+                                        <!-- Filtro por Estado -->
+                                        <MudSelect T="EstadoRecibo?"
+                                                  Label="Estado"
+                                                  @bind-Value="_estadoFiltro"
+                                                  Variant="Variant.Outlined"
+                                                  AnchorOrigin="Origin.BottomCenter"
+                                                  Clearable="true"
+                                                  Class="mx-2"
+                                                  Style="min-width: 150px;">
+                                            <MudSelectItem T="EstadoRecibo?" Value="@null">Todos</MudSelectItem>
+                                            @foreach (EstadoRecibo estado in Enum.GetValues(typeof(EstadoRecibo)))
+                                            {
+                                                <MudSelectItem T="EstadoRecibo?" Value="@estado">@estado</MudSelectItem>
+                                            }
+                                        </MudSelect>
+
+                                        <MudSpacer />
+
+                                        <!-- Botón Exportar -->
+                                        <MudButton Variant="Variant.Filled"
+                                                  Color="Color.Success"
+                                                  StartIcon="@Icons.Material.Filled.FileDownload"
+                                                  Size="Size.Small"
+                                                  OnClick="@ExportarHistorial"
+                                                  Class="mx-2">
+                                            Exportar
+                                        </MudButton>
+                                    </MudToolBar>
+
+                                    <!-- TABLA: Recibos Filtrados -->
+                                    @if (recibos == null || recibos.Count == 0)
+                                    {
+                                        <MudAlert Severity="Severity.Info">
+                                            @(recibos == null ? "Cargando recibos..." : "No hay recibos registrados para este miembro.")
+                                        </MudAlert>
+                                    }
+                                    else
+                                    {
+                                        var recibosFiltraos = recibos.Where(r => FiltroRecibos(r)).ToList();
+                                        <MudTable Items="@recibosFiltraos" 
+                                                 Hover="true" 
+                                                 Striped="true" 
+                                                 Dense="true" 
+                                                 Class="mt-4">
+                                            <HeaderContent>
+                                                <MudTh>Número</MudTh>
+                                                <MudTh>Fecha Emisión</MudTh>
+                                                <MudTh>Estado</MudTh>
+                                                <MudTh>Pagador</MudTh>
+                                                <MudTh Style="text-align:right">Total (COP)</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate Context="rowContext">
+                                                <MudTd DataLabel="Número">
+                                                    <MudLink Href="@($"/recibos/{rowContext.Id}")" Color="Color.Primary">
+                                                        @rowContext.NumeroCompleto
+                                                    </MudLink>
+                                                </MudTd>
+                                                <MudTd DataLabel="Fecha Emisión">
+                                                    @rowContext.FechaEmision.ToString("dd/MM/yyyy")
+                                                </MudTd>
+                                                <MudTd DataLabel="Estado">
+                                                    <div style="display:inline-block;padding:4px 8px;border-radius:4px;@ObtenerEstiloEstado(rowContext.Estado)">
+                                                        <MudText Typo="Typo.caption">
+                                                            @rowContext.Estado.ToString()
+                                                        </MudText>
+                                                    </div>
+                                                </MudTd>
+                                                <MudTd DataLabel="Pagador">
+                                                    @rowContext.NombrePagador
+                                                </MudTd>
+                                                <MudTd DataLabel="Total (COP)" Style="text-align:right">
+                                                    <MudText Typo="Typo.body2" Class="font-weight-600">
+                                                        @rowContext.TotalCop.ToString("N0")
+                                                    </MudText>
+                                                </MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    }
+                                </MudCardContent>
+                            </MudTabPanel>
+
+                            <!-- TAB 3: Estado de Cuenta -->
+                            <MudTabPanel Text="Estado de Cuenta" Icon="@Icons.Material.Filled.AccountBalance">
+                                <MudCardContent>
+                                    @if (detalleDeudor == null)
+                                    {
+                                        <MudAlert Severity="Severity.Info">
+                                            Cargando estado de cuenta...
+                                        </MudAlert>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Spacing="3">
+                                            <!-- Meses Pagados -->
+                                            @if (mesesPagados != null && mesesPagados.Count > 0)
+                                            {
+                                                <div>
+                                                    <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-2">
+                                                        ✓ Meses Pagados (@mesesPagados.Count)
+                                                    </MudText>
+                                                    <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(76, 175, 80, 0.1);">
+                                                        <MudText Typo="Typo.body2">
+                                                            @string.Join(", ", mesesPagados.Select(m => m.ToString("MMMM/yyyy", new System.Globalization.CultureInfo("es-ES"))))
+                                                        </MudText>
+                                                    </MudPaper>
+                                                </div>
+                                            }
+
+                                            <!-- Meses Pendientes -->
+                                            @if (mesesPendientes != null && mesesPendientes.Count > 0)
+                                            {
+                                                <div>
+                                                    <MudText Typo="Typo.subtitle2" Class="font-weight-600 mb-2">
+                                                        ⚠️ Meses Pendientes (@mesesPendientes.Count)
+                                                    </MudText>
+                                                    <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(255, 152, 0, 0.1);">
+                                                        <MudText Typo="Typo.body2">
+                                                            @string.Join(", ", mesesPendientes.OrderBy(m => m).Select(m => m.ToString("MMMM/yyyy", new System.Globalization.CultureInfo("es-ES"))))
+                                                        </MudText>
+                                                    </MudPaper>
+                                                </div>
+                                            }
+
+                                            @if ((mesesPagados == null || mesesPagados.Count == 0) && (mesesPendientes == null || mesesPendientes.Count == 0))
+                                            {
+                                                <MudAlert Severity="Severity.Info">
+                                                    Sin información de estado de deudor disponible.
+                                                </MudAlert>
+                                            }
+                                        </MudStack>
+                                    }
+                                </MudCardContent>
+                            </MudTabPanel>
+                        </MudTabs>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public Guid MiembroId { get; set; }
+
+    // Variables de datos
+    private MiembroDetailDto? miembro;
+    private List<ReciboListItem>? recibos;
+    private DeudorDetalle? detalleDeudor;
+    private DateTime? ultimoPago;
+    private List<DateOnly>? mesesPagados;
+    private List<DateOnly>? mesesPendientes;
+
+    // Filtros PLATINUM
+    private DateRange _dateRange = new DateRange();
+    private EstadoRecibo? _estadoFiltro;
+
+    // Gráfica PLATINUM
+    private double[] chartDataPago = Array.Empty<double>();
+    private ChartOptions chartOptions = new ChartOptions();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Cargar datos secuencialmente para evitar problemas de concurrencia con DbContext
+            miembro = await MiembrosService.GetByIdAsync(MiembroId);
+            detalleDeudor = await DeudoresService.ObtenerDetalleAsync(MiembroId);
+            
+            // Obtener recibos del miembro
+            var todosLosRecibos = await RecibosService.GetPagedAsync(null, null, 1, 100);
+            recibos = todosLosRecibos.Items
+                .Where(r => r.NombrePagador?.Contains(miembro?.NombreCompleto ?? "") ?? false)
+                .OrderByDescending(r => r.FechaEmision)
+                .Take(50)
+                .ToList();
+
+            // Calcular KPI: último pago
+            if (recibos != null && recibos.Count > 0)
+            {
+                ultimoPago = recibos.First().FechaEmision;
+            }
+
+            // Obtener meses pagados y pendientes del deudor
+            if (detalleDeudor != null)
+            {
+                mesesPagados = detalleDeudor.MesesPagados;
+                mesesPendientes = detalleDeudor.MesesPendientes;
+            }
+
+            // Generar datos para gráfica de pago (últimos 6 meses)
+            GenerarGraficaPago();
+
+            // Configurar opciones de la gráfica
+            ConfigurarGraficaOpciones();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar perfil: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Genera los datos de la gráfica de comportamiento de pago (últimos 6 meses)
+    /// </summary>
+    private void GenerarGraficaPago()
+    {
+        if (recibos == null || recibos.Count == 0)
+        {
+            chartDataPago = Array.Empty<double>();
+            return;
+        }
+
+        // Obtener últimos 6 meses
+        var ahora = DateTime.Now;
+        var hace6Meses = ahora.AddMonths(-6);
+
+        // Agrupar recibos por mes
+        var pagosPorMes = new Dictionary<string, decimal>();
+        
+        for (int i = 5; i >= 0; i--)
+        {
+            var fecha = ahora.AddMonths(-i);
+            var mesAnio = fecha.ToString("MMM/yy");
+            pagosPorMes[mesAnio] = 0;
+        }
+
+        // Sumar totales por mes (solo recibos emitidos)
+        foreach (var recibo in recibos.Where(r => r.FechaEmision >= hace6Meses && r.Estado == EstadoRecibo.Emitido))
+        {
+            var mesAnio = recibo.FechaEmision.ToString("MMM/yy");
+            if (pagosPorMes.ContainsKey(mesAnio))
+            {
+                pagosPorMes[mesAnio] += recibo.TotalCop;
+            }
+        }
+
+        // Convertir a datos de gráfica (doble para compatibilidad con MudChart)
+        chartDataPago = pagosPorMes.Values.Select(v => (double)v).ToArray();
+    }
+
+    /// <summary>
+    /// Configura las opciones visuales de la gráfica
+    /// </summary>
+    private void ConfigurarGraficaOpciones()
+    {
+        chartOptions = new ChartOptions
+        {
+            YAxisTicks = 10000,
+            LineStrokeWidth = 2,
+            YAxisLines = true,
+            XAxisLines = false
+        };
+    }
+
+    /// <summary>
+    /// Filtra recibos según rango de fecha y estado seleccionado
+    /// </summary>
+    private bool FiltroRecibos(ReciboListItem recibo)
+    {
+        // Filtro por estado
+        if (_estadoFiltro.HasValue && recibo.Estado != _estadoFiltro.Value)
+            return false;
+
+        // Filtro por rango de fechas
+        if (_dateRange?.Start.HasValue == true && recibo.FechaEmision.Date < _dateRange.Start.Value)
+            return false;
+
+        if (_dateRange?.End.HasValue == true && recibo.FechaEmision.Date > _dateRange.End.Value)
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Exporta el historial filtrado a Excel
+    /// </summary>
+    private async Task ExportarHistorial()
+    {
+        try
+        {
+            // Obtener recibos filtrados actualmente
+            var recibosAExportar = recibos?.Where(r => FiltroRecibos(r)).ToList() ?? new List<ReciboListItem>();
+
+            if (recibosAExportar.Count == 0)
+            {
+                Snackbar.Add("No hay recibos para exportar con los filtros aplicados", Severity.Warning);
+                return;
+            }
+
+            // Construir URL de exportación desde endpoint
+            var fechaDesde = _dateRange?.Start?.ToString("yyyy-MM-dd") ?? "";
+            var fechaHasta = _dateRange?.End?.ToString("yyyy-MM-dd") ?? "";
+            var urlExportacion = $"/api/exportaciones/recibos";
+
+            if (!string.IsNullOrEmpty(fechaDesde))
+                urlExportacion += $"?desde={fechaDesde}";
+            if (!string.IsNullOrEmpty(fechaHasta))
+                urlExportacion += (urlExportacion.Contains("?") ? "&" : "?") + $"hasta={fechaHasta}";
+
+            // Usar JS Interop para descargar archivo
+            await JS.InvokeVoidAsync("triggerFileDownload", urlExportacion, $"Recibos_{miembro?.NumeroSocio}_{DateTime.Now:yyyyMMdd}.xlsx");
+
+            Snackbar.Add($"Descargando {recibosAExportar.Count} recibos...", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al exportar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>
+    /// Obtiene estilo CSS para el estado del recibo
+    /// </summary>
+    private string ObtenerEstiloEstado(EstadoRecibo estado)
+    {
+        return estado switch
+        {
+            EstadoRecibo.Emitido => "background-color: rgba(76, 175, 80, 0.15); border: 1px solid rgba(76, 175, 80, 0.3);",
+            EstadoRecibo.Borrador => "background-color: rgba(255, 152, 0, 0.15); border: 1px solid rgba(255, 152, 0, 0.3);",
+            EstadoRecibo.Anulado => "background-color: rgba(244, 67, 54, 0.15); border: 1px solid rgba(244, 67, 54, 0.3);",
+            _ => "background-color: rgba(0, 0, 0, 0.08);"
+        };
+    }
+
+    /// <summary>
+    /// Obtiene el color correspondiente al rango del miembro
+    /// </summary>
+    private Color ObtenerColorRango(string? rango)
+    {
+        return rango?.ToLower() switch
+        {
+            "oro" => Color.Warning,
+            "plata" => Color.Info,
+            "bronce" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    /// <summary>
+    /// Navega hacia atrás (vuelve a la lista de miembros)
+    /// </summary>
+    private void Atrás() => NavigationManager.NavigateTo("/miembros");
+}

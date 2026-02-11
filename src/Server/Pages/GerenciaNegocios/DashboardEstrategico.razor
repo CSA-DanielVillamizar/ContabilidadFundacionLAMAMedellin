@@ -1,0 +1,457 @@
+@page "/gerencia/dashboard-estrategico"
+@attribute [Authorize]
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@using Server.Services.Recibos
+@using Server.Services.Miembros
+@inject IRecibosService RecibosService
+@inject IMiembrosService MiembrosService
+
+<style>
+    /* Estilos de superficies y tarjetas del dashboard con soporte de tema */
+    .dashboard-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+    }
+
+    .dashboard-hero-button {
+        color: #667eea;
+    }
+
+    .dashboard-kpi {
+        color: #ffffff;
+        border-radius: 16px;
+    }
+
+    .dashboard-kpi--growth {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .dashboard-kpi--retention {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .dashboard-kpi--projection {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .dashboard-kpi-chip {
+        background-color: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+
+    .dashboard-card {
+        border-radius: 16px;
+    }
+
+    .dashboard-legend-item {
+        border-radius: 8px;
+    }
+
+    .dashboard-legend-item--cuotas {
+        background-color: rgba(102, 126, 234, 0.1);
+    }
+
+    .dashboard-legend-item--eventos {
+        background-color: rgba(17, 153, 142, 0.1);
+    }
+
+    .dashboard-legend-item--donaciones {
+        background-color: rgba(245, 87, 108, 0.1);
+    }
+
+    .dashboard-legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+
+    .dashboard-legend-dot--cuotas {
+        background-color: #667eea;
+    }
+
+    .dashboard-legend-dot--eventos {
+        background-color: #11998e;
+    }
+
+    .dashboard-legend-dot--donaciones {
+        background-color: #f5576c;
+    }
+
+    .dashboard-footer {
+        background-color: rgba(102, 126, 234, 0.05);
+        border-radius: 12px;
+    }
+
+    /* Encabezados y tabla de contribuyentes con texto adaptable */
+    .dashboard-contribuyentes {
+        color: var(--mud-palette-text-primary);
+    }
+
+    .dashboard-contribuyentes .mud-typography {
+        color: inherit;
+    }
+
+    .dashboard-contribuyentes .mud-table {
+        color: var(--mud-palette-text-primary);
+    }
+
+    .dashboard-contribuyentes .mud-table-head .mud-table-cell {
+        color: var(--mud-palette-text-primary);
+    }
+
+    .dashboard-contribuyentes .mud-table-body .mud-table-cell {
+        color: var(--mud-palette-text-primary);
+    }
+
+    .dashboard-contribuyentes .mud-table-head th,
+    .dashboard-contribuyentes .mud-table-body td {
+        color: var(--mud-palette-text-primary) !important;
+    }
+
+    .dashboard-contribuyentes-head {
+        color: var(--mud-palette-text-primary) !important;
+    }
+</style>
+
+<PageHeader 
+    Title="Visión Estratégica 2026" 
+    Subtitle="Análisis de crecimiento, retención y tesorería anual" 
+    Icon="@Icons.Material.Filled.TrendingUp" />
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <!-- Botón de Descarga PDF -->
+    <MudPaper Class="pa-4 mb-4 d-flex justify-space-between align-center dashboard-hero" Elevation="0">
+        <div>
+            <MudText Typo="Typo.h5" Class="fw-bold">Panel Ejecutivo L.A.M.A. Medellín</MudText>
+            <MudText Typo="Typo.body2">Actualizado: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Surface" 
+                   StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                   Size="Size.Large"
+                   Class="dashboard-hero-button">
+            Descargar Informe Ejecutivo (PDF)
+        </MudButton>
+    </MudPaper>
+
+    <!-- Fila 1: KPIs de Alto Impacto -->
+    <MudGrid Spacing="3" Class="mb-4">
+        <!-- KPI 1: Crecimiento Anual -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-6 dashboard-kpi dashboard-kpi--growth" Elevation="3">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Large" />
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="dashboard-kpi-chip">@_porcentajeCrecimiento.ToString("+0;-0;0")%</MudChip>
+                </div>
+                <MudText Typo="Typo.h3" Class="fw-bold mb-2">$@_crecimientoAnual.ToString("N0")</MudText>
+                <MudText Typo="Typo.body2" Style="opacity: 0.9;">Crecimiento Anual</MudText>
+                <MudText Typo="Typo.caption" Style="opacity: 0.7;" Class="mt-2">vs. Año Anterior (@_porcentajeCrecimiento.ToString("+0;-0;0")% incremento)</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <!-- KPI 2: Retención de Miembros -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-6 dashboard-kpi dashboard-kpi--retention" Elevation="3">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" />
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="dashboard-kpi-chip">Excelente</MudChip>
+                </div>
+                <MudText Typo="Typo.h3" Class="fw-bold mb-2">@_retencionMiembros%</MudText>
+                <MudText Typo="Typo.body2" Style="opacity: 0.9;">Retención de Miembros</MudText>
+                <MudText Typo="Typo.caption" Style="opacity: 0.7;" Class="mt-2">@_miembrosActivos de @_totalMiembros miembros activos</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <!-- KPI 3: Proyección de Cierre -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-6 dashboard-kpi dashboard-kpi--projection" Elevation="3">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Large" />
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="dashboard-kpi-chip">Proyección</MudChip>
+                </div>
+                <MudText Typo="Typo.h3" Class="fw-bold mb-2">$@_proyeccionCierre.ToString("N0")</MudText>
+                <MudText Typo="Typo.body2" Style="opacity: 0.9;">Proyección de Cierre</MudText>
+                <MudText Typo="Typo.caption" Style="opacity: 0.7;" Class="mt-2">Estimado de caja a fin de año</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Fila 2: Gráficas Principales -->
+    <MudGrid Spacing="3" Class="mb-4">
+        <!-- Gráfica Izquierda: Evolución de Ingresos vs Gastos (60%) -->
+        <MudItem xs="12" md="7">
+            <MudPaper Class="pa-6 dashboard-card" Elevation="2">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <div>
+                        <MudText Typo="Typo.h6" Class="fw-bold">Evolución de Ingresos vs Gastos</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Comparativa mensual 2026</MudText>
+                    </div>
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">Enero - Junio</MudChip>
+                </div>
+                
+                <MudChart ChartType="ChartType.Line" 
+                          ChartSeries="@_seriesIngresosGastos" 
+                          XAxisLabels="@_mesesLabel"
+                          Width="100%" 
+                          Height="350px"
+                          ChartOptions="@_chartOptions">
+                </MudChart>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Gráfica Derecha: Distribución de Ingresos (40%) -->
+        <MudItem xs="12" md="5">
+            <MudPaper Class="pa-6 dashboard-card" Elevation="2">
+                <div class="mb-4">
+                    <MudText Typo="Typo.h6" Class="fw-bold">Distribución de Ingresos</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Fuentes de ingreso principales</MudText>
+                </div>
+                
+                <MudChart ChartType="ChartType.Donut" 
+                          InputData="@_distribucionIngresos" 
+                          InputLabels="@_distribucionLabels"
+                          Width="100%" 
+                          Height="350px">
+                </MudChart>
+
+                <!-- Leyenda Personalizada -->
+                <div class="mt-4">
+                    <div class="d-flex align-center justify-space-between mb-2 pa-2 dashboard-legend-item dashboard-legend-item--cuotas">
+                        <div class="d-flex align-center gap-2">
+                            <div class="dashboard-legend-dot dashboard-legend-dot--cuotas"></div>
+                            <MudText Typo="Typo.body2">Cuotas Mensuales</MudText>
+                        </div>
+                        <MudText Typo="Typo.body2" Class="fw-bold">60%</MudText>
+                    </div>
+                    <div class="d-flex align-center justify-space-between mb-2 pa-2 dashboard-legend-item dashboard-legend-item--eventos">
+                        <div class="d-flex align-center gap-2">
+                            <div class="dashboard-legend-dot dashboard-legend-dot--eventos"></div>
+                            <MudText Typo="Typo.body2">Eventos</MudText>
+                        </div>
+                        <MudText Typo="Typo.body2" Class="fw-bold">30%</MudText>
+                    </div>
+                    <div class="d-flex align-center justify-space-between pa-2 dashboard-legend-item dashboard-legend-item--donaciones">
+                        <div class="d-flex align-center gap-2">
+                            <div class="dashboard-legend-dot dashboard-legend-dot--donaciones"></div>
+                            <MudText Typo="Typo.body2">Donaciones</MudText>
+                        </div>
+                        <MudText Typo="Typo.body2" Class="fw-bold">10%</MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Fila 3: Top Donantes / Miembros Destacados -->
+    <MudPaper Class="pa-6 dashboard-card dashboard-contribuyentes" Elevation="2">
+        <div class="d-flex align-center justify-space-between mb-4">
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold" Color="Color.Inherit">Top 5 Contribuyentes del Año</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Miembros con mayor aporte acumulado en 2026</MudText>
+            </div>
+            <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.EmojiEvents" Variant="Variant.Filled">Reconocimiento</MudChip>
+        </div>
+
+        <MudTable Items="@_topContribuyentes" Hover="true" Elevation="0" Class="dashboard-contribuyentes" Style="background-color: transparent; color: var(--mud-palette-text-primary);">
+            <HeaderContent>
+                <MudTh Class="dashboard-contribuyentes-head" Style="font-weight: 600;">Posición</MudTh>
+                <MudTh Class="dashboard-contribuyentes-head" Style="font-weight: 600;">Miembro</MudTh>
+                <MudTh Class="dashboard-contribuyentes-head" Style="font-weight: 600;">Total Aportado</MudTh>
+                <MudTh Class="dashboard-contribuyentes-head" Style="font-weight: 600;">Tipo</MudTh>
+                <MudTh Class="dashboard-contribuyentes-head" Style="font-weight: 600;">Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudChip T="string" Color="@GetMedalColor(context.Posicion)" Size="Size.Small" Icon="@GetMedalIcon(context.Posicion)">
+                        #@context.Posicion
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    <div class="d-flex align-center gap-3">
+                        <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                            @context.Iniciales
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.body2" Class="fw-bold">@context.Nombre</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Miembro desde @(context.AñoIngreso > 0 ? context.AñoIngreso.ToString() : "N/D")
+                            </MudText>
+                        </div>
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body1" Class="fw-bold" Color="Color.Success">
+                        $@context.TotalAportado.ToString("N0")
+                    </MudText>
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">@context.TipoAporte</MudChip>
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">Activo</MudChip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+
+    <!-- Footer con Información Adicional -->
+    <MudPaper Class="pa-4 mt-4 d-flex align-center justify-space-between dashboard-footer" Elevation="0">
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" />
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Los datos presentados son proyecciones basadas en el comportamiento histórico y la actividad actual de la organización.
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh">
+            Actualizar Datos
+        </MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    // KPIs de Alto Impacto
+    private decimal _crecimientoAnual = 0m;
+    private decimal _ingresosAnuales = 0m;
+    private decimal _ingresosAnualesAnterior = 0m;
+    private decimal _porcentajeCrecimiento = 0m;
+    private int _retencionMiembros = 0;
+    private int _miembrosActivos = 0;
+    private int _totalMiembros = 0;
+    private decimal _proyeccionCierre = 0m;
+
+    // Datos para Gráfica de Líneas (Ingresos vs Gastos)
+    private string[] _mesesLabel = { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+    private List<ChartSeries> _seriesIngresosGastos = new();
+    private double[] _dataGraficaIngresos = Array.Empty<double>();
+    
+    // Datos para Gráfica de Donut (Distribución de Ingresos)
+    private double[] _distribucionIngresos = { 0, 0, 0 };
+    private string[] _distribucionLabels = { "Cuotas Mensuales", "Eventos", "Donaciones" };
+    private double[] _dataDonut = Array.Empty<double>();
+
+    // Top Contribuyentes
+    private List<ContribuyenteDto> _topContribuyentes = new();
+
+    // Opciones de gráfica
+    private ChartOptions _chartOptions = new ChartOptions
+    {
+        YAxisTicks = 10000000,
+        YAxisFormat = "C0",
+        InterpolationOption = InterpolationOption.NaturalSpline,
+        LineStrokeWidth = 3
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosRealesAsync();
+    }
+
+    /// <summary>
+    /// Carga datos reales del dashboard desde servicios de dominio.
+    /// </summary>
+    private async Task CargarDatosRealesAsync()
+    {
+        const int anioActual = 2026;
+        const int anioAnterior = 2025;
+
+        _ingresosAnuales = await RecibosService.ObtenerTotalAnualAsync(anioActual);
+        _ingresosAnualesAnterior = await RecibosService.ObtenerTotalAnualAsync(anioAnterior);
+        _dataGraficaIngresos = await RecibosService.ObtenerIngresosMensualesAsync(anioActual);
+        _dataDonut = await RecibosService.ObtenerDistribucionIngresosAsync(anioActual);
+        var top = await MiembrosService.ObtenerTopContribuyentesAsync(anioActual);
+        var metricas = await MiembrosService.ObtenerMetricasRetencionAsync();
+
+        _crecimientoAnual = _ingresosAnuales;
+        _proyeccionCierre = _ingresosAnuales;
+        _miembrosActivos = metricas.Activos;
+        _totalMiembros = metricas.Total;
+        _retencionMiembros = _totalMiembros > 0 ? (int)Math.Round((_miembrosActivos * 100m) / _totalMiembros) : 0;
+
+        if (_ingresosAnualesAnterior > 0)
+        {
+            _porcentajeCrecimiento = Math.Round(((_ingresosAnuales - _ingresosAnualesAnterior) / _ingresosAnualesAnterior) * 100m, 0);
+        }
+        else
+        {
+            _porcentajeCrecimiento = 0m;
+        }
+
+        _distribucionIngresos = _dataDonut.Length == 3 ? _dataDonut : new double[] { 0, 0, 0 };
+
+        _seriesIngresosGastos.Clear();
+        _seriesIngresosGastos.Add(new ChartSeries
+        {
+            Name = "Ingresos 2026",
+            Data = _dataGraficaIngresos.Length == 12 ? _dataGraficaIngresos : new double[12]
+        });
+
+        _seriesIngresosGastos.Add(new ChartSeries
+        {
+            Name = "Gastos 2026",
+            Data = new double[_mesesLabel.Length]
+        });
+
+        _topContribuyentes = top
+            .Select((t, index) => new ContribuyenteDto
+            {
+                Posicion = index + 1,
+                Nombre = t.Nombre,
+                Iniciales = ObtenerIniciales(t.Nombre),
+                TotalAportado = t.TotalAportado,
+                TipoAporte = "Aportes",
+                AñoIngreso = t.AnoIngreso ?? 0
+            })
+            .ToList();
+    }
+
+            /// <summary>
+            /// Obtiene las iniciales de un nombre completo para avatares.
+            /// </summary>
+    private static string ObtenerIniciales(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return string.Empty;
+
+        var partes = nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (partes.Length == 1)
+            return partes[0].Substring(0, 1).ToUpperInvariant();
+
+        return string.Concat(partes[0][0], partes[^1][0]).ToUpperInvariant();
+    }
+
+    /// <summary>
+    /// Obtiene el color del chip de medalla según la posición
+    /// </summary>
+    private Color GetMedalColor(int posicion)
+    {
+        return posicion switch
+        {
+            1 => Color.Warning,   // Oro
+            2 => Color.Default,   // Plata
+            3 => Color.Error,     // Bronce
+            _ => Color.Info
+        };
+    }
+
+    /// <summary>
+    /// Obtiene el icono de medalla según la posición
+    /// </summary>
+    private string GetMedalIcon(int posicion)
+    {
+        return posicion <= 3 ? Icons.Material.Filled.EmojiEvents : Icons.Material.Filled.Star;
+    }
+
+    /// <summary>
+    /// DTO para representar un contribuyente destacado
+    /// </summary>
+    public class ContribuyenteDto
+    {
+        public int Posicion { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string Iniciales { get; set; } = string.Empty;
+        public decimal TotalAportado { get; set; }
+        public string TipoAporte { get; set; } = string.Empty;
+        public int AñoIngreso { get; set; }
+    }
+}
